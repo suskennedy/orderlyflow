@@ -2,36 +2,39 @@ import { Stack } from "expo-router";
 import React from "react";
 import { StatusBar } from "react-native";
 
-export default function RootLayout() {
+export default function AuthLayout() {
   return (
     <>
       <StatusBar barStyle="dark-content" backgroundColor="#EEF2FF" />
       <Stack
         screenOptions={{
-          headerShown: false,
+          headerTintColor: "#2563EB",
+          headerShadowVisible: false,
           contentStyle: {
+            backgroundColor: "#EEF2FF",
+          },
+          headerStyle: {
             backgroundColor: "#EEF2FF",
           },
           animation: "slide_from_right",
         }}
       >
         <Stack.Screen
-          name="index"
+          name="login"
           options={{
-            headerShown: false,
+            title: "Sign In",
           }}
         />
         <Stack.Screen
-          name="(auth)"
+          name="register"
           options={{
-            headerShown: false,
+            title: "Create Account",
           }}
         />
         <Stack.Screen
-          name="(dashboard)"
+          name="forgot-password"
           options={{
-            headerShown: false,
-            gestureEnabled: false,
+            title: "Reset Password",
           }}
         />
       </Stack>
