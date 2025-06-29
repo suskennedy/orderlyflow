@@ -1,28 +1,36 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import Button from '../../components/ui/Button';
+import { signIn } from '../../lib/auth/actions';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { navigate } from '../../lib/navigation';
 
 export default function SignIn() {
-  const { signIn } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate.toDashboard();
+    }
+  }, [user, authLoading]);
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -49,21 +57,17 @@ export default function SignIn() {
     try {
       setLoading(true);
 
-      // Attempt to sign in
-      const { error } = await signIn(email.trim(), password);
+      // Use the server action for sign in
+      await signIn(email.trim(), password);
 
-      if (error) {
-        // Provide the error message to the UI as well as a system alert
-        const message = (error as any)?.message ?? 'Unable to sign in. Please check your credentials and try again.';
-        setErrors({ password: message }); // display message beneath the password field
-        Alert.alert('Sign In Error', message);
-      } else {
-        // Clear any existing errors and navigate to dashboard
-        setErrors({});
-        navigate.toDashboard();
-      }
-    } catch {
-      Alert.alert('Error', 'An unexpected error occurred');
+      // Clear any existing errors and navigate to dashboard
+      setErrors({});
+      navigate.toDashboard();
+    } catch (error: any) {
+      // Provide the error message to the UI as well as a system alert
+      const message = error?.message ?? 'Unable to sign in. Please check your credentials and try again.';
+      setErrors({ password: message }); // display message beneath the password field
+      Alert.alert('Sign In Error', message);
     } finally {
       setLoading(false);
     }
@@ -76,6 +80,17 @@ export default function SignIn() {
   const handleSignUp = () => {
     navigate.toSignUp();
   };
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -199,6 +214,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#EEF2FF',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   keyboardView: {
     flex: 1,

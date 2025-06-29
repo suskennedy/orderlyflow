@@ -29,12 +29,14 @@ export function useHomes() {
   }, [userProfile, homes]);
 
   const fetchHomes = async () => {
+    if (!user?.id) return;
+    
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('homes')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -50,10 +52,12 @@ export function useHomes() {
   };
 
   const createHome = async (homeData: HomeInsert) => {
+    if (!user?.id) return { data: null, error: new Error('User not authenticated') };
+    
     try {
       const { data, error } = await supabase
         .from('homes')
-        .insert([{ ...homeData, user_id: user?.id }])
+        .insert([{ ...homeData, user_id: user.id }])
         .select()
         .single();
 
@@ -71,7 +75,7 @@ export function useHomes() {
         await supabase
           .from('user_profiles')
           .update({ default_home_id: data.id })
-          .eq('id', user?.id);
+          .eq('id', user.id);
       }
 
       return { data, error: null };
@@ -135,6 +139,8 @@ export function useHomes() {
   };
 
   const switchHome = async (homeId: string) => {
+    if (!user?.id) return;
+    
     const home = homes.find(h => h.id === homeId);
     if (home) {
       setCurrentHome(home);
@@ -142,7 +148,7 @@ export function useHomes() {
       await supabase
         .from('user_profiles')
         .update({ default_home_id: homeId })
-        .eq('id', user?.id);
+        .eq('id', user.id);
     }
   };
 

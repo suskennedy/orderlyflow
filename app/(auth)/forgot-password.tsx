@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     KeyboardAvoidingView,
@@ -13,14 +13,22 @@ import {
     View,
 } from 'react-native';
 import Button from '../../components/ui/Button';
+import { resetPassword } from '../../lib/auth/actions';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { navigate } from '../../lib/navigation';
 
 export default function ForgotPassword() {
-  const { resetPassword } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate.toDashboard();
+    }
+  }, [user, authLoading]);
 
   const validateEmail = () => {
     if (!email.trim()) {
@@ -39,20 +47,18 @@ export default function ForgotPassword() {
 
     try {
       setLoading(true);
-      const { error } = await resetPassword(email.trim());
+      
+      // Use the server action for password reset
+      await resetPassword(email.trim());
 
-      if (error) {
-        Alert.alert('Error', (error as any)?.message ?? 'Unable to send reset email. Please try again.');
-      } else {
-        setEmailSent(true);
-        Alert.alert(
-          'Reset Email Sent',
-          'Please check your email for password reset instructions.',
-          [{ text: 'OK' }]
-        );
-      }
-    } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      setEmailSent(true);
+      Alert.alert(
+        'Reset Email Sent',
+        'Please check your email for password reset instructions.',
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      Alert.alert('Error', error?.message ?? 'Unable to send reset email. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -61,6 +67,17 @@ export default function ForgotPassword() {
   const handleBackToSignIn = () => {
     navigate.toSignIn();
   };
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -73,7 +90,10 @@ export default function ForgotPassword() {
         <View style={styles.content}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={handleBackToSignIn} style={styles.backButton}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={handleBackToSignIn}
+            >
               <Ionicons name="arrow-back" size={24} color="#4F46E5" />
             </TouchableOpacity>
             
@@ -81,20 +101,31 @@ export default function ForgotPassword() {
               <View style={styles.logo}>
                 <Ionicons name="lock-closed" size={32} color="#FFFFFF" />
               </View>
-              <Text style={styles.title}>Reset Password</Text>
-              <Text style={styles.subtitle}>
-                {emailSent 
-                  ? 'We\'ve sent you a reset link!'
-                  : 'Enter your email to receive reset instructions'
-                }
-              </Text>
+              <Text style={styles.appName}>Reset Password</Text>
             </View>
+            <Text style={styles.tagline}>
+              {emailSent 
+                ? 'Check your email for reset instructions'
+                : 'Enter your email to reset your password'
+              }
+            </Text>
           </View>
 
           {/* Form */}
           <View style={styles.form}>
-            {!emailSent ? (
+            <Text style={styles.formTitle}>
+              {emailSent ? 'Email Sent!' : 'Forgot Password?'}
+            </Text>
+            <Text style={styles.formSubtitle}>
+              {emailSent 
+                ? 'We\'ve sent password reset instructions to your email address.'
+                : 'Don\'t worry, we\'ll help you reset your password.'
+              }
+            </Text>
+
+            {!emailSent && (
               <>
+                {/* Email Input */}
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Email Address</Text>
                   <View style={styles.inputContainer}>
@@ -111,35 +142,25 @@ export default function ForgotPassword() {
                   </View>
                 </View>
 
+                {/* Reset Button */}
                 <Button
-                  title="Send Reset Link"
+                  title="Send Reset Email"
                   onPress={handleResetPassword}
                   loading={loading}
                   style={styles.resetButton}
                 />
               </>
-            ) : (
-              <View style={styles.successContainer}>
-                <View style={styles.successIcon}>
-                  <Ionicons name="checkmark-circle" size={64} color="#10B981" />
-                </View>
-                <Text style={styles.successTitle}>Email Sent!</Text>
-                <Text style={styles.successMessage}>
-                  We've sent password reset instructions to {email}
-                </Text>
-                <Text style={styles.successNote}>
-                  Check your email and follow the link to reset your password.
-                </Text>
-              </View>
             )}
 
             {/* Back to Sign In */}
-            <View style={styles.signInContainer}>
-              <Text style={styles.signInText}>Remember your password? </Text>
-              <TouchableOpacity onPress={handleBackToSignIn}>
-                <Text style={styles.signInLink}>Sign in</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity 
+              onPress={handleBackToSignIn}
+              style={styles.backToSignInButton}
+            >
+              <Text style={styles.backToSignInText}>
+                {emailSent ? 'Back to Sign In' : 'Remember your password? Sign In'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -153,25 +174,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEF2FF',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   keyboardView: {
     flex: 1,
   },
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingVertical: 32,
+    justifyContent: 'center',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 48,
+    position: 'relative',
   },
   backButton: {
-    alignSelf: 'flex-start',
+    position: 'absolute',
+    left: 0,
+    top: 0,
     padding: 8,
-    marginBottom: 24,
   },
   logoContainer: {
     alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 40,
   },
   logo: {
     width: 80,
@@ -180,19 +210,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#4F46E5',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  title: {
+  appName: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 8,
   },
-  subtitle: {
+  tagline: {
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 24,
+    paddingHorizontal: 20,
+    lineHeight: 22,
   },
   form: {
     backgroundColor: '#FFFFFF',
@@ -203,6 +233,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+  },
+  formTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  formSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 22,
   },
   inputGroup: {
     marginBottom: 24,
@@ -232,44 +276,12 @@ const styles = StyleSheet.create({
   resetButton: {
     marginBottom: 24,
   },
-  successContainer: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  successIcon: {
-    marginBottom: 16,
-  },
-  successTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  successMessage: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  successNote: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
-  },
-  signInContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  backToSignInButton: {
     alignItems: 'center',
   },
-  signInText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  signInLink: {
+  backToSignInText: {
     fontSize: 14,
     color: '#4F46E5',
-    fontWeight: '600',
+    fontWeight: '500',
   },
 });

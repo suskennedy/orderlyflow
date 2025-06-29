@@ -1,359 +1,314 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    RefreshControl,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
-import LoadingSpinner from '../../../components/ui/LoadingSpinner';
-import { useHomes } from '../../../lib/hooks/useHomes';
+import { useAuth } from '../../../lib/hooks/useAuth';
 import { supabase } from '../../../lib/supabase';
-
-type InventoryCategory = 'appliances' | 'filters' | 'light_fixtures' | 'paint_colors' | 'tiles' | 'cabinets' | 'infrastructure_locations';
 
 interface InventoryItem {
   id: string;
   name: string;
-  type?: string | null;
-  category?: string | null;
-  brand?: string | null;
-  location?: string | null;
-  created_at?: string | null;
+  brand: string | null;
+  model: string | null;
+  serial_number: string | null;
+  location: string | null;
+  purchase_date: string | null;
+  warranty_expiration: string | null;
+  manual_url: string | null;
+  home_id: string | null;
+  notes: string | null;
+  created_at: string | null;
+  homes?: {
+    name: string;
+  } | null;
 }
 
-interface CategoryData {
-  title: string;
-  icon: string;
-  items: InventoryItem[];
-  addRoute: string;
-}
+const INVENTORY_TYPES = [
+  { key: 'appliance', label: 'Appliances', icon: 'tv-outline' },
+  { key: 'filter', label: 'Filters', icon: 'funnel-outline' },
+  { key: 'fixture', label: 'Light Fixtures', icon: 'bulb-outline' },
+  { key: 'cabinet', label: 'Cabinets', icon: 'library-outline' },
+  { key: 'tile', label: 'Tiles', icon: 'grid-outline' },
+  { key: 'paint', label: 'Paint Colors', icon: 'color-palette-outline' },
+  { key: 'infrastructure', label: 'Infrastructure', icon: 'construct-outline' },
+];
 
-export default function Inventory() {
-  const { currentHome } = useHomes();
+export default function InventoryScreen() {
+  const { user } = useAuth();
+  const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [categories, setCategories] = useState<Record<InventoryCategory, CategoryData>>({
-    appliances: { title: 'Appliances', icon: 'construct-outline', items: [], addRoute: '/inventory/appliances/add' },
-    filters: { title: 'Filters', icon: 'filter-outline', items: [], addRoute: '/inventory/filters/add' },
-    light_fixtures: { title: 'Light Fixtures', icon: 'bulb-outline', items: [], addRoute: '/inventory/lights/add' },
-    paint_colors: { title: 'Paint Colors', icon: 'color-palette-outline', items: [], addRoute: '/inventory/paint/add' },
-    tiles: { title: 'Tiles', icon: 'grid-outline', items: [], addRoute: '/inventory/tiles/add' },
-    cabinets: { title: 'Cabinets', icon: 'cube-outline', items: [], addRoute: '/inventory/cabinets/add' },
-    infrastructure_locations: { title: 'Infrastructure', icon: 'build-outline', items: [], addRoute: '/inventory/infrastructure/add' },
-  });
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (currentHome) {
-      fetchInventoryData();
-    }
-  }, [currentHome]);
+    fetchItems();
+  }, []);
 
-  const fetchInventoryData = async () => {
-    if (!currentHome) return;
-
+  const fetchItems = async () => {
     try {
-      setLoading(true);
+      if (!user?.id) return;
       
-      // Fetch all inventory data in parallel
-      const [
-        appliances,
-        filters,
-        lightFixtures,
-        paintColors,
-        tiles,
-        cabinets,
-        infrastructure,
-      ] = await Promise.all([
-        supabase.from('appliances').select('*').eq('home_id', currentHome.id),
-        supabase.from('filters').select('*').eq('home_id', currentHome.id),
-        supabase.from('light_fixtures').select('*').eq('home_id', currentHome.id),
-        supabase.from('paint_colors').select('*').eq('home_id', currentHome.id),
-        supabase.from('tiles').select('*').eq('home_id', currentHome.id),
-        supabase.from('cabinets').select('*').eq('home_id', currentHome.id),
-        supabase.from('infrastructure_locations').select('*').eq('home_id', currentHome.id),
-      ]);
+      const { data, error } = await supabase
+        .from('appliances')
+        .select(`
+          *,
+          homes (
+            name
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-      setCategories(prev => ({
-        ...prev,
-        appliances: { ...prev.appliances, items: appliances.data || [] },
-        filters: { ...prev.filters, items: filters.data || [] },
-        light_fixtures: { ...prev.light_fixtures, items: lightFixtures.data || [] },
-        paint_colors: { ...prev.paint_colors, items: paintColors.data || [] },
-        tiles: { ...prev.tiles, items: tiles.data || [] },
-        cabinets: { ...prev.cabinets, items: cabinets.data || [] },
-        infrastructure_locations: { ...prev.infrastructure_locations, items: infrastructure.data || [] },
-      }));
+      if (error) throw error;
+      setItems(data || []);
     } catch (error) {
-      console.error('Error fetching inventory data:', error);
+      console.error('Error fetching inventory:', error);
+      Alert.alert('Error', 'Failed to load inventory');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const getFilteredItems = (items: InventoryItem[]) => {
-    if (!searchQuery.trim()) return items;
-    
-    return items.filter(item =>
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.brand?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.type?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchItems();
   };
 
-  const getTotalItems = () => {
-    return Object.values(categories).reduce((total, category) => total + category.items.length, 0);
+  const getCategoryIcon = (brand: string | null) => {
+    const brandLower = brand?.toLowerCase() || '';
+    if (brandLower.includes('samsung') || brandLower.includes('lg') || brandLower.includes('whirlpool')) return 'tv';
+    if (brandLower.includes('carrier') || brandLower.includes('trane')) return 'thermometer';
+    if (brandLower.includes('kohler') || brandLower.includes('moen')) return 'water';
+    if (brandLower.includes('ge') || brandLower.includes('square d')) return 'flash';
+    return 'cube';
   };
 
-  const getFilteredTotal = () => {
-    return Object.values(categories).reduce((total, category) => 
-      total + getFilteredItems(category.items).length, 0
-    );
+  const getCategoryColor = (brand: string | null) => {
+    const brandLower = brand?.toLowerCase() || '';
+    if (brandLower.includes('samsung') || brandLower.includes('lg') || brandLower.includes('whirlpool')) return '#3B82F6';
+    if (brandLower.includes('carrier') || brandLower.includes('trane')) return '#EF4444';
+    if (brandLower.includes('kohler') || brandLower.includes('moen')) return '#06B6D4';
+    if (brandLower.includes('ge') || brandLower.includes('square d')) return '#F59E0B';
+    return '#6B7280';
   };
 
-  const handleAddItem = (category: string) => {
-    // TODO: Implement navigation to add item screens
-    console.log('Add item for category:', category);
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
   };
 
-  const handleViewItem = (category: string, itemId: string) => {
-    // TODO: Implement navigation to item details
-    console.log('View item:', category, itemId);
+  const isWarrantyExpiring = (warrantyDate: string | null) => {
+    if (!warrantyDate) return false;
+    const warranty = new Date(warrantyDate);
+    const today = new Date();
+    const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+    return warranty <= thirtyDaysFromNow && warranty >= today;
   };
+
+  const isWarrantyExpired = (warrantyDate: string | null) => {
+    if (!warrantyDate) return false;
+    return new Date(warrantyDate) < new Date();
+  };
+
+  const renderInventoryCard = ({ item }: { item: InventoryItem }) => (
+    <View style={styles.inventoryCard}>
+      <View style={styles.itemHeader}>
+        <View style={[styles.categoryIcon, { backgroundColor: `${getCategoryColor(item.brand)}20` }]}>
+          <Ionicons 
+            name={getCategoryIcon(item.brand) as any} 
+            size={24} 
+            color={getCategoryColor(item.brand)} 
+          />
+        </View>
+        <View style={styles.itemInfo}>
+          <Text style={styles.itemName}>{item.name}</Text>
+          {item.brand && item.model && (
+            <Text style={styles.itemModel}>{item.brand} - {item.model}</Text>
+          )}
+          {item.brand && (
+            <Text style={styles.itemCategory}>{item.brand}</Text>
+          )}
+        </View>
+        <TouchableOpacity style={styles.moreButton}>
+          <Ionicons name="ellipsis-horizontal" size={20} color="#6B7280" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.itemDetails}>
+        {item.serial_number && (
+          <View style={styles.detailRow}>
+            <Ionicons name="barcode" size={16} color="#6B7280" />
+            <Text style={styles.detailText}>S/N: {item.serial_number}</Text>
+          </View>
+        )}
+        
+        {item.location && (
+          <View style={styles.detailRow}>
+            <Ionicons name="location" size={16} color="#6B7280" />
+            <Text style={styles.detailText}>{item.location}</Text>
+          </View>
+        )}
+        
+        {item.manual_url && (
+          <View style={styles.detailRow}>
+            <Ionicons name="document-text" size={16} color="#6B7280" />
+            <Text style={styles.detailText}>Manual Available</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.itemMeta}>
+        {item.purchase_date && (
+          <View style={styles.metaItem}>
+            <Text style={styles.metaLabel}>Purchased</Text>
+            <Text style={styles.metaValue}>{formatDate(item.purchase_date)}</Text>
+          </View>
+        )}
+        
+        {item.warranty_expiration && (
+          <View style={styles.metaItem}>
+            <Text style={styles.metaLabel}>Warranty</Text>
+            <Text style={[
+              styles.metaValue,
+              isWarrantyExpired(item.warranty_expiration) && styles.expiredWarranty,
+              isWarrantyExpiring(item.warranty_expiration) && styles.expiringWarranty
+            ]}>
+              {formatDate(item.warranty_expiration)}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {item.homes?.name && (
+        <View style={styles.homeContainer}>
+          <Ionicons name="home" size={14} color="#6B7280" />
+          <Text style={styles.homeText}>{item.homes.name}</Text>
+        </View>
+      )}
+
+      {item.notes && (
+        <View style={styles.notesContainer}>
+          <Text style={styles.notesText} numberOfLines={2}>{item.notes}</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="cube-outline" size={64} color="#D1D5DB" />
+      <Text style={styles.emptyTitle}>No Inventory Items</Text>
+      <Text style={styles.emptySubtitle}>
+        Track your appliances, furniture, and other valuable items
+      </Text>
+      <TouchableOpacity 
+        style={styles.emptyButton}
+        onPress={() => router.push('/(dashboard)/inventory/add')}
+      >
+        <Text style={styles.emptyButtonText}>Add Your First Item</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   if (loading) {
-    return <LoadingSpinner text="Loading inventory..." />;
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4F46E5" />
+        <Text style={styles.loadingText}>Loading inventory...</Text>
+      </View>
+    );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#EEF2FF" />
+    <View style={styles.container}>
+      <FlatList
+        data={items}
+        renderItem={renderInventoryCard}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={[
+          styles.listContainer,
+          items.length === 0 && styles.emptyContainer
+        ]}
+        ListEmptyComponent={renderEmptyState}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
+      />
       
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Inventory</Text>
-          <Text style={styles.subtitle}>
-            {searchQuery ? `${getFilteredTotal()} of ${getTotalItems()}` : `${getTotalItems()}`} items
-          </Text>
-        </View>
-      </View>
-
-      {/* Search */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={20} color="#6B7280" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search inventory..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#6B7280" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {Object.entries(categories).map(([key, category]) => {
-          const filteredItems = getFilteredItems(category.items);
-          
-          if (searchQuery && filteredItems.length === 0) return null;
-
-          return (
-            <View key={key} style={styles.categorySection}>
-              <View style={styles.categoryHeader}>
-                <View style={styles.categoryTitleRow}>
-                  <Ionicons name={category.icon as any} size={24} color="#4F46E5" />
-                  <Text style={styles.categoryTitle}>{category.title}</Text>
-                  <View style={styles.categoryCount}>
-                    <Text style={styles.categoryCountText}>{filteredItems.length}</Text>
-                  </View>
-                </View>
-                <TouchableOpacity 
-                  style={styles.addCategoryButton}
-                  onPress={() => handleAddItem(key)}
-                >
-                  <Ionicons name="add" size={20} color="#4F46E5" />
-                </TouchableOpacity>
-              </View>
-
-              {filteredItems.length > 0 ? (
-                <View style={styles.itemsList}>
-                  {filteredItems.map((item) => (
-                    <TouchableOpacity 
-                      key={item.id} 
-                      style={styles.itemCard}
-                      onPress={() => handleViewItem(key, item.id)}
-                    >
-                      <View style={styles.itemInfo}>
-                        <Text style={styles.itemName}>{item.name}</Text>
-                        <View style={styles.itemMeta}>
-                          {item.brand && (
-                            <Text style={styles.itemMetaText}>Brand: {item.brand}</Text>
-                          )}
-                          {item.location && (
-                            <Text style={styles.itemMetaText}>Location: {item.location}</Text>
-                          )}
-                          {item.type && (
-                            <Text style={styles.itemMetaText}>Type: {item.type}</Text>
-                          )}
-                        </View>
-                      </View>
-                      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              ) : (
-                <View style={styles.emptyCategory}>
-                  <Text style={styles.emptyCategoryText}>
-                    No {category.title.toLowerCase()} added yet
-                  </Text>
-                  <TouchableOpacity 
-                    style={styles.addFirstButton}
-                    onPress={() => handleAddItem(key)}
-                  >
-                    <Text style={styles.addFirstButtonText}>Add First Item</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          );
-        })}
-
-        {getTotalItems() === 0 && !searchQuery && (
-          <View style={styles.emptyState}>
-            <Ionicons name="grid-outline" size={64} color="#9CA3AF" />
-            <Text style={styles.emptyTitle}>No inventory items</Text>
-            <Text style={styles.emptyDescription}>
-              Start building your home inventory by adding appliances, filters, and other items.
-            </Text>
-          </View>
-        )}
-
-        {searchQuery && getFilteredTotal() === 0 && getTotalItems() > 0 && (
-          <View style={styles.emptyState}>
-            <Ionicons name="search" size={64} color="#9CA3AF" />
-            <Text style={styles.emptyTitle}>No items found</Text>
-            <Text style={styles.emptyDescription}>
-              Try adjusting your search terms or browse all categories.
-            </Text>
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+      {items.length > 0 && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => router.push('/(dashboard)/inventory/add')}
+        >
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEF2FF',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    backgroundColor: '#F9FAFB',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  searchContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  searchInput: {
+  loadingContainer: {
     flex: 1,
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  categorySection: {
-    marginBottom: 24,
-  },
-  categoryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  categoryTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  categoryTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    flex: 1,
-  },
-  categoryCount: {
-    backgroundColor: '#EEF2FF',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  categoryCountText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#4F46E5',
-  },
-  addCategoryButton: {
-    backgroundColor: '#EEF2FF',
-    borderRadius: 20,
-    width: 36,
-    height: 36,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F9FAFB',
   },
-  itemsList: {
-    gap: 8,
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#6B7280',
   },
-  itemCard: {
+  listContainer: {
+    padding: 20,
+    paddingBottom: 100,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  inventoryCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    padding: 20,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 2,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  categoryIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
   },
   itemInfo: {
     flex: 1,
@@ -361,55 +316,125 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#111827',
     marginBottom: 4,
   },
-  itemMeta: {
-    gap: 2,
-  },
-  itemMetaText: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  emptyCategory: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-  },
-  emptyCategoryText: {
+  itemModel: {
     fontSize: 14,
     color: '#6B7280',
-    marginBottom: 12,
-    textAlign: 'center',
+    marginBottom: 2,
   },
-  addFirstButton: {
-    backgroundColor: '#EEF2FF',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  addFirstButtonText: {
+  itemCategory: {
     fontSize: 12,
-    fontWeight: '500',
     color: '#4F46E5',
+    fontWeight: '500',
+  },
+  moreButton: {
+    padding: 8,
+    marginRight: -8,
+  },
+  itemDetails: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  itemMeta: {
+    flexDirection: 'row',
+    gap: 20,
+    marginBottom: 12,
+  },
+  metaItem: {
+    flex: 1,
+  },
+  metaLabel: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  metaValue: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  expiredWarranty: {
+    color: '#EF4444',
+  },
+  expiringWarranty: {
+    color: '#F59E0B',
+  },
+  homeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  homeText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  notesContainer: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  notesText: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+    fontStyle: 'italic',
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 32,
+    paddingHorizontal: 40,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '600',
-    color: '#1F2937',
-    marginTop: 16,
+    color: '#111827',
+    marginTop: 24,
     marginBottom: 8,
   },
-  emptyDescription: {
-    fontSize: 14,
+  emptySubtitle: {
+    fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 24,
+    marginBottom: 32,
   },
-});
+  emptyButton: {
+    backgroundColor: '#4F46E5',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  emptyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 90,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#4F46E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+}); 

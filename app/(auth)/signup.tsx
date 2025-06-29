@@ -1,24 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import Button from '../../components/ui/Button';
+import { signUp } from '../../lib/auth/actions';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { navigate } from '../../lib/navigation';
 
 export default function SignUp() {
-  const { signUp } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -34,6 +35,13 @@ export default function SignUp() {
     password?: string;
     confirmPassword?: string;
   }>({});
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate.toDashboard();
+    }
+  }, [user, authLoading]);
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
@@ -73,23 +81,21 @@ export default function SignUp() {
 
     try {
       setLoading(true);
-      const { error } = await signUp(
+      
+      // Use the server action for sign up
+      await signUp(
         formData.email.trim(),
         formData.password,
         formData.fullName.trim()
       );
 
-      if (error) {
-        Alert.alert('Sign Up Error', (error as any)?.message ?? 'Unable to create account. Please try again.');
-      } else {
-        Alert.alert(
-          'Account Created!',
-          'Please check your email to verify your account.',
-          [{ text: 'OK', onPress: () => navigate.toSignIn() }]
-        );
-      }
-    } catch {
-      Alert.alert('Error', 'An unexpected error occurred');
+      Alert.alert(
+        'Account Created!',
+        'Please check your email to verify your account.',
+        [{ text: 'OK', onPress: () => navigate.toSignIn() }]
+      );
+    } catch (error: any) {
+      Alert.alert('Sign Up Error', error?.message ?? 'Unable to create account. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -102,9 +108,18 @@ export default function SignUp() {
     }
   };
 
-  const handleSignIn = () => {
-    navigate.toSignIn();
-  };
+  
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -270,6 +285,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#EEF2FF',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   keyboardView: {
     flex: 1,

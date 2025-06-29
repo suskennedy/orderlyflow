@@ -9,6 +9,8 @@ export const navigate = {
   
   // Dashboard routes - using the correct route group structure
   toDashboard: () => router.replace('/(dashboard)' as any),
+  toHomes: () => router.replace('/(dashboard)/homes' as any),
+  toVendors: () => router.replace('/(dashboard)/vendors' as any),
   toTasks: () => router.push('/(dashboard)/tasks' as any),
   toInventory: () => router.push('/(dashboard)/inventory' as any),
   toCalendar: () => router.push('/(dashboard)/calendar' as any),

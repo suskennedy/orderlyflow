@@ -1,6 +1,7 @@
 import { Session, User } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { UserProfile } from '../../types/database';
+import { signOut as serverSignOut } from '../auth/actions';
 import { supabase } from '../supabase';
 
 export function useAuth() {
@@ -130,12 +131,13 @@ export function useAuth() {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
+    try {
+      await serverSignOut();
+      return { error: null };
+    } catch (error) {
       console.error('Error signing out:', error);
       return { error };
     }
-    return { error: null };
   };
 
   const resetPassword = async (email: string) => {

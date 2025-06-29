@@ -64,7 +64,7 @@ export type Database = {
           serial_number?: string | null
           updated_at?: string | null
           warranty_expiration?: string | null
-        }
+        }                 
         Update: {
           brand?: string | null
           created_at?: string | null

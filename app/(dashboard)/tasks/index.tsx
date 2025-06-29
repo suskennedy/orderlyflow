@@ -1,588 +1,495 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
+    FlatList,
+    RefreshControl,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
-import Button from '../../../components/ui/Button';
-import LoadingSpinner from '../../../components/ui/LoadingSpinner';
-import { useHomes } from '../../../lib/hooks/useHomes';
+import { useAuth } from '../../../lib/hooks/useAuth';
 import { supabase } from '../../../lib/supabase';
-import { Task } from '../../../types/database';
 
-type FilterType = 'all' | 'pending' | 'in_progress' | 'completed' | 'overdue';
-type SortType = 'created_at' | 'due_date' | 'priority' | 'title';
+interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  priority: string | null;
+  status: string | null;
+  due_date: string | null;
+  is_recurring: boolean | null;
+  recurrence_pattern: string | null;
+  home_id: string | null;
+  notes: string | null;
+  created_at: string | null;
+  homes?: {
+    name: string;
+  } | null;
+}
 
-export default function Tasks() {
-  const { currentHome } = useHomes();
+export default function TasksScreen() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-  const [sortBy, setSortBy] = useState<SortType>('created_at');
+  const [refreshing, setRefreshing] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
+    priority: 'medium',
+    category: 'general',
+  });
 
   useEffect(() => {
-    if (currentHome) {
+    if (user) {
       fetchTasks();
     }
-  }, [currentHome]);
-
-  useEffect(() => {
-    filterAndSortTasks();
-  }, [tasks, searchQuery, activeFilter, sortBy]);
+  }, [user]);
 
   const fetchTasks = async () => {
-    if (!currentHome) return;
-
     try {
-      setLoading(true);
+      if (!user?.id) return;
+      
       const { data, error } = await supabase
         .from('tasks')
-        .select('*')
-        .eq('home_id', currentHome.id)
+        .select(`
+          *,
+          homes (
+            name
+          )
+        `)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching tasks:', error);
-      } else {
-        setTasks(data || []);
-      }
+      if (error) throw error;
+      setTasks(data || []);
     } catch (error) {
       console.error('Error fetching tasks:', error);
+      Alert.alert('Error', 'Failed to load tasks');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const filterAndSortTasks = () => {
-    let filtered = [...tasks];
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchTasks();
+  };
 
-    // Apply search filter
-    if (searchQuery.trim()) {
-      filtered = filtered.filter(task =>
-        task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        task.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        task.category?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+  const addTask = async () => {
+    if (!newTask.title.trim()) {
+      Alert.alert('Error', 'Please enter a task title');
+      return;
     }
 
-    // Apply status filter
-    const today = new Date().toISOString().split('T')[0];
-    switch (activeFilter) {
-      case 'pending':
-        filtered = filtered.filter(task => task.status === 'pending');
-        break;
-      case 'in_progress':
-        filtered = filtered.filter(task => task.status === 'in_progress');
-        break;
-      case 'completed':
-        filtered = filtered.filter(task => task.status === 'completed');
-        break;
-      case 'overdue':
-        filtered = filtered.filter(task => 
-          task.status !== 'completed' && 
-          task.due_date && 
-          task.due_date < today
-        );
-        break;
+    try {
+      const { error } = await supabase.from('tasks').insert([
+        {
+          title: newTask.title,
+          description: newTask.description || null,
+          priority: newTask.priority,
+          category: newTask.category,
+          status: 'pending',
+          user_id: user?.id,
+        },
+      ]);
+
+      if (error) throw error;
+
+      setNewTask({ title: '', description: '', priority: 'medium', category: 'general' });
+      setShowAddForm(false);
+      fetchTasks();
+    } catch (error) {
+      console.error('Error adding task:', error);
+      Alert.alert('Error', 'Failed to add task');
     }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'due_date':
-          if (!a.due_date && !b.due_date) return 0;
-          if (!a.due_date) return 1;
-          if (!b.due_date) return -1;
-          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-        case 'priority':
-          const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
-          const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
-          const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
-          return bPriority - aPriority;
-        case 'title':
-          return a.title.localeCompare(b.title);
-        default:
-          return new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime();
-      }
-    });
-
-    setFilteredTasks(filtered);
   };
 
   const updateTaskStatus = async (taskId: string, newStatus: string) => {
     try {
-      const updates: any = { status: newStatus };
-      if (newStatus === 'completed') {
-        updates.completion_date = new Date().toISOString();
-      }
-
       const { error } = await supabase
         .from('tasks')
-        .update(updates)
+        .update({ status: newStatus })
         .eq('id', taskId);
 
-      if (error) {
-        console.error('Error updating task status:', error);
-        Alert.alert('Error', 'Failed to update task status');
-        return;
-      }
-
-      // Update local state
+      if (error) throw error;
+      
       setTasks(prev => prev.map(task => 
-        task.id === taskId 
-          ? { ...task, status: newStatus, completion_date: updates.completion_date }
-          : task
+        task.id === taskId ? { ...task, status: newStatus } : task
       ));
     } catch (error) {
-      console.error('Error updating task status:', error);
+      console.error('Error updating task:', error);
       Alert.alert('Error', 'Failed to update task status');
     }
   };
 
-  const deleteTask = async (taskId: string) => {
-    Alert.alert(
-      'Delete Task',
-      'Are you sure you want to delete this task?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('tasks')
-                .delete()
-                .eq('id', taskId);
-
-              if (error) {
-                console.error('Error deleting task:', error);
-                Alert.alert('Error', 'Failed to delete task');
-                return;
-              }
-
-              setTasks(prev => prev.filter(task => task.id !== taskId));
-            } catch (error) {
-              console.error('Error deleting task:', error);
-              Alert.alert('Error', 'Failed to delete task');
-            }
-          },
-        },
-      ]
-    );
+  const getPriorityColor = (priority: string | null) => {
+    switch (priority?.toLowerCase()) {
+      case 'urgent': return '#DC2626';
+      case 'high': return '#F59E0B';
+      case 'medium': return '#3B82F6';
+      case 'low': return '#10B981';
+      default: return '#6B7280';
+    }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | null) => {
     switch (status) {
       case 'completed': return '#10B981';
       case 'in_progress': return '#3B82F6';
+      case 'cancelled': return '#EF4444';
       case 'pending': return '#F59E0B';
       default: return '#6B7280';
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return '#DC2626';
-      case 'high': return '#EF4444';
-      case 'medium': return '#F59E0B';
-      case 'low': return '#6B7280';
-      default: return '#6B7280';
+  const getCategoryIcon = (category: string | null) => {
+    switch (category?.toLowerCase()) {
+      case 'maintenance': return 'hammer';
+      case 'cleaning': return 'sparkles';
+      case 'inspection': return 'search';
+      case 'repair': return 'build';
+      case 'landscaping': return 'leaf';
+      case 'security': return 'shield-checkmark';
+      case 'utilities': return 'flash';
+      case 'insurance': return 'document-text';
+      case 'financial': return 'card';
+      case 'legal': return 'document';
+      default: return 'checkmark-circle';
     }
   };
 
-  const isOverdue = (task: Task) => {
-    if (!task.due_date || task.status === 'completed') return false;
-    return new Date(task.due_date) < new Date();
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+  const isOverdue = (dueDateString: string | null) => {
+    if (!dueDateString) return false;
+    return new Date(dueDateString) < new Date();
   };
 
-  const handleAddTask = () => {
-    // TODO: Navigate to add task screen
-    Alert.alert('Coming Soon', 'Add task functionality will be available soon');
-  };
+  const renderTaskCard = ({ item }: { item: Task }) => (
+    <View style={styles.taskCard}>
+      <View style={styles.taskHeader}>
+        <View style={styles.taskIconContainer}>
+          <Ionicons 
+            name={getCategoryIcon(item.category) as any} 
+            size={20} 
+            color={getPriorityColor(item.priority)} 
+          />
+        </View>
+        <View style={styles.taskInfo}>
+          <Text style={styles.taskTitle}>{item.title}</Text>
+          {item.description && (
+            <Text style={styles.taskDescription} numberOfLines={2}>
+              {item.description}
+            </Text>
+          )}
+        </View>
+        <TouchableOpacity 
+          style={[styles.statusButton, { backgroundColor: `${getStatusColor(item.status)}20` }]}
+          onPress={() => {
+            if (item.status === 'pending') updateTaskStatus(item.id, 'in_progress');
+            else if (item.status === 'in_progress') updateTaskStatus(item.id, 'completed');
+          }}
+        >
+          <Ionicons 
+            name={
+              item.status === 'completed' ? 'checkmark-circle' :
+              item.status === 'in_progress' ? 'play-circle' :
+              item.status === 'cancelled' ? 'close-circle' :
+              'time'
+            } 
+            size={24} 
+            color={getStatusColor(item.status)} 
+          />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.taskMeta}>
+        <View style={styles.metaRow}>
+          <View style={[styles.priorityBadge, { backgroundColor: `${getPriorityColor(item.priority)}20` }]}>
+            <Text style={[styles.priorityText, { color: getPriorityColor(item.priority) }]}>
+              {item.priority?.toUpperCase()}
+            </Text>
+          </View>
+          
+          {item.category && (
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryText}>{item.category}</Text>
+            </View>
+          )}
+          
+          {item.is_recurring && (
+            <View style={styles.recurringBadge}>
+              <Ionicons name="repeat" size={12} color="#8B5CF6" />
+              <Text style={styles.recurringText}>Recurring</Text>
+            </View>
+          )}
+        </View>
+
+        {(item.due_date || item.homes?.name) && (
+          <View style={styles.metaRow}>
+            {item.due_date && (
+              <View style={styles.dueDateContainer}>
+                <Ionicons 
+                  name="calendar" 
+                  size={14} 
+                  color={isOverdue(item.due_date) ? '#EF4444' : '#6B7280'} 
+                />
+                <Text style={[
+                  styles.dueDateText,
+                  isOverdue(item.due_date) && styles.overdueText
+                ]}>
+                  {formatDate(item.due_date)}
+                </Text>
+              </View>
+            )}
+            
+            {item.homes?.name && (
+              <View style={styles.homeContainer}>
+                <Ionicons name="home" size={14} color="#6B7280" />
+                <Text style={styles.homeText}>{item.homes.name}</Text>
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+
+      {item.notes && (
+        <View style={styles.notesContainer}>
+          <Text style={styles.notesText} numberOfLines={2}>{item.notes}</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="checkmark-done-outline" size={64} color="#D1D5DB" />
+      <Text style={styles.emptyTitle}>No Tasks Yet</Text>
+      <Text style={styles.emptySubtitle}>
+        Create tasks to manage your property maintenance and activities
+      </Text>
+      <TouchableOpacity 
+        style={styles.emptyButton}
+        onPress={() => router.push('/(dashboard)/tasks/add')}
+      >
+        <Text style={styles.emptyButtonText}>Add Your First Task</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   if (loading) {
-    return <LoadingSpinner text="Loading tasks..." />;
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4F46E5" />
+        <Text style={styles.loadingText}>Loading tasks...</Text>
+      </View>
+    );
   }
 
-  const filterButtons: { key: FilterType; label: string; count: number }[] = [
-    { key: 'all', label: 'All', count: tasks.length },
-    { key: 'pending', label: 'Pending', count: tasks.filter(t => t.status === 'pending').length },
-    { key: 'in_progress', label: 'In Progress', count: tasks.filter(t => t.status === 'in_progress').length },
-    { key: 'completed', label: 'Completed', count: tasks.filter(t => t.status === 'completed').length },
-    { key: 'overdue', label: 'Overdue', count: tasks.filter(t => isOverdue(t)).length },
-  ];
-
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#EEF2FF" />
-      
-      {/* Header */}
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Tasks</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.addButton}
-          onPress={handleAddTask}
+          onPress={() => setShowAddForm(!showAddForm)}
         >
           <Ionicons name="add" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color="#6B7280" />
+      {showAddForm && (
+        <View style={styles.addForm}>
           <TextInput
-            style={styles.searchInput}
-            placeholder="Search tasks..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor="#9CA3AF"
+            style={styles.input}
+            placeholder="Task title"
+            value={newTask.title}
+            onChangeText={(text) => setNewTask({ ...newTask, title: text })}
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#6B7280" />
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Description (optional)"
+            value={newTask.description}
+            onChangeText={(text) => setNewTask({ ...newTask, description: text })}
+            multiline
+            numberOfLines={3}
+          />
+          <View style={styles.formActions}>
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setShowAddForm(false)}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
-          )}
+            <TouchableOpacity style={styles.saveButton} onPress={addTask}>
+              <Text style={styles.saveButtonText}>Add Task</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      )}
 
-      {/* Filter Buttons */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterContainer}
-        contentContainerStyle={styles.filterContent}
-      >
-        {filterButtons.map((filter) => (
-          <TouchableOpacity
-            key={filter.key}
-            style={[
-              styles.filterButton,
-              activeFilter === filter.key && styles.activeFilterButton
-            ]}
-            onPress={() => setActiveFilter(filter.key)}
-          >
-            <Text style={[
-              styles.filterButtonText,
-              activeFilter === filter.key && styles.activeFilterButtonText
-            ]}>
-              {filter.label} ({filter.count})
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Sort Options */}
-      <View style={styles.sortContainer}>
-        <Text style={styles.sortLabel}>Sort by:</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {[
-            { key: 'created_at', label: 'Created' },
-            { key: 'due_date', label: 'Due Date' },
-            { key: 'priority', label: 'Priority' },
-            { key: 'title', label: 'Title' },
-          ].map((sort) => (
-            <TouchableOpacity
-              key={sort.key}
-              style={[
-                styles.sortButton,
-                sortBy === sort.key && styles.activeSortButton
-              ]}
-              onPress={() => setSortBy(sort.key as SortType)}
-            >
-              <Text style={[
-                styles.sortButtonText,
-                sortBy === sort.key && styles.activeSortButtonText
-              ]}>
-                {sort.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Tasks List */}
-      <ScrollView style={styles.tasksList} showsVerticalScrollIndicator={false}>
-        {filteredTasks.length > 0 ? (
-          <View style={styles.tasksContainer}>
-            {filteredTasks.map((task) => (
-              <View key={task.id} style={styles.taskCard}>
-                <View style={styles.taskHeader}>
-                  <View style={styles.taskInfo}>
-                    <Text style={styles.taskTitle}>{task.title}</Text>
-                    {task.description && (
-                      <Text style={styles.taskDescription} numberOfLines={2}>
-                        {task.description}
-                      </Text>
-                    )}
-                  </View>
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => deleteTask(task.id)}
-                  >
-                    <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.taskMeta}>
-                  <View style={styles.taskBadges}>
-                    {/* Status Badge */}
-                    <View style={[
-                      styles.statusBadge,
-                      { backgroundColor: getStatusColor(task.status || 'pending') }
-                    ]}>
-                      <Text style={styles.badgeText}>
-                        {(task.status || 'pending').replace('_', ' ').toUpperCase()}
-                      </Text>
-                    </View>
-
-                    {/* Priority Badge */}
-                    {task.priority && (
-                      <View style={[
-                        styles.priorityBadge,
-                        { backgroundColor: getPriorityColor(task.priority) }
-                      ]}>
-                        <Text style={styles.badgeText}>
-                          {task.priority.toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
-
-                    {/* Category Badge */}
-                    {task.category && (
-                      <View style={styles.categoryBadge}>
-                        <Text style={styles.categoryBadgeText}>
-                          {task.category}
-                        </Text>
-                      </View>
-                    )}
-
-                    {/* Overdue Badge */}
-                    {isOverdue(task) && (
-                      <View style={styles.overdueBadge}>
-                        <Text style={styles.badgeText}>OVERDUE</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {task.due_date && (
-                    <Text style={[
-                      styles.dueDate,
-                      isOverdue(task) && styles.overdueDueDate
-                    ]}>
-                      Due: {formatDate(task.due_date)}
-                    </Text>
-                  )}
-                </View>
-
-                {/* Status Update Buttons */}
-                <View style={styles.statusButtons}>
-                  {task.status !== 'pending' && (
-                    <TouchableOpacity
-                      style={[styles.statusButton, styles.pendingButton]}
-                      onPress={() => updateTaskStatus(task.id, 'pending')}
-                    >
-                      <Text style={styles.statusButtonText}>Pending</Text>
-                    </TouchableOpacity>
-                  )}
-                  {task.status !== 'in_progress' && (
-                    <TouchableOpacity
-                      style={[styles.statusButton, styles.inProgressButton]}
-                      onPress={() => updateTaskStatus(task.id, 'in_progress')}
-                    >
-                      <Text style={styles.statusButtonText}>In Progress</Text>
-                    </TouchableOpacity>
-                  )}
-                  {task.status !== 'completed' && (
-                    <TouchableOpacity
-                      style={[styles.statusButton, styles.completedButton]}
-                      onPress={() => updateTaskStatus(task.id, 'completed')}
-                    >
-                      <Text style={styles.statusButtonText}>Complete</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.emptyState}>
-            <Ionicons name="checkbox-outline" size={64} color="#9CA3AF" />
-            <Text style={styles.emptyStateTitle}>No tasks found</Text>
-            <Text style={styles.emptyStateSubtitle}>
-              {searchQuery ? 'Try adjusting your search or filters' : 'Add your first task to get started'}
-            </Text>
-            {!searchQuery && (
-              <Button
-                title="Add Task"
-                onPress={handleAddTask}
-                style={styles.emptyStateButton}
-              />
-            )}
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+      <FlatList
+        data={tasks}
+        renderItem={renderTaskCard}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={[
+          styles.listContainer,
+          tasks.length === 0 && styles.emptyContainer
+        ]}
+        ListEmptyComponent={renderEmptyState}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
+      />
+      
+      {tasks.length > 0 && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => router.push('/(dashboard)/tasks/add')}
+        >
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEF2FF',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    backgroundColor: '#F9FAFB',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#6B7280',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    padding: 20,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#111827',
   },
   addButton: {
     backgroundColor: '#4F46E5',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  searchContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  addForm: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-  searchInput: {
-    flex: 1,
+  input: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
     fontSize: 16,
-    color: '#1F2937',
-  },
-  filterContainer: {
-    marginBottom: 16,
-  },
-  filterContent: {
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  filterButton: {
+    marginBottom: 12,
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  formActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  cancelButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderRadius: 6,
   },
-  activeFilterButton: {
+  cancelButtonText: {
+    color: '#6B7280',
+    fontSize: 16,
+  },
+  saveButton: {
     backgroundColor: '#4F46E5',
-    borderColor: '#4F46E5',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
   },
-  filterButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  activeFilterButtonText: {
+  saveButtonText: {
     color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
-  sortContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 16,
-    gap: 12,
+  listContainer: {
+    padding: 20,
+    paddingBottom: 100,
   },
-  sortLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-  },
-  sortButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  activeSortButton: {
-    backgroundColor: '#EEF2FF',
-    borderColor: '#4F46E5',
-  },
-  sortButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  activeSortButtonText: {
-    color: '#4F46E5',
-  },
-  tasksList: {
+  emptyContainer: {
     flex: 1,
-  },
-  tasksContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 12,
+    justifyContent: 'center',
   },
   taskCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginBottom: 12,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   taskHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 16,
+  },
+  taskIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   taskInfo: {
     flex: 1,
-    marginRight: 12,
   },
   taskTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#111827',
     marginBottom: 4,
   },
   taskDescription: {
@@ -590,104 +497,135 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 20,
   },
-  deleteButton: {
-    padding: 4,
-  },
-  taskMeta: {
-    marginBottom: 12,
-  },
-  taskBadges: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 8,
-  },
-  statusBadge: {
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  priorityBadge: {
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  categoryBadge: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  overdueBadge: {
-    backgroundColor: '#DC2626',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  categoryBadgeText: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: '#374151',
-  },
-  dueDate: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  overdueDueDate: {
-    color: '#DC2626',
-    fontWeight: '500',
-  },
-  statusButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
   statusButton: {
-    flex: 1,
-    borderRadius: 8,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  pendingButton: {
-    backgroundColor: '#FEF3C7',
-  },
-  inProgressButton: {
-    backgroundColor: '#DBEAFE',
-  },
-  completedButton: {
-    backgroundColor: '#D1FAE5',
-  },
-  statusButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#374151',
-  },
-  emptyState: {
-    flex: 1,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 64,
+    marginLeft: 12,
   },
-  emptyStateTitle: {
-    fontSize: 18,
+  taskMeta: {
+    gap: 12,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  priorityBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  priorityText: {
+    fontSize: 10,
     fontWeight: '600',
-    color: '#374151',
-    marginTop: 16,
-    marginBottom: 8,
+    letterSpacing: 0.5,
   },
-  emptyStateSubtitle: {
+  categoryBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+  },
+  categoryText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  recurringBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#F3E8FF',
+    borderRadius: 12,
+  },
+  recurringText: {
+    fontSize: 10,
+    color: '#8B5CF6',
+    fontWeight: '500',
+  },
+  dueDateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dueDateText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  overdueText: {
+    color: '#EF4444',
+    fontWeight: '500',
+  },
+  homeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  homeText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  notesContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  notesText: {
     fontSize: 14,
     color: '#6B7280',
-    textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 24,
+    fontStyle: 'italic',
   },
-  emptyStateButton: {
-    paddingHorizontal: 32,
+  emptyState: {
+    alignItems: 'center',
+    paddingHorizontal: 40,
   },
-});
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#111827',
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  emptyButton: {
+    backgroundColor: '#4F46E5',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  emptyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 90,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#4F46E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+}); 
