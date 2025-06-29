@@ -177,7 +177,6 @@ export default function HomesScreen() {
       </View>
 
       <View style={styles.content}>
-        {renderStats()}
 
         <FlatList
           data={homes}
@@ -291,6 +290,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   content: {
+    paddingVertical: 26,
     flex: 1,
   },
   homesSection: {

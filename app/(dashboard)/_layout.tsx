@@ -95,17 +95,6 @@ export default function DashboardLayout() {
                   }}
                 />
                 <Tabs.Screen
-                  name="settings/index"
-                  options={{
-                    title: 'Settings',
-                    tabBarIcon: ({ color, size, focused }) => (
-                      <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
-                        <Ionicons name={focused ? "settings" : "settings-outline"} size={focused ? 26 : 24} color={color} />
-                      </View>
-                    ),
-                  }}
-                />
-                <Tabs.Screen
                   name="tasks/index"
                   options={{
                     title: 'Tasks',
@@ -149,6 +138,17 @@ export default function DashboardLayout() {
                     ),
                   }}
                 />
+                  <Tabs.Screen
+                    name="settings/index"
+                    options={{
+                      title: 'Settings',
+                      tabBarIcon: ({ color, size, focused }) => (
+                        <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+                          <Ionicons name={focused ? "settings" : "settings-outline"} size={focused ? 26 : 24} color={color} />
+                        </View>
+                      ),
+                    }}
+                  />
 
                 {/* Hide add routes from tab bar */}
                 <Tabs.Screen name="homes/add" options={{ href: null }} />

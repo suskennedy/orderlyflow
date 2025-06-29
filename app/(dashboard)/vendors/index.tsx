@@ -134,37 +134,48 @@ export default function VendorsScreen() {
 
   const renderVendorCard = ({ item }: { item: Vendor }) => {
     const categoryColor = getCategoryColor(item.category ?? null);
+    const categoryIcon = getCategoryIcon(item.category ?? null);
 
     return (
       <View style={styles.vendorCard}>
         <View style={styles.cardHeader}>
           <View style={styles.vendorInfo}>
-            <Text style={styles.vendorName}>{item.name}</Text>
-            <View style={[styles.categoryBadge, { backgroundColor: `${categoryColor}15` }]}>
-              <Text style={[styles.categoryText, { color: categoryColor }]}>
-                {item.category?.toUpperCase()}
-              </Text>
+            <View style={styles.vendorTitleRow}>
+              <View style={[styles.categoryIcon, { backgroundColor: `${categoryColor}15` }]}>
+                <Ionicons name={categoryIcon as any} size={20} color={categoryColor} />
+              </View>
+              <View style={styles.vendorTitleInfo}>
+                <Text style={styles.vendorName}>{item.name}</Text>
+                {item.contact_name && (
+                  <Text style={styles.contactName}>Contact: {item.contact_name}</Text>
+                )}
+              </View>
             </View>
+            {item.category && (
+              <View style={[styles.categoryBadge, { backgroundColor: `${categoryColor}15` }]}>
+                <Text style={[styles.categoryText, { color: categoryColor }]}>
+                  {item.category.toUpperCase()}
+                </Text>
+              </View>
+            )}
           </View>
           <TouchableOpacity
             style={styles.deleteButton}
             onPress={() => handleDeletePress(item)}
           >
-            <Ionicons name="trash-outline" size={20} color="#EF4444" />
+            <Ionicons name="trash" size={18} color="#EF4444" />
           </TouchableOpacity>
         </View>
 
-        {item.category && (
-          <Text style={styles.specialtyText}>{item.category}</Text>
-        )}
-
-        <View style={styles.contactInfo}>
+        <View style={styles.contactSection}>
           {item.phone && (
             <TouchableOpacity 
               style={styles.contactItem}
               onPress={() => handleCall(item.phone!)}
             >
-              <Ionicons name="call-outline" size={16} color="#4F46E5" />
+              <View style={styles.contactIconContainer}>
+                <Ionicons name="call" size={16} color="#10B981" />
+              </View>
               <Text style={styles.contactText}>{item.phone}</Text>
             </TouchableOpacity>
           )}
@@ -173,25 +184,59 @@ export default function VendorsScreen() {
               style={styles.contactItem}
               onPress={() => handleEmail(item.email!)}
             >
-              <Ionicons name="mail-outline" size={16} color="#4F46E5" />
+              <View style={styles.contactIconContainer}>
+                <Ionicons name="mail" size={16} color="#3B82F6" />
+              </View>
               <Text style={styles.contactText}>{item.email}</Text>
+            </TouchableOpacity>
+          )}
+          {item.website && (
+            <TouchableOpacity 
+              style={styles.contactItem}
+              onPress={() => handleWebsite(item.website!)}
+            >
+              <View style={styles.contactIconContainer}>
+                <Ionicons name="globe" size={16} color="#8B5CF6" />
+              </View>
+              <Text style={styles.contactText}>{item.website}</Text>
             </TouchableOpacity>
           )}
         </View>
 
         {item.address && (
-          <View style={styles.addressContainer}>
-            <Ionicons name="location-outline" size={16} color="#6B7280" />
+          <View style={styles.addressSection}>
+            <View style={styles.addressIconContainer}>
+              <Ionicons name="location" size={16} color="#F59E0B" />
+            </View>
             <Text style={styles.addressText}>{item.address}</Text>
           </View>
         )}
 
         {item.notes && (
-          <Text style={styles.notesText}>{item.notes}</Text>
+          <View style={styles.notesSection}>
+            <Text style={styles.notesLabel}>Notes</Text>
+            <Text style={styles.notesText}>{item.notes}</Text>
+          </View>
         )}
       </View>
     );
   };
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="people-outline" size={64} color="#D1D5DB" />
+      <Text style={styles.emptyTitle}>No Vendors Yet</Text>
+      <Text style={styles.emptySubtitle}>
+        Add your first vendor to start managing your home service contacts
+      </Text>
+      <TouchableOpacity 
+        style={styles.emptyButton}
+        onPress={() => router.push('/vendors/add')}
+      >
+        <Text style={styles.emptyButtonText}>Add Your First Vendor</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   if (loading) {
     return (
@@ -218,22 +263,24 @@ export default function VendorsScreen() {
       </View>
 
       <View style={styles.content}>
-        {renderStats()}
-
-        <FlatList
-          data={vendors}
-          renderItem={renderVendorCard}
-          keyExtractor={(item) => item.id}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#4F46E5']}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContainer}
-        />
+        {vendors.length === 0 ? (
+          renderEmptyState()
+        ) : (
+          <FlatList
+            data={vendors}
+            renderItem={renderVendorCard}
+            keyExtractor={(item) => item.id}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#4F46E5']}
+              />
+            }
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContainer}
+          />
+        )}
       </View>
 
       <Modal
@@ -290,26 +337,48 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   headerLeft: {
     flex: 1,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '600',
+    fontSize: 28,
+    fontWeight: '700',
     color: '#111827',
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
     color: '#6B7280',
+    fontWeight: '500',
   },
   addButton: {
-    padding: 8,
+    backgroundColor: '#4F46E5',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   content: {
-    padding: 20,
+    flex: 1,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -359,55 +428,119 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  vendorTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  categoryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  vendorTitleInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
   vendorName: {
     fontSize: 18,
     fontWeight: '600',
     color: '#111827',
-    marginBottom: 4,
+    marginBottom: 2,
+  },
+  contactName: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   categoryBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   categoryText: {
-    fontSize: 14,
-    color: '#4F46E5',
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   deleteButton: {
-    padding: 8,
-    marginRight: -8,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FEF2F2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FECACA',
   },
   specialtyText: {
     fontSize: 14,
     color: '#6B7280',
     marginBottom: 12,
   },
-  contactInfo: {
-    flexDirection: 'row',
-    gap: 16,
+  contactSection: {
+    marginTop: 6,
   },
   contactItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 1,
+  },
+  contactIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   contactText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#374151',
+    fontWeight: '500',
+    flex: 1,
   },
-  addressContainer: {
+  addressSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginTop: 16,
+    paddingVertical: 8,
+  },
+  addressIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   addressText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#374151',
+    fontWeight: '500',
+    flex: 1,
+  },
+  notesSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  notesLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 6,
   },
   notesText: {
     fontSize: 14,
     color: '#6B7280',
+    lineHeight: 20,
   },
   modalOverlay: {
     flex: 1,
@@ -464,5 +597,32 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 20,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 24,
+  },
+  emptyButton: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#4F46E5',
+  },
+  emptyButtonText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '500',
   },
 }); 

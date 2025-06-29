@@ -74,47 +74,111 @@ export default function InventoryScreen() {
     const warrantyColor = warrantyStatus === 'active' ? '#10B981' : 
                          warrantyStatus === 'expired' ? '#EF4444' : '#6B7280';
 
+    const getItemIcon = () => {
+      const name = item.name?.toLowerCase() || '';
+      if (name.includes('refrigerator') || name.includes('fridge')) return 'snow';
+      if (name.includes('washer') || name.includes('washing')) return 'water';
+      if (name.includes('dryer')) return 'flame';
+      if (name.includes('dishwasher')) return 'restaurant';
+      if (name.includes('oven') || name.includes('stove')) return 'flame';
+      if (name.includes('microwave')) return 'radio';
+      if (name.includes('tv') || name.includes('television')) return 'tv';
+      if (name.includes('air') || name.includes('hvac')) return 'thermometer';
+      return 'home';
+    };
+
     return (
       <View style={styles.inventoryCard}>
         <View style={styles.cardHeader}>
-          <View style={styles.cardHeaderLeft}>
-            <Text style={styles.itemName}>{item.name}</Text>
-            {item.brand && (
-              <View style={[styles.brandBadge, { backgroundColor: `${warrantyColor}15` }]}>
-                <Text style={[styles.brandText, { color: warrantyColor }]}>{item.brand}</Text>
+          <View style={styles.itemInfo}>
+            <View style={styles.itemTitleRow}>
+              <View style={[styles.itemIcon, { backgroundColor: `${warrantyColor}15` }]}>
+                <Ionicons name={getItemIcon() as any} size={24} color={warrantyColor} />
               </View>
-            )}
+              <View style={styles.itemTitleInfo}>
+                <Text style={styles.itemName}>{item.name}</Text>
+                {item.brand && (
+                  <Text style={styles.itemBrand}>{item.brand}</Text>
+                )}
+              </View>
+            </View>
+            <View style={[styles.warrantyBadge, { backgroundColor: `${warrantyColor}15` }]}>
+              <View style={[styles.warrantyDot, { backgroundColor: warrantyColor }]} />
+              <Text style={[styles.warrantyText, { color: warrantyColor }]}>
+                {warrantyStatus === 'active' ? 'Active' : 
+                 warrantyStatus === 'expired' ? 'Expired' : 'No Warranty'}
+              </Text>
+            </View>
           </View>
           <TouchableOpacity
             style={styles.deleteButton}
             onPress={() => handleDeletePress(item)}
           >
-            <Ionicons name="trash-outline" size={20} color="#EF4444" />
+            <Ionicons name="trash" size={18} color="#EF4444" />
           </TouchableOpacity>
         </View>
 
-        {item.model && <Text style={styles.itemModel}>Model: {item.model}</Text>}
-        {item.serial_number && <Text style={styles.itemModel}>S/N: {item.serial_number}</Text>}
-        {item.location && <Text style={styles.itemModel}>Location: {item.location}</Text>}
-
-        <View style={styles.cardFooter}>
-          <View style={styles.warrantyInfo}>
-            <View style={[styles.warrantyDot, { backgroundColor: warrantyColor }]} />
-            <Text style={[styles.warrantyText, { color: warrantyColor }]}>
-              {warrantyStatus === 'active' ? 'Warranty Active' : 
-               warrantyStatus === 'expired' ? 'Warranty Expired' : 'No Warranty'}
-            </Text>
-          </View>
-          {item.manual_url && (
-            <TouchableOpacity style={styles.manualButton}>
-              <Ionicons name="document-text-outline" size={16} color="#4F46E5" />
-              <Text style={styles.manualText}>Manual</Text>
-            </TouchableOpacity>
+        <View style={styles.itemDetails}>
+          {item.model && (
+            <View style={styles.detailItem}>
+              <View style={styles.detailIconContainer}>
+                <Ionicons name="cube" size={16} color="#6B7280" />
+              </View>
+              <Text style={styles.detailText}>Model: {item.model}</Text>
+            </View>
+          )}
+          {item.serial_number && (
+            <View style={styles.detailItem}>
+              <View style={styles.detailIconContainer}>
+                <Ionicons name="barcode" size={16} color="#6B7280" />
+              </View>
+              <Text style={styles.detailText}>S/N: {item.serial_number}</Text>
+            </View>
+          )}
+          {item.location && (
+            <View style={styles.detailItem}>
+              <View style={styles.detailIconContainer}>
+                <Ionicons name="location" size={16} color="#6B7280" />
+              </View>
+              <Text style={styles.detailText}>{item.location}</Text>
+            </View>
+          )}
+          {item.purchase_date && (
+            <View style={styles.detailItem}>
+              <View style={styles.detailIconContainer}>
+                <Ionicons name="calendar" size={16} color="#6B7280" />
+              </View>
+              <Text style={styles.detailText}>
+                Purchased: {new Date(item.purchase_date).toLocaleDateString()}
+              </Text>
+            </View>
           )}
         </View>
 
+        <View style={styles.cardFooter}>
+          {item.warranty_expiration && (
+            <View style={styles.warrantyInfo}>
+              <Ionicons name="shield-checkmark" size={16} color={warrantyColor} />
+              <Text style={[styles.warrantyDetailText, { color: warrantyColor }]}>
+                Warranty until {new Date(item.warranty_expiration).toLocaleDateString()}
+              </Text>
+            </View>
+          )}
+          <View style={styles.footerActions}>
+            {item.manual_url && (
+              <TouchableOpacity style={styles.manualButton}>
+                <Ionicons name="document-text" size={16} color="#4F46E5" />
+                <Text style={styles.manualText}>Manual</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
         {item.homes && (
-          <Text style={styles.homeText}>🏠 {item.homes.name}</Text>
+          <View style={styles.homeSection}>
+            <Ionicons name="home" size={16} color="#F59E0B" />
+            <Text style={styles.homeText}>{item.homes.name}</Text>
+          </View>
         )}
       </View>
     );
@@ -303,7 +367,24 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 16,
   },
-  cardHeaderLeft: {
+  itemInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  itemTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  itemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  itemTitleInfo: {
     flex: 1,
   },
   itemName: {
@@ -312,26 +393,55 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginBottom: 4,
   },
-  brandBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 4,
-  },
-  brandText: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  itemModel: {
-    fontSize: 14,
+  itemBrand: {
+    fontSize: 12,
     color: '#6B7280',
-    marginBottom: 4,
+    fontWeight: '500',
+  },
+  warrantyBadge: {
+    padding: 4,
+    borderRadius: 8,
+  },
+  warrantyDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  warrantyText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6B7280',
   },
   deleteButton: {
-    padding: 8,
-    borderRadius: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#FEF2F2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  itemDetails: {
+    marginBottom: 16,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailIconContainer: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   cardFooter: {
     flexDirection: 'row',
@@ -344,16 +454,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  warrantyDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  warrantyText: {
+  warrantyDetailText: {
     fontSize: 12,
     fontWeight: '500',
     color: '#6B7280',
+  },
+  footerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   manualButton: {
     flexDirection: 'row',
@@ -368,6 +477,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: '#4F46E5',
+  },
+  homeSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   homeText: {
     fontSize: 14,

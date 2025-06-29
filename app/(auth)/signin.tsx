@@ -5,6 +5,7 @@ import {
     KeyboardAvoidingView,
     Platform,
     SafeAreaView,
+    ScrollView,
     StatusBar,
     StyleSheet,
     Text,
@@ -100,12 +101,16 @@ export default function SignIn() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <View style={styles.content}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.logoContainer}>
               <View style={styles.logo}>
-                <Ionicons name="home" size={32} color="#FFFFFF" />
+                <Ionicons name="home" size={28} color="#FFFFFF" />
               </View>
               <Text style={styles.appName}>OrderlyFlow</Text>
             </View>
@@ -124,10 +129,11 @@ export default function SignIn() {
                 styles.inputContainer,
                 errors.email && styles.inputError
               ]}>
-                <Ionicons name="mail-outline" size={20} color="#6B7280" />
+                <Ionicons name="mail-outline" size={18} color="#6B7280" />
                 <TextInput
                   style={styles.textInput}
                   placeholder="Enter your email"
+                  placeholderTextColor="#9CA3AF"
                   value={email}
                   onChangeText={(text) => {
                     setEmail(text);
@@ -152,10 +158,11 @@ export default function SignIn() {
                 styles.inputContainer,
                 errors.password && styles.inputError
               ]}>
-                <Ionicons name="lock-closed-outline" size={20} color="#6B7280" />
+                <Ionicons name="lock-closed-outline" size={18} color="#6B7280" />
                 <TextInput
                   style={styles.textInput}
                   placeholder="Enter your password"
+                  placeholderTextColor="#9CA3AF"
                   value={password}
                   onChangeText={(text) => {
                     setPassword(text);
@@ -172,7 +179,7 @@ export default function SignIn() {
                 >
                   <Ionicons
                     name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                    size={20}
+                    size={18}
                     color="#6B7280"
                   />
                 </TouchableOpacity>
@@ -203,7 +210,7 @@ export default function SignIn() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -212,8 +219,7 @@ export default function SignIn() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEF2FF',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    backgroundColor: '#F8FAFC',
   },
   loadingContainer: {
     flex: 1,
@@ -223,79 +229,91 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 40,
+    paddingBottom: 40,
     justifyContent: 'center',
+    minHeight: '100%',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 40,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: '#4F46E5',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   appName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827',
+    letterSpacing: -0.5,
   },
   tagline: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#6B7280',
     textAlign: 'center',
+    fontWeight: '500',
   },
   form: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 32,
+    borderRadius: 20,
+    padding: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 24,
+    elevation: 8,
   },
   formTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#111827',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   formSubtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#6B7280',
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 28,
+    fontWeight: '500',
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1.5,
     borderColor: '#E5E7EB',
+    minHeight: 48,
   },
   inputError: {
     borderColor: '#EF4444',
@@ -303,29 +321,33 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    fontSize: 16,
-    color: '#1F2937',
-    marginLeft: 12,
+    fontSize: 15,
+    color: '#111827',
+    marginLeft: 10,
+    fontWeight: '500',
   },
   eyeButton: {
     padding: 4,
+    marginLeft: 4,
   },
   errorText: {
     fontSize: 12,
     color: '#EF4444',
     marginTop: 4,
+    fontWeight: '500',
   },
   forgotPassword: {
     alignSelf: 'flex-end',
     marginBottom: 24,
+    paddingVertical: 4,
   },
   forgotPasswordText: {
     fontSize: 14,
     color: '#4F46E5',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   signInButton: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   signUpContainer: {
     flexDirection: 'row',
@@ -335,6 +357,7 @@ const styles = StyleSheet.create({
   signUpText: {
     fontSize: 14,
     color: '#6B7280',
+    fontWeight: '500',
   },
   signUpLink: {
     fontSize: 14,
