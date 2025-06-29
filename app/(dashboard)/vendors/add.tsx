@@ -3,16 +3,16 @@ import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { useDashboard } from '../../../lib/hooks/useDashboard';
@@ -91,7 +91,7 @@ export default function AddVendorScreen() {
       ]);
     } catch (error) {
       console.error('Error adding vendor:', error);
-      Alert.alert('Error', `Failed to add vendor: ${error.message || 'Unknown error'}`);
+      Alert.alert('Error', `Failed to add vendor: ${error || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }

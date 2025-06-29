@@ -2,88 +2,101 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  FlatList,
-  Modal,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    FlatList,
+    Modal,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useInventory } from '../../../lib/contexts/InventoryContext';
+import { useCalendar } from '../../../lib/contexts/CalendarContext';
 
-export default function InventoryScreen() {
+export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
-  const { items, loading, refreshing, deleteItem, onRefresh } = useInventory();
+  const { events, loading, refreshing, deleteEvent, onRefresh } = useCalendar();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
 
-  const handleDeletePress = (item: any) => {
-    setSelectedItem(item);
+  const handleDeletePress = (event: any) => {
+    setSelectedEvent(event);
     setShowDeleteModal(true);
   };
 
   const confirmDelete = async () => {
-    if (selectedItem) {
-      await deleteItem(selectedItem.id);
+    if (selectedEvent) {
+      await deleteEvent(selectedEvent.id);
       setShowDeleteModal(false);
-      setSelectedItem(null);
+      setSelectedEvent(null);
     }
   };
 
   const renderStats = () => {
-    const totalItems = items.length;
-    const warrantyActive = items.filter(item => 
-      item.warranty_expiration && new Date(item.warranty_expiration) > new Date()
+    const totalEvents = events.length;
+    const upcomingEvents = events.filter(event => 
+      new Date(event.start_time) > new Date()
     ).length;
-    const warrantyExpired = items.filter(item => 
-      item.warranty_expiration && new Date(item.warranty_expiration) <= new Date()
+    const pastEvents = events.filter(event => 
+      new Date(event.start_time) <= new Date()
     ).length;
-    const noWarranty = items.filter(item => !item.warranty_expiration).length;
+    const thisWeekEvents = events.filter(event => {
+      const eventDate = new Date(event.start_time);
+      const today = new Date();
+      const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+      return eventDate >= today && eventDate <= weekFromNow;
+    }).length;
 
     return (
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{totalItems}</Text>
-          <Text style={styles.statLabel}>Total Items</Text>
+          <Text style={styles.statNumber}>{totalEvents}</Text>
+          <Text style={styles.statLabel}>Total Events</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statNumber, { color: '#10B981' }]}>{warrantyActive}</Text>
-          <Text style={styles.statLabel}>Active Warranty</Text>
+          <Text style={[styles.statNumber, { color: '#3B82F6' }]}>{upcomingEvents}</Text>
+          <Text style={styles.statLabel}>Upcoming</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statNumber, { color: '#EF4444' }]}>{warrantyExpired}</Text>
-          <Text style={styles.statLabel}>Expired Warranty</Text>
+          <Text style={[styles.statNumber, { color: '#F59E0B' }]}>{thisWeekEvents}</Text>
+          <Text style={styles.statLabel}>This Week</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statNumber, { color: '#6B7280' }]}>{noWarranty}</Text>
-          <Text style={styles.statLabel}>No Warranty</Text>
+          <Text style={[styles.statNumber, { color: '#6B7280' }]}>{pastEvents}</Text>
+          <Text style={styles.statLabel}>Past Events</Text>
         </View>
       </View>
     );
   };
 
-  const renderInventoryCard = ({ item }: { item: any }) => {
-    const warrantyStatus = item.warranty_expiration 
-      ? new Date(item.warranty_expiration) > new Date() 
-        ? 'active' 
-        : 'expired'
-      : 'none';
+  const getEventTypeColor = (eventType: string) => {
+    switch (eventType) {
+      case 'maintenance': return '#3B82F6';
+      case 'inspection': return '#10B981';
+      case 'repair': return '#EF4444';
+      case 'appointment': return '#8B5CF6';
+      case 'reminder': return '#F59E0B';
+      default: return '#6B7280';
+    }
+  };
 
-    const warrantyColor = warrantyStatus === 'active' ? '#10B981' : 
-                         warrantyStatus === 'expired' ? '#EF4444' : '#6B7280';
+  const renderEventCard = ({ item }: { item: any }) => {
+    const eventTypeColor = getEventTypeColor(item.color || 'default');
+    const eventDate = new Date(item.start_time);
+    const isUpcoming = eventDate > new Date();
 
     return (
-      <View style={styles.inventoryCard}>
+      <View style={[styles.eventCard, !isUpcoming && styles.pastEventCard]}>
         <View style={styles.cardHeader}>
-          <View style={styles.cardHeaderLeft}>
-            <Text style={styles.itemName}>{item.name}</Text>
-            {item.brand && (
-              <View style={[styles.brandBadge, { backgroundColor: `${warrantyColor}15` }]}>
-                <Text style={[styles.brandText, { color: warrantyColor }]}>{item.brand}</Text>
-              </View>
-            )}
+          <View style={styles.eventInfo}>
+            <Text style={[styles.eventTitle, !isUpcoming && styles.pastEventText]}>
+              {item.title}
+            </Text>
+            <View style={[styles.typeBadge, { backgroundColor: `${eventTypeColor}15` }]}>
+              <Text style={[styles.typeText, { color: eventTypeColor }]}>
+                {item.color?.toUpperCase() || 'EVENT'}
+              </Text>
+            </View>
           </View>
           <TouchableOpacity
             style={styles.deleteButton}
@@ -93,28 +106,47 @@ export default function InventoryScreen() {
           </TouchableOpacity>
         </View>
 
-        {item.model && <Text style={styles.itemModel}>Model: {item.model}</Text>}
-        {item.serial_number && <Text style={styles.itemModel}>S/N: {item.serial_number}</Text>}
-        {item.location && <Text style={styles.itemModel}>Location: {item.location}</Text>}
+        {item.description && (
+          <Text style={[styles.eventDescription, !isUpcoming && styles.pastEventText]}>
+            {item.description}
+          </Text>
+        )}
 
-        <View style={styles.cardFooter}>
-          <View style={styles.warrantyInfo}>
-            <View style={[styles.warrantyDot, { backgroundColor: warrantyColor }]} />
-            <Text style={[styles.warrantyText, { color: warrantyColor }]}>
-              {warrantyStatus === 'active' ? 'Warranty Active' : 
-               warrantyStatus === 'expired' ? 'Warranty Expired' : 'No Warranty'}
+        <View style={styles.eventMeta}>
+          <View style={styles.dateInfo}>
+            <Ionicons name="calendar-outline" size={16} color={eventTypeColor} />
+            <Text style={[styles.dateText, { color: eventTypeColor }]}>
+              {eventDate.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+              })}
             </Text>
           </View>
-          {item.manual_url && (
-            <TouchableOpacity style={styles.manualButton}>
-              <Ionicons name="document-text-outline" size={16} color="#4F46E5" />
-              <Text style={styles.manualText}>Manual</Text>
-            </TouchableOpacity>
+          {!item.all_day && (
+            <View style={styles.timeInfo}>
+              <Ionicons name="time-outline" size={16} color="#6B7280" />
+              <Text style={styles.timeText}>
+                {eventDate.toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })}
+              </Text>
+            </View>
           )}
         </View>
 
-        {item.homes && (
-          <Text style={styles.homeText}>🏠 {item.homes.name}</Text>
+        {item.location && (
+          <View style={styles.locationInfo}>
+            <Ionicons name="location-outline" size={16} color="#6B7280" />
+            <Text style={styles.locationText}>{item.location}</Text>
+          </View>
+        )}
+
+        {item.tasks && (
+          <Text style={styles.taskText}>📋 Related to: {item.tasks.title}</Text>
         )}
       </View>
     );
@@ -124,12 +156,12 @@ export default function InventoryScreen() {
     <View style={[styles.container, { paddingBottom: insets.bottom + 100 }]}>
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <View style={styles.headerLeft}>
-          <Text style={styles.title}>Inventory</Text>
-          <Text style={styles.subtitle}>Manage your items</Text>
+          <Text style={styles.title}>Calendar</Text>
+          <Text style={styles.subtitle}>Track your events</Text>
         </View>
         <TouchableOpacity 
           style={styles.addButton}
-          onPress={() => router.push('/inventory/add')}
+          onPress={() => router.push('/calendar/add')}
         >
           <Ionicons name="add" size={24} color="#FFFFFF" />
         </TouchableOpacity>
@@ -139,8 +171,8 @@ export default function InventoryScreen() {
         {renderStats()}
 
         <FlatList
-          data={items}
-          renderItem={renderInventoryCard}
+          data={events}
+          renderItem={renderEventCard}
           keyExtractor={(item) => item.id}
           refreshControl={
             <RefreshControl
@@ -164,9 +196,9 @@ export default function InventoryScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Ionicons name="warning" size={48} color="#EF4444" />
-              <Text style={styles.modalTitle}>Delete Item</Text>
+              <Text style={styles.modalTitle}>Delete Event</Text>
               <Text style={styles.modalMessage}>
-                Are you sure you want to delete {selectedItem?.name}? This action cannot be undone.
+                Are you sure you want to delete {selectedEvent?.title}? This action cannot be undone.
               </Text>
             </View>
             <View style={styles.modalButtons}>
@@ -194,18 +226,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
-    fontWeight: '500',
   },
   header: {
     flexDirection: 'row',
@@ -254,15 +274,15 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 12,
+    justifyContent: 'space-between',
+    padding: 16,
+    gap: 8,
   },
   statCard: {
     flex: 1,
+    padding: 12,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 8,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -273,7 +293,7 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#4F46E5',
+    color: '#111827',
     marginBottom: 4,
   },
   statLabel: {
@@ -282,14 +302,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
-  inventorySection: {
-    padding: 16,
-    paddingTop: 0,
-  },
-  inventoryCard: {
+  eventCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
+    marginHorizontal: 16,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -297,144 +314,131 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
+  pastEventCard: {
+    backgroundColor: '#F9FAFB',
+    opacity: 0.7,
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  cardHeaderLeft: {
+  eventInfo: {
     flex: 1,
   },
-  itemName: {
+  eventTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#111827',
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  brandBadge: {
+  pastEventText: {
+    color: '#6B7280',
+  },
+  typeBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    marginBottom: 4,
+    alignSelf: 'flex-start',
   },
-  brandText: {
+  typeText: {
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 0.5,
-  },
-  itemModel: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
   },
   deleteButton: {
     padding: 8,
     borderRadius: 8,
     backgroundColor: '#FEF2F2',
   },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  warrantyInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  warrantyDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  warrantyText: {
-    fontSize: 12,
-    fontWeight: '500',
+  eventDescription: {
+    fontSize: 14,
     color: '#6B7280',
+    lineHeight: 20,
+    marginBottom: 12,
   },
-  manualButton: {
+  eventMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#EEF2FF',
+    gap: 16,
+    marginBottom: 8,
+  },
+  dateInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
   },
-  manualText: {
-    fontSize: 12,
+  dateText: {
+    fontSize: 14,
     fontWeight: '500',
-    color: '#4F46E5',
+  },
+  timeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  timeText: {
+    fontSize: 14,
+    color: '#6B7280',
   },
   homeText: {
     fontSize: 14,
     color: '#6B7280',
     fontWeight: '500',
   },
-  emptyState: {
+  locationInfo: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
-    margin: 16,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-    marginTop: 16,
     marginBottom: 8,
   },
-  emptySubtitle: {
-    fontSize: 16,
+  locationText: {
+    fontSize: 14,
     color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
+    marginLeft: 4,
   },
-  emptyButton: {
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+  taskText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
   },
-  emptyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+  listContainer: {
+    paddingTop: 0,
+    paddingBottom: 20,
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 24,
-    width: '100%',
-    maxWidth: 400,
+    margin: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 12,
   },
   modalHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 24,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: '#111827',
-    marginLeft: 12,
+    marginTop: 16,
+    marginBottom: 8,
   },
   modalMessage: {
     fontSize: 16,
     color: '#6B7280',
+    textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 24,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -444,9 +448,8 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
+    backgroundColor: '#F3F4F6',
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
     alignItems: 'center',
   },
   cancelButtonText: {
@@ -458,17 +461,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
     backgroundColor: '#EF4444',
+    borderRadius: 8,
     alignItems: 'center',
   },
   deleteButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-  },
-  listContainer: {
-    padding: 16,
-    paddingTop: 0,
   },
 }); 

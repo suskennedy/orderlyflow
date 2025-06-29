@@ -3,17 +3,17 @@ import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { useDashboard } from '../../../lib/hooks/useDashboard';
@@ -65,7 +65,7 @@ export default function AddTaskScreen() {
       const { data, error } = await supabase
         .from('homes')
         .select('id, name')
-        .eq('user_id', user?.id)
+        .eq('user_id', user?.id as string)
         .order('name');
 
       if (error) throw error;

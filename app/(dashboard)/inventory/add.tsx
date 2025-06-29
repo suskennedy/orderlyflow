@@ -3,16 +3,16 @@ import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { useDashboard } from '../../../lib/hooks/useDashboard';
@@ -44,6 +44,7 @@ export default function AddInventoryScreen() {
   const { fetchDashboardStats } = useDashboard();
   const [loading, setLoading] = useState(false);
   const [homes, setHomes] = useState<Home[]>([]);
+  const [homesLoading, setHomesLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -60,21 +61,40 @@ export default function AddInventoryScreen() {
   });
 
   useEffect(() => {
-    fetchHomes();
-  }, []);
+    if (user?.id) {
+      fetchHomes();
+    }
+  }, [user?.id]);
 
   const fetchHomes = async () => {
     try {
+      setHomesLoading(true);
+      
+      if (!user?.id) {
+        console.log('No user ID available');
+        return;
+      }
+      
+      console.log('Fetching homes for user:', user.id);
+      
       const { data, error } = await supabase
         .from('homes')
         .select('id, name')
         .eq('user_id', user?.id)
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
+      console.log('Fetched homes:', data);
       setHomes(data || []);
     } catch (error) {
       console.error('Error fetching homes:', error);
+      Alert.alert('Error', 'Failed to load homes. Please try again.');
+    } finally {
+      setHomesLoading(false);
     }
   };
 
@@ -86,8 +106,6 @@ export default function AddInventoryScreen() {
 
     setLoading(true);
     try {
-      // For now, we'll save to the appliances table as a general inventory item
-      // In a real app, you might want to create a dedicated inventory table
       const { error } = await supabase.from('appliances').insert([
         {
           name: formData.name,
@@ -99,7 +117,6 @@ export default function AddInventoryScreen() {
           warranty_expiration: formData.warranty_expiration || null,
           home_id: formData.home_id || null,
           notes: formData.notes || null,
-          user_id: user?.id,
         },
       ]);
 
@@ -230,13 +247,26 @@ export default function AddInventoryScreen() {
                 selectedValue={formData.home_id}
                 onValueChange={(itemValue) => setFormData({ ...formData, home_id: itemValue })}
                 style={styles.picker}
+                enabled={!homesLoading}
               >
-                <Picker.Item label="Select a home..." value="" />
+                <Picker.Item 
+                  label={homesLoading ? "Loading homes..." : homes.length === 0 ? "No homes found - Add a home first" : "Select a home..."} 
+                  value="" 
+                />
                 {homes.map((home) => (
                   <Picker.Item key={home.id} label={home.name} value={home.id} />
                 ))}
               </Picker>
             </View>
+            {homes.length === 0 && !homesLoading && (
+              <TouchableOpacity 
+                style={styles.addHomeButton}
+                onPress={() => router.push('/(dashboard)/homes/add')}
+              >
+                <Ionicons name="add-circle" size={16} color="#4F46E5" />
+                <Text style={styles.addHomeButtonText}>Add your first home</Text>
+              </TouchableOpacity>
+            )}
           </View>
           
           <View style={styles.inputGroup}>
@@ -413,5 +443,22 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 120,
+  },
+  addHomeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  addHomeButtonText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#4F46E5',
+    fontWeight: '500',
   },
 }); 

@@ -1,205 +1,147 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Modal,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHomes } from '../../../lib/contexts/HomesContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
-import { supabase } from '../../../lib/supabase';
 
-interface Home {
-  id: string;
-  name: string;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  zip: string | null;
-  bedrooms: number | null;
-  bathrooms: number | null;
-  square_footage: number | null;
-  year_built: number | null;
-  purchase_date: string | null;
-  notes: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  user_id: string | null;
-}
+const { width: screenWidth } = Dimensions.get('window');
 
 export default function HomesScreen() {
   const { user } = useAuth();
-  const [homes, setHomes] = useState<Home[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newHome, setNewHome] = useState({
-    name: '',
-    address: '',
-    city: '',
-    state: '',
-    zip: '',
-    bedrooms: '',
-    bathrooms: '',
-    square_footage: '',
-    year_built: '',
-    purchase_date: '',
-    notes: '',
-  });
+  const { homes, loading, refreshing, deleteHome, onRefresh } = useHomes();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedHome, setSelectedHome] = useState<any>(null);
+  const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchHomes();
-    }
-  }, [user?.id]);
+  const handleDeletePress = (home: any) => {
+    setSelectedHome(home);
+    setShowDeleteModal(true);
+  };
 
-  const fetchHomes = async () => {
-    if (!user?.id) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('homes')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setHomes(data || []);
-    } catch (error) {
-      console.error('Error fetching homes:', error);
-      Alert.alert('Error', 'Failed to load homes');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+  const confirmDelete = async () => {
+    if (selectedHome) {
+      await deleteHome(selectedHome.id);
+      setShowDeleteModal(false);
+      setSelectedHome(null);
     }
   };
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchHomes();
+  const getPropertyIcon = (type: string | null) => {
+    // Default icon since we don't have property_type in this schema
+    return 'home-outline';
   };
 
-  const addHome = async () => {
-    if (!newHome.name.trim()) {
-      Alert.alert('Error', 'Please enter a home name');
-      return;
-    }
-
-    try {
-      const { error } = await supabase.from('homes').insert([
-        {
-          name: newHome.name,
-          address: newHome.address || null,
-          city: newHome.city || null,
-          state: newHome.state || null,
-          zip: newHome.zip || null,
-          bedrooms: newHome.bedrooms ? parseInt(newHome.bedrooms) : null,
-          bathrooms: newHome.bathrooms ? parseFloat(newHome.bathrooms) : null,
-          square_footage: newHome.square_footage ? parseInt(newHome.square_footage) : null,
-          year_built: newHome.year_built ? parseInt(newHome.year_built) : null,
-          purchase_date: newHome.purchase_date || null,
-          notes: newHome.notes || null,
-          user_id: user?.id,
-        },
-      ]);
-
-      if (error) throw error;
-
-      setNewHome({
-        name: '',
-        address: '',
-        city: '',
-        state: '',
-        zip: '',
-        bedrooms: '',
-        bathrooms: '',
-        square_footage: '',
-        year_built: '',
-        purchase_date: '',
-        notes: '',
-      });
-      setShowAddForm(false);
-      fetchHomes();
-    } catch (error) {
-      console.error('Error adding home:', error);
-      Alert.alert('Error', 'Failed to add home');
-    }
+  const formatSquareFeet = (sqft: number | null) => {
+    if (!sqft) return null;
+    return sqft.toLocaleString() + ' sq ft';
   };
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString();
-  };
+  const renderStats = () => {
+    const totalHomes = homes.length;
+    const averageYear = homes.length > 0 
+      ? Math.round(homes.reduce((sum, home) => sum + (home.year_built || 0), 0) / homes.length)
+      : 0;
+    const totalBedrooms = homes.reduce((sum, home) => sum + (home.bedrooms || 0), 0);
+    const totalBathrooms = homes.reduce((sum, home) => sum + (home.bathrooms || 0), 0);
 
-  const renderHomeCard = ({ item }: { item: Home }) => (
-    <TouchableOpacity style={styles.homeCard}>
-      <View style={styles.homeHeader}>
-        <View style={styles.homeIconContainer}>
-          <Ionicons name="business" size={24} color="#4F46E5" />
+    return (
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>{totalHomes}</Text>
+          <Text style={styles.statLabel}>Total Homes</Text>
         </View>
-        <View style={styles.homeInfo}>
-          <Text style={styles.homeName}>{item.name}</Text>
-          {item.address && (
-            <Text style={styles.homeAddress}>
-              {item.address}
-              {item.city && `, ${item.city}`}
-              {item.state && `, ${item.state}`}
-            </Text>
-          )}
+        <View style={styles.statCard}>
+          <Text style={[styles.statNumber, { color: '#3B82F6' }]}>{totalBedrooms}</Text>
+          <Text style={styles.statLabel}>Total Bedrooms</Text>
         </View>
-        <TouchableOpacity style={styles.moreButton}>
-          <Ionicons name="ellipsis-horizontal" size={20} color="#6B7280" />
-        </TouchableOpacity>
+        <View style={styles.statCard}>
+          <Text style={[styles.statNumber, { color: '#10B981' }]}>{totalBathrooms}</Text>
+          <Text style={styles.statLabel}>Total Bathrooms</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={[styles.statNumber, { color: '#F59E0B' }]}>{averageYear}</Text>
+          <Text style={styles.statLabel}>Avg Year Built</Text>
+        </View>
       </View>
-      
-      <View style={styles.homeDetails}>
-        <View style={styles.detailRow}>
-          <View style={styles.detailItem}>
-            <Ionicons name="bed" size={16} color="#6B7280" />
-            <Text style={styles.detailText}>
-              {item.bedrooms || 'N/A'} {item.bedrooms === 1 ? 'bed' : 'beds'}
+    );
+  };
+
+  const renderHomeCard = ({ item }: { item: any }) => {
+    return (
+      <View style={styles.homeCard}>
+        <View style={styles.cardHeader}>
+          <View style={styles.homeInfo}>
+            <Text style={styles.homeName}>{item.name}</Text>
+            <Text style={styles.homeAddress}>
+              {item.address}, {item.city}, {item.state} {item.zip}
             </Text>
           </View>
-          <View style={styles.detailItem}>
-            <Ionicons name="water" size={16} color="#6B7280" />
-            <Text style={styles.detailText}>
-              {item.bathrooms || 'N/A'} {item.bathrooms === 1 ? 'bath' : 'baths'}
-            </Text>
-          </View>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => handleDeletePress(item)}
+          >
+            <Ionicons name="trash-outline" size={20} color="#EF4444" />
+          </TouchableOpacity>
         </View>
-        
-        {item.square_footage && (
-          <View style={styles.detailRow}>
+
+        <View style={styles.homeDetails}>
+          {item.bedrooms && (
             <View style={styles.detailItem}>
-              <Ionicons name="resize" size={16} color="#6B7280" />
+              <Ionicons name="bed-outline" size={16} color="#6B7280" />
+              <Text style={styles.detailText}>{item.bedrooms} bed</Text>
+            </View>
+          )}
+          {item.bathrooms && (
+            <View style={styles.detailItem}>
+              <Ionicons name="water-outline" size={16} color="#6B7280" />
+              <Text style={styles.detailText}>{item.bathrooms} bath</Text>
+            </View>
+          )}
+          {item.square_footage && (
+            <View style={styles.detailItem}>
+              <Ionicons name="resize-outline" size={16} color="#6B7280" />
               <Text style={styles.detailText}>{item.square_footage.toLocaleString()} sq ft</Text>
             </View>
-          </View>
-        )}
-        
-        {item.purchase_date && (
-          <View style={styles.detailRow}>
+          )}
+          {item.year_built && (
             <View style={styles.detailItem}>
-              <Ionicons name="calendar" size={16} color="#6B7280" />
-              <Text style={styles.detailText}>Purchased {formatDate(item.purchase_date)}</Text>
+              <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+              <Text style={styles.detailText}>Built {item.year_built}</Text>
             </View>
-          </View>
+          )}
+        </View>
+
+        {item.purchase_date && (
+          <Text style={styles.purchaseDate}>
+            Purchased: {new Date(item.purchase_date).toLocaleDateString()}
+          </Text>
+        )}
+
+        {item.notes && (
+          <Text style={styles.notesText}>{item.notes}</Text>
         )}
       </View>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="business-outline" size={64} color="#D1D5DB" />
-      <Text style={styles.emptyTitle}>No Homes Yet</Text>
+      <Ionicons name="home-outline" size={64} color="#D1D5DB" />
+      <Text style={styles.emptyTitle}>No Homes Added</Text>
       <Text style={styles.emptySubtitle}>
-        Add your first home to start managing your property information
+        Add your first home to start managing your properties and inventory
       </Text>
       <TouchableOpacity 
         style={styles.emptyButton}
@@ -220,30 +162,71 @@ export default function HomesScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={homes}
-        renderItem={renderHomeCard}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={[
-          styles.listContainer,
-          homes.length === 0 && styles.emptyContainer
-        ]}
-        ListEmptyComponent={renderEmptyState}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-      />
-      
-      {homes.length > 0 && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => router.push('/(dashboard)/homes/add')}
+    <View style={[styles.container, { paddingBottom: insets.bottom + 100 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.title}>Homes</Text>
+          <Text style={styles.subtitle}>Manage your properties</Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => router.push('/homes/add')}
         >
-          <Ionicons name="add" size={28} color="#FFFFFF" />
+          <Ionicons name="add" size={24} color="#FFFFFF" />
         </TouchableOpacity>
-      )}
+      </View>
+
+      <View style={styles.content}>
+        {renderStats()}
+
+        <FlatList
+          data={homes}
+          renderItem={renderHomeCard}
+          keyExtractor={(item) => item.id}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#4F46E5']}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContainer}
+        />
+      </View>
+
+      <Modal
+        visible={showDeleteModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="warning" size={48} color="#EF4444" />
+              <Text style={styles.modalTitle}>Delete Home</Text>
+              <Text style={styles.modalMessage}>
+                Are you sure you want to delete &quot;{selectedHome?.name}&quot;? This action cannot be undone.
+              </Text>
+            </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowDeleteModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteConfirmButton}
+                onPress={confirmDelete}
+              >
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -251,95 +234,165 @@ export default function HomesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
     color: '#6B7280',
+    fontWeight: '500',
   },
-  listContainer: {
-    padding: 20,
-    paddingBottom: 100,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  homeCard: {
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
   },
-  homeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
+  headerLeft: {
+    flex: 1,
   },
-  homeIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#EEF2FF',
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  addButton: {
+    backgroundColor: '#4F46E5',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  content: {
+    flex: 1,
+  },
+  homesSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  gridContainer: {
+    paddingBottom: 20,
+  },
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  homeCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardHeader: {
+    flexDirection: 'column',
+    marginBottom: 12,
   },
   homeInfo: {
     flex: 1,
   },
   homeName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#111827',
     marginBottom: 4,
   },
   homeAddress: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#6B7280',
-    lineHeight: 20,
+    lineHeight: 16,
   },
-  moreButton: {
+  deleteButton: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
     padding: 8,
-    marginRight: -8,
+    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
   },
   homeDetails: {
-    gap: 8,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    gap: 24,
+    marginBottom: 12,
   },
   detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   detailText: {
-    fontSize: 14,
+    marginLeft: 6,
+    fontSize: 12,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  purchaseDate: {
+    fontSize: 12,
     color: '#6B7280',
+    marginBottom: 8,
+  },
+  notesText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  statsContainer: {
+    padding: 16,
+  },
+  statCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   emptyState: {
     alignItems: 'center',
+    paddingVertical: 60,
     paddingHorizontal: 40,
+    margin: 16,
   },
   emptyTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '600',
     color: '#111827',
-    marginTop: 24,
+    marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
@@ -347,7 +400,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 32,
+    marginBottom: 24,
   },
   emptyButton: {
     backgroundColor: '#4F46E5',
@@ -360,20 +413,69 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  fab: {
-    position: 'absolute',
-    bottom: 90,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#4F46E5',
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginLeft: 12,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#6B7280',
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  deleteConfirmButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  listContainer: {
+    paddingBottom: 20,
   },
 }); 

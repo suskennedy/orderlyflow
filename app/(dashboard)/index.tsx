@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -10,145 +11,324 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHomes } from '../../lib/contexts/HomesContext';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 
-interface DashboardStats {
-  homes: number;
-  tasks: number;
-  vendors: number;
-  inventory: number;
+interface Task {
+  id: string;
+  title: string;
+  status: string | null;
+  priority: string | null;
+  due_date: string | null;
+}
+
+interface Event {
+  id: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+}
+
+interface Vendor {
+  id: string;
+  name: string;
+  category: string | null;
+}
+
+interface InventoryItem {
+  id: string;
+  name: string;
+  warranty_expiry: string | null;
 }
 
 export default function DashboardScreen() {
   const { user } = useAuth();
-  const [stats, setStats] = useState<DashboardStats>({
-    homes: 0,
-    tasks: 0,
-    vendors: 0,
-    inventory: 0,
-  });
+  const { homes, loading: homesLoading } = useHomes();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const insets = useSafeAreaInsets();
 
-  const fetchStats = async () => {
-    if (!user?.id) return;
+  useEffect(() => {
+    if (user?.id) {
+      fetchDashboardData();
+    }
+  }, [user?.id]);
 
+  const fetchDashboardData = async () => {
     try {
-      const [homesRes, tasksRes, vendorsRes, inventoryRes] = await Promise.all([
-        supabase.from('homes').select('*').eq('user_id', user.id),
-        supabase.from('tasks').select('*').eq('user_id', user.id),
-        supabase.from('vendors').select('*').eq('user_id', user.id),
-        supabase.from('appliances').select('*'),
+      if (!user?.id) return;
+
+      const [tasksData, eventsData, vendorsData, inventoryData] = await Promise.all([
+        supabase
+          .from('tasks')
+          .select('id, title, status, priority, due_date')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase
+          .from('calendar_events')
+          .select('id, title, start_time, end_time')
+          .eq('user_id', user.id)
+          .order('start_time', { ascending: true })
+          .limit(5),
+        supabase
+          .from('vendors')
+          .select('id, name, category')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase
+          .from('appliances')
+          .select('id, name, warranty_expiration')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5),
       ]);
 
-      setStats({
-        homes: homesRes.data?.length || 0,
-        tasks: tasksRes.data?.length || 0,
-        vendors: vendorsRes.data?.length || 0,
-        inventory: inventoryRes.data?.length || 0,
-      });
+      setTasks(tasksData.data || []);
+      setEvents(eventsData.data || []);
+      setVendors(vendorsData.data || []);
+      setInventory((inventoryData.data || []).map(item => ({
+        ...item,
+        warranty_expiry: item.warranty_expiration
+      })));
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Error fetching dashboard data:', error);
+      Alert.alert('Error', 'Failed to load dashboard data');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = () => {
     setRefreshing(true);
-    await fetchStats();
+    fetchDashboardData();
   };
 
-  useEffect(() => {
-    fetchStats();
-  }, [user?.id]);
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
+  const getUpcomingTasks = () => {
+    return tasks.filter(task => task.status !== 'completed').slice(0, 3);
   };
 
-  const getUserName = () => {
-    return user?.email?.split('@')[0] || 'User';
+  const getUpcomingEvents = () => {
+    const now = new Date();
+    return events.filter(event => new Date(event.start_time) >= now).slice(0, 3);
   };
 
-  const renderStatCard = (title: string, value: number, icon: string, color: string, onPress: () => void) => (
-    <TouchableOpacity style={[styles.statCard, { backgroundColor: color }]} onPress={onPress}>
-      <View style={styles.statIcon}>
-        <Ionicons name={icon as any} size={24} color="#FFFFFF" />
+  const getExpiringWarranties = () => {
+    const now = new Date();
+    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    return inventory.filter(item => {
+      if (!item.warranty_expiry) return false;
+      const expiryDate = new Date(item.warranty_expiry);
+      return expiryDate >= now && expiryDate <= thirtyDaysFromNow;
+    }).slice(0, 3);
+  };
+
+  const renderQuickActions = () => (
+    <View style={styles.quickActionsContainer}>
+      <Text style={styles.sectionTitle}>Quick Actions</Text>
+      <View style={styles.quickActionsGrid}>
+        <TouchableOpacity
+          style={styles.quickActionCard}
+          onPress={() => router.push('/(dashboard)/homes/add')}
+        >
+          <View style={styles.quickActionIcon}>
+            <Ionicons name="home-outline" size={24} color="#4F46E5" />
+          </View>
+          <Text style={styles.quickActionText}>Add Home</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.quickActionCard}
+          onPress={() => router.push('/(dashboard)/tasks/add')}
+        >
+          <View style={styles.quickActionIcon}>
+            <Ionicons name="checkmark-circle-outline" size={24} color="#059669" />
+          </View>
+          <Text style={styles.quickActionText}>Add Task</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.quickActionCard}
+          onPress={() => router.push('/(dashboard)/calendar/add')}
+        >
+          <View style={styles.quickActionIcon}>
+            <Ionicons name="calendar-outline" size={24} color="#DC2626" />
+          </View>
+          <Text style={styles.quickActionText}>Add Event</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.quickActionCard}
+          onPress={() => router.push('/(dashboard)/inventory/add')}
+        >
+          <View style={styles.quickActionIcon}>
+            <Ionicons name="cube-outline" size={24} color="#7C3AED" />
+          </View>
+          <Text style={styles.quickActionText}>Add Item</Text>
+        </TouchableOpacity>
       </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statTitle}>{title}</Text>
-    </TouchableOpacity>
+    </View>
   );
 
-  const renderQuickAction = (title: string, icon: string, color: string, onPress: () => void) => (
-    <TouchableOpacity style={styles.quickAction} onPress={onPress}>
-      <View style={[styles.quickActionIcon, { backgroundColor: color }]}>
-        <Ionicons name={icon as any} size={20} color="#FFFFFF" />
+  const renderStatistics = () => {
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter(task => task.status === 'completed').length;
+    const upcomingEvents = getUpcomingEvents().length;
+    const expiringWarranties = getExpiringWarranties().length;
+
+    return (
+      <View style={styles.statisticsContainer}>
+        <Text style={styles.sectionTitle}>Overview</Text>
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <Ionicons name="home" size={20} color="#4F46E5" />
+            </View>
+            <Text style={styles.statNumber}>{homes.length}</Text>
+            <Text style={styles.statLabel}>Homes</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <Ionicons name="checkmark-circle" size={20} color="#059669" />
+            </View>
+            <Text style={styles.statNumber}>{completedTasks}/{totalTasks}</Text>
+            <Text style={styles.statLabel}>Tasks</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <Ionicons name="calendar" size={20} color="#DC2626" />
+            </View>
+            <Text style={styles.statNumber}>{upcomingEvents}</Text>
+            <Text style={styles.statLabel}>Events</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <Ionicons name="warning" size={20} color="#F59E0B" />
+            </View>
+            <Text style={styles.statNumber}>{expiringWarranties}</Text>
+            <Text style={styles.statLabel}>Expiring</Text>
+          </View>
+        </View>
       </View>
-      <Text style={styles.quickActionText}>{title}</Text>
-    </TouchableOpacity>
+    );
+  };
+
+  const renderRecentActivity = () => (
+    <View style={styles.recentActivityContainer}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        <TouchableOpacity onPress={() => router.push('/(dashboard)/tasks')}>
+          <Text style={styles.seeAllText}>See All</Text>
+        </TouchableOpacity>
+      </View>
+
+      {getUpcomingTasks().length > 0 && (
+        <View style={styles.activitySection}>
+          <Text style={styles.activitySectionTitle}>Upcoming Tasks</Text>
+          {getUpcomingTasks().map((task) => (
+            <View key={task.id} style={styles.activityItem}>
+              <View style={styles.activityIcon}>
+                <Ionicons 
+                  name="checkmark-circle-outline" 
+                  size={16} 
+                  color={task.priority === 'high' ? '#DC2626' : task.priority === 'medium' ? '#F59E0B' : '#059669'} 
+                />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle} numberOfLines={1}>{task.title}</Text>
+                <Text style={styles.activityDate}>
+                  {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {getUpcomingEvents().length > 0 && (
+        <View style={styles.activitySection}>
+          <Text style={styles.activitySectionTitle}>Upcoming Events</Text>
+          {getUpcomingEvents().map((event) => (
+            <View key={event.id} style={styles.activityItem}>
+              <View style={styles.activityIcon}>
+                <Ionicons name="calendar-outline" size={16} color="#DC2626" />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle} numberOfLines={1}>{event.title}</Text>
+                <Text style={styles.activityDate}>
+                  {new Date(event.start_time).toLocaleDateString()}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {getExpiringWarranties().length > 0 && (
+        <View style={styles.activitySection}>
+          <Text style={styles.activitySectionTitle}>Expiring Warranties</Text>
+          {getExpiringWarranties().map((item) => (
+            <View key={item.id} style={styles.activityItem}>
+              <View style={styles.activityIcon}>
+                <Ionicons name="warning-outline" size={16} color="#F59E0B" />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.activityDate}>
+                  Expires {item.warranty_expiry ? new Date(item.warranty_expiry).toLocaleDateString() : 'Unknown'}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
   );
 
-  if (loading) {
+  if (loading || homesLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#4F46E5" />
-        <Text style={styles.loadingText}>Loading your dashboard...</Text>
+        <Text style={styles.loadingText}>Loading dashboard...</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView 
-      style={styles.container}
-      refreshControl={
-        <RefreshControl 
-          refreshing={refreshing} 
-          onRefresh={onRefresh}
-          colors={['#4F46E5']}
-          tintColor="#4F46E5"
-        />
-      }
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
-      <View style={styles.header}>
+    <View style={[styles.container, { paddingBottom: insets.bottom + 90 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <View>
-          <Text style={styles.greeting}>{getGreeting()}</Text>
-          <Text style={styles.userName}>{getUserName()}</Text>
+          <Text style={styles.greeting}>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}</Text>
+          <Text style={styles.username}>{user?.email?.split('@')[0] || 'User'}</Text>
         </View>
+        <TouchableOpacity style={styles.profileButton}>
+          <Ionicons name="person-circle-outline" size={32} color="#4F46E5" />
+        </TouchableOpacity>
       </View>
 
-      {/* Stats Grid */}
-      <View style={styles.statsContainer}>
-        <Text style={styles.sectionTitle}>Overview</Text>
-        <View style={styles.statsGrid}>
-          {renderStatCard('Homes', stats.homes, 'business', '#4F46E5', () => router.push('/(dashboard)/homes'))}
-          {renderStatCard('Tasks', stats.tasks, 'checkbox', '#059669', () => router.push('/(dashboard)/tasks'))}
-          {renderStatCard('Vendors', stats.vendors, 'people', '#DC2626', () => router.push('/(dashboard)/vendors'))}
-          {renderStatCard('Inventory', stats.inventory, 'cube', '#7C3AED', () => router.push('/(dashboard)/inventory'))}
-        </View>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.quickActions}>
-          {renderQuickAction('Add Home', 'add-circle', '#4F46E5', () => router.push('/(dashboard)/homes/add'))}
-          {renderQuickAction('New Task', 'checkbox', '#059669', () => router.push('/(dashboard)/tasks/add'))}
-          {renderQuickAction('Add Vendor', 'person-add', '#DC2626', () => router.push('/(dashboard)/vendors/add'))}
-          {renderQuickAction('Add Item', 'cube', '#7C3AED', () => router.push('/(dashboard)/inventory/add'))}
-        </View>
-      </View>
-
-      <View style={styles.bottomSpacing} />
-    </ScrollView>
+      <ScrollView
+        style={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {renderStatistics()}
+        {renderQuickActions()}
+        {renderRecentActivity()}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -166,85 +346,114 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#64748B',
-    fontWeight: '600',
+    color: '#6B7280',
+    fontWeight: '500',
   },
   header: {
-    backgroundColor: '#4F46E5',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 30,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    marginBottom: 24,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   greeting: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 4,
+    color: '#6B7280',
     fontWeight: '500',
   },
-  userName: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#FFFFFF',
+  username: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827',
+    marginTop: 4,
+    textTransform: 'capitalize',
   },
-  statsContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+  profileButton: {
+    padding: 4,
+  },
+  content: {
+    flex: 1,
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#1E293B',
+    fontWeight: '600',
+    color: '#111827',
     marginBottom: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: '#4F46E5',
+    fontWeight: '500',
+  },
+  statisticsContainer: {
+    padding: 20,
   },
   statsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
+    gap: 12,
   },
   statCard: {
     flex: 1,
-    minWidth: '45%',
-    padding: 20,
-    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 2,
   },
-  statIcon: {
-    marginBottom: 12,
+  statIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  statValue: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#FFFFFF',
+  statNumber: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
     marginBottom: 4,
   },
-  statTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.9)',
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+    textAlign: 'center',
   },
-  section: {
+  quickActionsContainer: {
     paddingHorizontal: 20,
-    marginBottom: 64,
+    paddingBottom: 20,
   },
-  quickActions: {
+  quickActionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
+    gap: 12,
   },
-  quickAction: {
+  quickActionCard: {
     flex: 1,
-    minWidth: '45%',
+    minWidth: '47%',
     backgroundColor: '#FFFFFF',
-    padding: 16,
     borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -253,20 +462,66 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   quickActionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
   },
   quickActionText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '500',
+    color: '#111827',
     textAlign: 'center',
   },
-  bottomSpacing: {
-    height: 40,
+  recentActivityContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  activitySection: {
+    marginBottom: 20,
+  },
+  activitySectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  activityIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F9FAFB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  activityDate: {
+    fontSize: 12,
+    color: '#6B7280',
   },
 }); 

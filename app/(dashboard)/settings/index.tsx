@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { signOut } from '../../../lib/auth/actions';
 import { useAuth } from '../../../lib/hooks/useAuth';
@@ -64,7 +64,7 @@ export default function SettingsScreen() {
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', user?.id)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -99,7 +99,7 @@ export default function SettingsScreen() {
     setSaving(true);
     try {
       const profileData = {
-        id: user.id,
+        id: user?.id,
         full_name: formData.full_name || null,
         display_name: formData.display_name || null,
         bio: formData.bio || null,

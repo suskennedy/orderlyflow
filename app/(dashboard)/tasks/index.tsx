@@ -1,19 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     FlatList,
+    Modal,
     RefreshControl,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTasks } from '../../../lib/contexts/TasksContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
-import { supabase } from '../../../lib/supabase';
 
 interface Task {
   id: string;
@@ -35,254 +35,111 @@ interface Task {
 
 export default function TasksScreen() {
   const { user } = useAuth();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newTask, setNewTask] = useState({
-    title: '',
-    description: '',
-    priority: 'medium',
-    category: 'general',
-  });
+  const insets = useSafeAreaInsets();
+  const { tasks, loading, refreshing, updateTask, deleteTask, onRefresh } = useTasks();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
 
-  useEffect(() => {
-    if (user) {
-      fetchTasks();
-    }
-  }, [user]);
+  const handleDeletePress = (task: any) => {
+    setSelectedTask(task);
+    setShowDeleteModal(true);
+  };
 
-  const fetchTasks = async () => {
-    try {
-      if (!user?.id) return;
-      
-      const { data, error } = await supabase
-        .from('tasks')
-        .select(`
-          *,
-          homes (
-            name
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setTasks(data || []);
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
-      Alert.alert('Error', 'Failed to load tasks');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+  const confirmDelete = async () => {
+    if (selectedTask) {
+      await deleteTask(selectedTask.id);
+      setShowDeleteModal(false);
+      setSelectedTask(null);
     }
   };
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchTasks();
+  const toggleTaskStatus = async (task: any) => {
+    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+    await updateTask(task.id, { status: newStatus });
   };
 
-  const addTask = async () => {
-    if (!newTask.title.trim()) {
-      Alert.alert('Error', 'Please enter a task title');
-      return;
-    }
-
-    try {
-      const { error } = await supabase.from('tasks').insert([
-        {
-          title: newTask.title,
-          description: newTask.description || null,
-          priority: newTask.priority,
-          category: newTask.category,
-          status: 'pending',
-          user_id: user?.id,
-        },
-      ]);
-
-      if (error) throw error;
-
-      setNewTask({ title: '', description: '', priority: 'medium', category: 'general' });
-      setShowAddForm(false);
-      fetchTasks();
-    } catch (error) {
-      console.error('Error adding task:', error);
-      Alert.alert('Error', 'Failed to add task');
-    }
-  };
-
-  const updateTaskStatus = async (taskId: string, newStatus: string) => {
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ status: newStatus })
-        .eq('id', taskId);
-
-      if (error) throw error;
-      
-      setTasks(prev => prev.map(task => 
-        task.id === taskId ? { ...task, status: newStatus } : task
-      ));
-    } catch (error) {
-      console.error('Error updating task:', error);
-      Alert.alert('Error', 'Failed to update task status');
-    }
-  };
-
-  const getPriorityColor = (priority: string | null) => {
-    switch (priority?.toLowerCase()) {
-      case 'urgent': return '#DC2626';
-      case 'high': return '#F59E0B';
-      case 'medium': return '#3B82F6';
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return '#EF4444';
+      case 'medium': return '#F59E0B';
       case 'low': return '#10B981';
       default: return '#6B7280';
     }
   };
 
-  const getStatusColor = (status: string | null) => {
-    switch (status) {
-      case 'completed': return '#10B981';
-      case 'in_progress': return '#3B82F6';
-      case 'cancelled': return '#EF4444';
-      case 'pending': return '#F59E0B';
-      default: return '#6B7280';
-    }
-  };
+  const renderTaskCard = ({ item }: { item: any }) => {
+    const priorityColor = getPriorityColor(item.priority);
+    const isCompleted = item.status === 'completed';
 
-  const getCategoryIcon = (category: string | null) => {
-    switch (category?.toLowerCase()) {
-      case 'maintenance': return 'hammer';
-      case 'cleaning': return 'sparkles';
-      case 'inspection': return 'search';
-      case 'repair': return 'build';
-      case 'landscaping': return 'leaf';
-      case 'security': return 'shield-checkmark';
-      case 'utilities': return 'flash';
-      case 'insurance': return 'document-text';
-      case 'financial': return 'card';
-      case 'legal': return 'document';
-      default: return 'checkmark-circle';
-    }
-  };
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return null;
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  const isOverdue = (dueDateString: string | null) => {
-    if (!dueDateString) return false;
-    return new Date(dueDateString) < new Date();
-  };
-
-  const renderTaskCard = ({ item }: { item: Task }) => (
-    <View style={styles.taskCard}>
-      <View style={styles.taskHeader}>
-        <View style={styles.taskIconContainer}>
-          <Ionicons 
-            name={getCategoryIcon(item.category) as any} 
-            size={20} 
-            color={getPriorityColor(item.priority)} 
-          />
-        </View>
-        <View style={styles.taskInfo}>
-          <Text style={styles.taskTitle}>{item.title}</Text>
-          {item.description && (
-            <Text style={styles.taskDescription} numberOfLines={2}>
-              {item.description}
-            </Text>
-          )}
-        </View>
-        <TouchableOpacity 
-          style={[styles.statusButton, { backgroundColor: `${getStatusColor(item.status)}20` }]}
-          onPress={() => {
-            if (item.status === 'pending') updateTaskStatus(item.id, 'in_progress');
-            else if (item.status === 'in_progress') updateTaskStatus(item.id, 'completed');
-          }}
-        >
-          <Ionicons 
-            name={
-              item.status === 'completed' ? 'checkmark-circle' :
-              item.status === 'in_progress' ? 'play-circle' :
-              item.status === 'cancelled' ? 'close-circle' :
-              'time'
-            } 
-            size={24} 
-            color={getStatusColor(item.status)} 
-          />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.taskMeta}>
-        <View style={styles.metaRow}>
-          <View style={[styles.priorityBadge, { backgroundColor: `${getPriorityColor(item.priority)}20` }]}>
-            <Text style={[styles.priorityText, { color: getPriorityColor(item.priority) }]}>
-              {item.priority?.toUpperCase()}
-            </Text>
-          </View>
-          
-          {item.category && (
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{item.category}</Text>
+    return (
+      <View style={[styles.taskCard, isCompleted && styles.completedCard]}>
+        <View style={styles.taskHeader}>
+          <TouchableOpacity
+            style={styles.checkboxContainer}
+            onPress={() => toggleTaskStatus(item)}
+          >
+            <View style={[
+              styles.checkbox,
+              isCompleted && styles.checkedBox
+            ]}>
+              {isCompleted && (
+                <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+              )}
             </View>
-          )}
+          </TouchableOpacity>
           
-          {item.is_recurring && (
-            <View style={styles.recurringBadge}>
-              <Ionicons name="repeat" size={12} color="#8B5CF6" />
-              <Text style={styles.recurringText}>Recurring</Text>
-            </View>
-          )}
-        </View>
-
-        {(item.due_date || item.homes?.name) && (
-          <View style={styles.metaRow}>
-            {item.due_date && (
-              <View style={styles.dueDateContainer}>
-                <Ionicons 
-                  name="calendar" 
-                  size={14} 
-                  color={isOverdue(item.due_date) ? '#EF4444' : '#6B7280'} 
-                />
-                <Text style={[
-                  styles.dueDateText,
-                  isOverdue(item.due_date) && styles.overdueText
-                ]}>
-                  {formatDate(item.due_date)}
-                </Text>
-              </View>
+          <View style={styles.taskContent}>
+            <Text style={[styles.taskTitle, isCompleted && styles.completedText]}>
+              {item.title}
+            </Text>
+            {item.description && (
+              <Text style={[styles.taskDescription, isCompleted && styles.completedText]}>
+                {item.description}
+              </Text>
             )}
-            
-            {item.homes?.name && (
-              <View style={styles.homeContainer}>
-                <Ionicons name="home" size={14} color="#6B7280" />
-                <Text style={styles.homeText}>{item.homes.name}</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => handleDeletePress(item)}
+          >
+            <Ionicons name="trash-outline" size={20} color="#EF4444" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.taskFooter}>
+          <View style={styles.taskMeta}>
+            <View style={[styles.priorityBadge, { backgroundColor: `${priorityColor}15` }]}>
+              <Text style={[styles.priorityText, { color: priorityColor }]}>
+                {item.priority?.toUpperCase()}
+              </Text>
+            </View>
+            {item.category && (
+              <View style={styles.categoryBadge}>
+                <Text style={styles.categoryText}>{item.category}</Text>
               </View>
             )}
           </View>
+          {item.due_date && (
+            <Text style={styles.dueDateText}>
+              Due: {new Date(item.due_date).toLocaleDateString()}
+            </Text>
+          )}
+        </View>
+
+        {item.homes && (
+          <Text style={styles.homeText}>🏠 {item.homes.name}</Text>
         )}
       </View>
-
-      {item.notes && (
-        <View style={styles.notesContainer}>
-          <Text style={styles.notesText} numberOfLines={2}>{item.notes}</Text>
-        </View>
-      )}
-    </View>
-  );
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="checkmark-done-outline" size={64} color="#D1D5DB" />
+      <Ionicons name="checkmark-circle-outline" size={64} color="#D1D5DB" />
       <Text style={styles.emptyTitle}>No Tasks Yet</Text>
       <Text style={styles.emptySubtitle}>
-        Create tasks to manage your property maintenance and activities
+        Add your first task to start managing your home maintenance and projects
       </Text>
       <TouchableOpacity 
         style={styles.emptyButton}
@@ -292,6 +149,34 @@ export default function TasksScreen() {
       </TouchableOpacity>
     </View>
   );
+
+  const renderStats = () => {
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter(task => task.status === 'completed').length;
+    const pendingTasks = tasks.filter(task => task.status === 'pending').length;
+    const highPriorityTasks = tasks.filter(task => task.priority === 'high').length;
+
+    return (
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>{totalTasks}</Text>
+          <Text style={styles.statLabel}>Total Tasks</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={[styles.statNumber, { color: '#10B981' }]}>{completedTasks}</Text>
+          <Text style={styles.statLabel}>Completed</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={[styles.statNumber, { color: '#F59E0B' }]}>{pendingTasks}</Text>
+          <Text style={styles.statLabel}>Pending</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={[styles.statNumber, { color: '#EF4444' }]}>{highPriorityTasks}</Text>
+          <Text style={styles.statLabel}>High Priority</Text>
+        </View>
+      </View>
+    );
+  };
 
   if (loading) {
     return (
@@ -303,67 +188,71 @@ export default function TasksScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Tasks</Text>
-        <TouchableOpacity
+    <View style={[styles.container, { paddingBottom: insets.bottom + 100 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.title}>Tasks</Text>
+          <Text style={styles.subtitle}>Manage your to-do list</Text>
+        </View>
+        <TouchableOpacity 
           style={styles.addButton}
-          onPress={() => setShowAddForm(!showAddForm)}
+          onPress={() => router.push('/tasks/add')}
         >
           <Ionicons name="add" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
-      {showAddForm && (
-        <View style={styles.addForm}>
-          <TextInput
-            style={styles.input}
-            placeholder="Task title"
-            value={newTask.title}
-            onChangeText={(text) => setNewTask({ ...newTask, title: text })}
-          />
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Description (optional)"
-            value={newTask.description}
-            onChangeText={(text) => setNewTask({ ...newTask, description: text })}
-            multiline
-            numberOfLines={3}
-          />
-          <View style={styles.formActions}>
-            <TouchableOpacity style={styles.cancelButton} onPress={() => setShowAddForm(false)}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.saveButton} onPress={addTask}>
-              <Text style={styles.saveButtonText}>Add Task</Text>
-            </TouchableOpacity>
+      <View style={styles.content}>
+        {renderStats()}
+
+        <FlatList
+          data={tasks}
+          renderItem={renderTaskCard}
+          keyExtractor={(item) => item.id}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#4F46E5']}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContainer}
+        />
+      </View>
+
+      <Modal
+        visible={showDeleteModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="warning" size={48} color="#EF4444" />
+              <Text style={styles.modalTitle}>Delete Task</Text>
+              <Text style={styles.modalMessage}>
+                Are you sure you want to delete {selectedTask?.title}? This action cannot be undone.
+              </Text>
+            </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowDeleteModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteConfirmButton}
+                onPress={confirmDelete}
+              >
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      )}
-
-      <FlatList
-        data={tasks}
-        renderItem={renderTaskCard}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={[
-          styles.listContainer,
-          tasks.length === 0 && styles.emptyContainer
-        ]}
-        ListEmptyComponent={renderEmptyState}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-      />
-      
-      {tasks.length > 0 && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => router.push('/(dashboard)/tasks/add')}
-        >
-          <Ionicons name="add" size={28} color="#FFFFFF" />
-        </TouchableOpacity>
-      )}
+      </Modal>
     </View>
   );
 }
@@ -371,96 +260,97 @@ export default function TasksScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
     color: '#6B7280',
+    fontWeight: '500',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  headerLeft: {
+    flex: 1,
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#111827',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   addButton: {
     backgroundColor: '#4F46E5',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  addForm: {
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+  content: {
+    flex: 1,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 12,
-    backgroundColor: '#FFFFFF',
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  formActions: {
+  statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     gap: 12,
   },
-  cancelButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  cancelButtonText: {
-    color: '#6B7280',
-    fontSize: 16,
-  },
-  saveButton: {
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  listContainer: {
-    padding: 20,
-    paddingBottom: 100,
-  },
-  emptyContainer: {
+  statCard: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#4F46E5',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  tasksSection: {
+    padding: 16,
+    paddingTop: 0,
   },
   taskCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 20,
     marginBottom: 16,
     shadowColor: '#000',
@@ -471,23 +361,32 @@ const styles = StyleSheet.create({
   },
   taskHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 16,
   },
-  taskIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+  checkboxContainer: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#6B7280',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
-  taskInfo: {
+  checkedBox: {
+    backgroundColor: '#4F46E5',
+  },
+  taskContent: {
     flex: 1,
   },
   taskTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#111827',
     marginBottom: 4,
@@ -495,24 +394,31 @@ const styles = StyleSheet.create({
   taskDescription: {
     fontSize: 14,
     color: '#6B7280',
+    marginBottom: 12,
     lineHeight: 20,
   },
-  statusButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
+  completedCard: {
+    backgroundColor: '#FEF2F2',
+  },
+  completedText: {
+    color: '#6B7280',
+  },
+  deleteButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
+  },
+  taskFooter: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 12,
+    flexWrap: 'wrap',
+    gap: 16,
+    marginBottom: 16,
   },
   taskMeta: {
-    gap: 12,
-  },
-  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flexWrap: 'wrap',
   },
   priorityBadge: {
     paddingHorizontal: 8,
@@ -527,71 +433,35 @@ const styles = StyleSheet.create({
   categoryBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: '#F3F4F6',
     borderRadius: 12,
+    backgroundColor: '#EEF2FF',
   },
   categoryText: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  recurringBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#F3E8FF',
-    borderRadius: 12,
-  },
-  recurringText: {
     fontSize: 10,
-    color: '#8B5CF6',
-    fontWeight: '500',
-  },
-  dueDateContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   dueDateText: {
+    marginLeft: 6,
     fontSize: 12,
     color: '#6B7280',
-  },
-  overdueText: {
-    color: '#EF4444',
-    fontWeight: '500',
-  },
-  homeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
   },
   homeText: {
+    marginLeft: 6,
     fontSize: 12,
     color: '#6B7280',
-  },
-  notesContainer: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  notesText: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-    fontStyle: 'italic',
   },
   emptyState: {
     alignItems: 'center',
+    paddingVertical: 60,
     paddingHorizontal: 40,
+    margin: 16,
   },
   emptyTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '600',
     color: '#111827',
-    marginTop: 24,
+    marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
@@ -599,7 +469,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 32,
+    marginBottom: 24,
   },
   emptyButton: {
     backgroundColor: '#4F46E5',
@@ -612,20 +482,70 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  fab: {
-    position: 'absolute',
-    bottom: 90,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#4F46E5',
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginLeft: 12,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#6B7280',
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  deleteConfirmButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  listContainer: {
+    padding: 16,
+    paddingTop: 0,
   },
 }); 
