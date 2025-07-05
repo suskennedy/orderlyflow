@@ -3,18 +3,20 @@ import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import DatePicker from '../../../components/DatePicker';
+import TimePicker from '../../../components/TimePicker';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { supabase } from '../../../lib/supabase';
 
@@ -40,13 +42,17 @@ export default function AddCalendarEventScreen() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    start_date: '',
     start_time: '',
+    end_date: '',
     end_time: '',
     location: '',
     color: 'blue',
     all_day: false,
     task_id: '',
   });
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   useEffect(() => {
     fetchTasks();
@@ -78,29 +84,53 @@ export default function AddCalendarEventScreen() {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
+  const parseTimeString = (timeStr: string | null): Date => {
+    if (!timeStr) return new Date();
+    
+    try {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      const date = new Date();
+      date.setHours(hours, minutes, 0, 0);
+      return date;
+    } catch (error) {
+      return new Date();
+    }
+  };
+
   const handleSave = async () => {
     if (!formData.title.trim()) {
       Alert.alert('Error', 'Please enter an event title');
       return;
     }
 
-    if (!formData.start_time) {
-      Alert.alert('Error', 'Please enter a start time');
+    if (!formData.start_date) {
+      Alert.alert('Error', 'Please select a start date');
       return;
     }
 
-    if (!formData.all_day && !formData.end_time) {
-      Alert.alert('Error', 'Please enter an end time or mark as all day');
+    if (!formData.all_day && (!formData.end_date || !formData.start_time || !formData.end_time)) {
+      Alert.alert('Error', 'Please select both start and end times');
       return;
     }
 
     setLoading(true);
     try {
+      // Combine date and time
+      let start_datetime = formData.start_date;
+      if (!formData.all_day && formData.start_time) {
+        start_datetime = `${formData.start_date}T${formData.start_time}:00`;
+      }
+      
+      let end_datetime = formData.all_day ? formData.start_date : formData.end_date;
+      if (!formData.all_day && formData.end_time) {
+        end_datetime = `${formData.end_date}T${formData.end_time}:00`;
+      }
+      
       const eventData = {
         title: formData.title,
         description: formData.description || null,
-        start_time: formData.start_time,
-        end_time: formData.all_day ? formData.start_time : formData.end_time,
+        start_time: start_datetime,
+        end_time: end_datetime,
         location: formData.location || null,
         color: formData.color,
         all_day: formData.all_day,
@@ -123,15 +153,26 @@ export default function AddCalendarEventScreen() {
     }
   };
 
-  // Set default start time to current time
+  // Set default start date/time to current time
   useEffect(() => {
     const now = new Date();
     const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
     
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    
+    const laterHours = String(oneHourLater.getHours()).padStart(2, '0');
+    const laterMinutes = String(oneHourLater.getMinutes()).padStart(2, '0');
+    
     setFormData(prev => ({
       ...prev,
-      start_time: formatDateTimeForInput(now),
-      end_time: formatDateTimeForInput(oneHourLater),
+      start_date: `${year}-${month}-${day}`,
+      start_time: `${hours}:${minutes}`,
+      end_date: `${year}-${month}-${day}`,
+      end_time: `${laterHours}:${laterMinutes}`,
     }));
   }, []);
 
@@ -214,31 +255,48 @@ export default function AddCalendarEventScreen() {
           </View>
           
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Start {formData.all_day ? 'Date' : 'Date & Time'} *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={formData.all_day ? "YYYY-MM-DD" : "YYYY-MM-DDTHH:MM"}
-              value={formData.start_time}
-              onChangeText={(text) => setFormData({ ...formData, start_time: text })}
-              placeholderTextColor="#9CA3AF"
+            <DatePicker
+              label={`Start ${formData.all_day ? 'Date' : 'Date'}`}
+              value={formData.start_date}
+              placeholder="Select start date"
+              onChange={(dateString) => setFormData({ ...formData, start_date: dateString as string })}
+              testID="start-date-picker"
             />
-            <Text style={styles.helperText}>
-              {formData.all_day ? "Format: 2024-01-15" : "Format: 2024-01-15T14:30"}
-            </Text>
           </View>
           
           {!formData.all_day && (
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>End Date & Time *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="YYYY-MM-DDTHH:MM"
-                value={formData.end_time}
-                onChangeText={(text) => setFormData({ ...formData, end_time: text })}
-                placeholderTextColor="#9CA3AF"
+              <TimePicker
+                label="Start Time"
+                value={formData.start_time}
+                placeholder="Select start time"
+                onChange={(timeString) => setFormData({ ...formData, start_time: timeString as string })}
+                testID="start-time-picker"
               />
-              <Text style={styles.helperText}>Format: 2024-01-15T16:30</Text>
             </View>
+          )}
+          
+          {!formData.all_day && (
+            <>
+              <View style={styles.inputGroup}>
+                <DatePicker
+                  label="End Date"
+                  value={formData.end_date}
+                  placeholder="Select end date"
+                  onChange={(dateString) => setFormData({ ...formData, end_date: dateString as string })}
+                  testID="end-date-picker"
+                />
+              </View>
+              <View style={styles.inputGroup}>
+                <TimePicker
+                  label="End Time"
+                  value={formData.end_time}
+                  placeholder="Select end time"
+                  onChange={(timeString) => setFormData({ ...formData, end_time: timeString as string})}
+                  testID="end-time-picker"
+                />
+              </View>
+            </>
           )}
         </View>
 
@@ -393,4 +451,12 @@ const styles = StyleSheet.create({
   bottomSpacing: {
     height: 120,
   },
-}); 
+  dateText: {
+    fontSize: 16,
+    color: '#111827',
+  },
+  placeholder: {
+    fontSize: 16,
+    color: '#9CA3AF',
+  },
+});

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Modal,
   RefreshControl,
@@ -32,15 +33,59 @@ export default function InventoryScreen() {
     }
   };
 
+  // Format date for display
+  const formatDate = (dateString: string | null): string => {
+    if (!dateString) return 'N/A';
+    
+    try {
+      // Parse the ISO date string to a Date object
+      const date = new Date(dateString);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      
+      // Format the date as MM/DD/YYYY
+      return date.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Error';
+    }
+  };
+  
+  // Check if a warranty is active or expired
+  const checkWarrantyStatus = (expirationDate: string | null): 'active' | 'expired' | 'none' => {
+    if (!expirationDate) return 'none';
+    
+    try {
+      const expDate = new Date(expirationDate);
+      const today = new Date();
+      
+      // Check if date is valid
+      if (isNaN(expDate.getTime())) return 'none';
+      
+      return expDate > today ? 'active' : 'expired';
+    } catch (error) {
+      console.error('Error checking warranty status:', error);
+      return 'none';
+    }
+  };
+
   const renderStats = () => {
     const totalItems = items.length;
+    // Use our warranty checker function
     const warrantyActive = items.filter(item => 
-      item.warranty_expiration && new Date(item.warranty_expiration) > new Date()
+      checkWarrantyStatus(item.warranty_expiration) === 'active'
     ).length;
     const warrantyExpired = items.filter(item => 
-      item.warranty_expiration && new Date(item.warranty_expiration) <= new Date()
+      checkWarrantyStatus(item.warranty_expiration) === 'expired'
     ).length;
-    const noWarranty = items.filter(item => !item.warranty_expiration).length;
+    const noWarranty = items.filter(item => 
+      checkWarrantyStatus(item.warranty_expiration) === 'none'
+    ).length;
 
     return (
       <View style={styles.statsContainer}>
@@ -65,14 +110,9 @@ export default function InventoryScreen() {
   };
 
   const renderInventoryCard = ({ item }: { item: any }) => {
-    const warrantyStatus = item.warranty_expiration 
-      ? new Date(item.warranty_expiration) > new Date() 
-        ? 'active' 
-        : 'expired'
-      : 'none';
-
+    const warrantyStatus = checkWarrantyStatus(item.warranty_expiration);
     const warrantyColor = warrantyStatus === 'active' ? '#10B981' : 
-                         warrantyStatus === 'expired' ? '#EF4444' : '#6B7280';
+                           warrantyStatus === 'expired' ? '#EF4444' : '#6B7280';
 
     const getItemIcon = () => {
       const name = item.name?.toLowerCase() || '';
@@ -149,7 +189,7 @@ export default function InventoryScreen() {
                 <Ionicons name="calendar" size={16} color="#6B7280" />
               </View>
               <Text style={styles.detailText}>
-                Purchased: {new Date(item.purchase_date).toLocaleDateString()}
+                Purchased: {formatDate(item.purchase_date)}
               </Text>
             </View>
           )}
@@ -160,7 +200,7 @@ export default function InventoryScreen() {
             <View style={styles.warrantyInfo}>
               <Ionicons name="shield-checkmark" size={16} color={warrantyColor} />
               <Text style={[styles.warrantyDetailText, { color: warrantyColor }]}>
-                Warranty until {new Date(item.warranty_expiration).toLocaleDateString()}
+                Warranty until {formatDate(item.warranty_expiration)}
               </Text>
             </View>
           )}
@@ -180,6 +220,32 @@ export default function InventoryScreen() {
             <Text style={styles.homeText}>{item.homes.name}</Text>
           </View>
         )}
+      </View>
+    );
+  };
+
+  // Show empty state if no items
+  const renderEmptyState = () => {
+    if (loading) return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4F46E5" />
+        <Text style={styles.loadingText}>Loading inventory...</Text>
+      </View>
+    );
+    
+    return (
+      <View style={styles.emptyState}>
+        <Ionicons name="cube-outline" size={64} color="#D1D5DB" />
+        <Text style={styles.emptyTitle}>No Items Yet</Text>
+        <Text style={styles.emptySubtitle}>
+          Start tracking your home inventory by adding your first item
+        </Text>
+        <TouchableOpacity 
+          style={styles.emptyButton}
+          onPress={() => router.push('/inventory/add')}
+        >
+          <Text style={styles.emptyButtonText}>Add First Item</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -214,7 +280,11 @@ export default function InventoryScreen() {
             />
           }
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[
+            styles.listContainer,
+            items.length === 0 && { flex: 1 }
+          ]}
+          ListEmptyComponent={renderEmptyState}
         />
       </View>
 
@@ -585,4 +655,4 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 0,
   },
-}); 
+});

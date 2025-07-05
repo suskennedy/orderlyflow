@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import DatePicker from '../../../components/DatePicker';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { useDashboard } from '../../../lib/hooks/useDashboard';
 import { supabase } from '../../../lib/supabase';
@@ -38,10 +39,18 @@ interface Home {
 }
 
 export default function AddTaskScreen() {
-  const { user } = useAuth();
+  const { user, loading: authLoading, isAuthenticated } = useAuth();
   const { fetchDashboardStats } = useDashboard();
   const [loading, setLoading] = useState(false);
   const [homes, setHomes] = useState<Home[]>([]);
+  
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      Alert.alert('Authentication Required', 'Please log in to add tasks.');
+      router.replace('/(auth)/signin');
+    }
+  }, [authLoading, isAuthenticated]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -55,52 +64,121 @@ export default function AddTaskScreen() {
     recurrence_end_date: '',
     notes: '',
   });
-
-  useEffect(() => {
-    fetchHomes();
-  }, []);
-
+  
   const fetchHomes = async () => {
     try {
+      // Make sure we have a valid user ID
+      if (!user?.id) {
+        console.log('No user ID available, skipping homes fetch');
+        return;
+      }
+      
+      console.log('Fetching homes for user:', user.id);
       const { data, error } = await supabase
-        .from('homes')
-        .select('id, name')
-        .eq('user_id', user?.id as string)
-        .order('name');
-
+      .from('homes')
+      .select('id, name')
+      .eq('user_id', user.id)
+      .order('name');
+      
       if (error) throw error;
       setHomes(data || []);
     } catch (error) {
       console.error('Error fetching homes:', error);
     }
+  };// Validate date string format (YYYY-MM-DD) and ensure it's a valid date
+  useEffect(() => {
+    if (user?.id) {
+      fetchHomes();
+    }
+  }, [user]);
+  const isValidDateFormat = (dateString: string) => {
+    if (!dateString) return true; // Empty is allowed
+    
+    // Check format using regex
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!regex.test(dateString)) return false;
+    
+    // Validate it's an actual date (e.g., not 2023-02-31)
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.getFullYear() === year && 
+           date.getMonth() === month - 1 && 
+           date.getDate() === day;
   };
-
   const handleSave = async () => {
+    // Check if user is authenticated
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to add tasks');
+      return;
+    }
+    
     if (!formData.title.trim()) {
       Alert.alert('Error', 'Please enter a task title');
       return;
     }
 
+    // Dates are now properly formatted by the DatePicker component,
+    // so we can remove the date format validation checks
+    
+    // Only validate recurrence pattern if recurring
+    if (formData.is_recurring) {
+      if (!formData.recurrence_pattern || formData.recurrence_pattern.trim() === '') {
+        Alert.alert('Error', 'Please specify a recurrence pattern for recurring tasks');
+        return;
+      }
+      
+      // If due date and recurrence end date are provided, make sure end date is after due date
+      if (formData.due_date && formData.recurrence_end_date) {
+        const dueDate = new Date(formData.due_date);
+        const endDate = new Date(formData.recurrence_end_date);
+        
+        if (endDate < dueDate) {
+          Alert.alert('Error', 'Recurrence end date must be after the due date');
+          return;
+        }
+      }
+    }
+    
     setLoading(true);
-    try {
-      const { error } = await supabase.from('tasks').insert([
-        {
-          title: formData.title,
-          description: formData.description || null,
-          category: formData.category || null,
-          priority: formData.priority,
-          status: formData.status,
-          due_date: formData.due_date || null,
-          home_id: formData.home_id || null,
-          is_recurring: formData.is_recurring,
-          recurrence_pattern: formData.is_recurring ? formData.recurrence_pattern : null,
-          recurrence_end_date: formData.is_recurring ? formData.recurrence_end_date : null,
-          notes: formData.notes || null,
-          user_id: user?.id,
-        },
-      ]);
+    try {      // Prepare task data with proper null handling for database
+      const taskData = {
+        title: formData.title.trim(),
+        description: formData.description ? formData.description.trim() : null,
+        category: formData.category || null,
+        priority: formData.priority,
+        status: formData.status,
+        due_date: formData.due_date || null,
+        home_id: formData.home_id || null,
+        is_recurring: formData.is_recurring,
+        // Only include recurrence fields if this is a recurring task
+        recurrence_pattern: formData.is_recurring && formData.recurrence_pattern ? formData.recurrence_pattern.trim() : null,
+        recurrence_end_date: formData.is_recurring && formData.recurrence_end_date ? formData.recurrence_end_date : null,
+        notes: formData.notes ? formData.notes.trim() : null,
+        user_id: user?.id,
+      };
 
-      if (error) throw error;
+      console.log('Sending task data to Supabase:', JSON.stringify(taskData, null, 2));
+      
+      // Insert the task with explicit error handling
+      const { data, error } = await supabase.from('tasks').insert([taskData]).select();
+
+      if (error) {
+        console.error('Supabase error details:', error);
+        
+        // Show more specific error message based on the error code
+        if (error.code === '23502') { // not_null_violation
+          Alert.alert('Error', 'Required field missing. Please check all required fields.');
+        } else if (error.code === '23503') { // foreign_key_violation
+          Alert.alert('Error', 'Invalid reference. Please check that the home exists.');
+        } else if (error.code === '22P02') { // invalid_text_representation
+          Alert.alert('Error', 'Invalid data format. Please check date fields.');
+        } else {
+          Alert.alert('Error', `Database error: ${error.message}`);
+        }
+        return;
+      }
+
+      console.log('Task created successfully:', data);
 
       // Refresh dashboard stats
       await fetchDashboardStats();
@@ -108,9 +186,9 @@ export default function AddTaskScreen() {
       Alert.alert('Success', 'Task added successfully!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding task:', error);
-      Alert.alert('Error', 'Failed to add task');
+      Alert.alert('Error', `Failed to add task: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -228,15 +306,15 @@ export default function AddTaskScreen() {
               </View>
             </View>
           </View>
-          
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Due Date</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD"
+            <DatePicker
+              label="Due Date"
               value={formData.due_date}
-              onChangeText={(text) => setFormData({ ...formData, due_date: text })}
-              placeholderTextColor="#9CA3AF"
+              placeholder="Select a due date"
+              onChange={(dateString) => setFormData({ ...formData, due_date: dateString  as string})}
+              helperText="When this task should be completed"
+              isOptional={true}
+              testID="due-date-picker"
             />
           </View>
           
@@ -273,23 +351,32 @@ export default function AddTaskScreen() {
             <>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Recurrence Pattern</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., Weekly, Monthly, Every 3 months"
-                  value={formData.recurrence_pattern}
-                  onChangeText={(text) => setFormData({ ...formData, recurrence_pattern: text })}
-                  placeholderTextColor="#9CA3AF"
-                />
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={formData.recurrence_pattern}
+                    onValueChange={(itemValue) => setFormData({ ...formData, recurrence_pattern: itemValue })}
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Select a recurrence pattern..." value="" />
+                    <Picker.Item label="Daily" value="Daily" />
+                    <Picker.Item label="Weekly" value="Weekly" />
+                    <Picker.Item label="Bi-weekly" value="Bi-weekly" />
+                    <Picker.Item label="Monthly" value="Monthly" />
+                    <Picker.Item label="Quarterly" value="Quarterly" />
+                    <Picker.Item label="Semi-annually" value="Semi-annually" />
+                    <Picker.Item label="Annually" value="Annually" />
+                  </Picker>
+                </View>
               </View>
-              
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Recurrence End Date</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="YYYY-MM-DD (optional)"
+                <DatePicker
+                  label="Recurrence End Date"
                   value={formData.recurrence_end_date}
-                  onChangeText={(text) => setFormData({ ...formData, recurrence_end_date: text })}
-                  placeholderTextColor="#9CA3AF"
+                  placeholder="Select an end date (optional)"
+                  onChange={(dateString) => setFormData({ ...formData, recurrence_end_date: dateString as string })}
+                  helperText="When recurring task should stop"
+                  isOptional={true}
+                  testID="recurrence-end-date-picker"
                 />
               </View>
             </>
@@ -428,8 +515,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#374151',
     flex: 1,
-  },
-  bottomSpacing: {
+  },  bottomSpacing: {
     height: 120,
   },
-}); 
+  helperText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+});

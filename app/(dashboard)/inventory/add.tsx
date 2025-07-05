@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import DatePicker from '../../../components/DatePicker';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { useDashboard } from '../../../lib/hooks/useDashboard';
 import { supabase } from '../../../lib/supabase';
@@ -286,13 +287,13 @@ export default function AddInventoryScreen() {
           <Text style={styles.sectionTitle}>Purchase Information</Text>
           <View style={styles.row}>
             <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Purchase Date</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="YYYY-MM-DD"
+              <DatePicker
+                label="Purchase Date"
                 value={formData.purchase_date}
-                onChangeText={(text) => setFormData({ ...formData, purchase_date: text })}
-                placeholderTextColor="#9CA3AF"
+                placeholder="Select date"
+                onChange={(dateString) => setFormData({ ...formData, purchase_date: dateString as string})}
+                isOptional={true}
+                testID="purchase-date-picker"
               />
             </View>
             <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
@@ -310,12 +311,14 @@ export default function AddInventoryScreen() {
           
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Warranty Expiration</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD"
+            <DatePicker
+              label="Warranty Expiration"
               value={formData.warranty_expiration}
-              onChangeText={(text) => setFormData({ ...formData, warranty_expiration: text })}
-              placeholderTextColor="#9CA3AF"
+              placeholder="Select date"
+              onChange={(dateString) => setFormData({ ...formData, warranty_expiration: dateString as string })}
+              helperText="When the warranty expires"
+              isOptional={true}
+              testID="warranty-date-picker"
             />
           </View>
         </View>
@@ -461,4 +464,4 @@ const styles = StyleSheet.create({
     color: '#4F46E5',
     fontWeight: '500',
   },
-}); 
+});
