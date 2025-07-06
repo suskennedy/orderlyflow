@@ -23,14 +23,12 @@ export default function RootLayout() {
             headerShown: false,
             contentStyle: {
               backgroundColor: "#F8FAFC",
-            },
-            animation: "slide_from_right",
-            // Add additional padding for Android navigation bar if needed
-            contentStyle: {
               ...(Platform.OS === 'android' && { 
                 paddingBottom: 0 
               })
             },
+            animation: "slide_from_right",
+            // Add additional padding for Android navigation bar if needed
           }}
         >
           <Stack.Screen

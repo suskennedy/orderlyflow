@@ -8,35 +8,16 @@ export default function AuthLayout() {
       <StatusBar barStyle="dark-content" backgroundColor="#EEF2FF" />
       <Stack
         screenOptions={{
-          headerTintColor: "#2563EB",
-          headerShadowVisible: false,
+          headerShown: false, // Hide all headers from Expo Router
           contentStyle: {
-            backgroundColor: "#EEF2FF",
-          },
-          headerStyle: {
             backgroundColor: "#EEF2FF",
           },
           animation: "slide_from_right",
         }}
       >
-        <Stack.Screen
-          name="login"
-          options={{
-            title: "Sign In",
-          }}
-        />
-        <Stack.Screen
-          name="register"
-          options={{
-            title: "Create Account",
-          }}
-        />
-        <Stack.Screen
-          name="forgot-password"
-          options={{
-            title: "Reset Password",
-          }}
-        />
+        <Stack.Screen name="signin" />
+        <Stack.Screen name="signup" />
+        <Stack.Screen name="forgot-password" />
       </Stack>
     </>
   );
