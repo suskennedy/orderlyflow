@@ -13,6 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import DatePicker from '../../../components/DatePicker';
+import { useHomes } from '../../../lib/contexts/HomesContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { useDashboard } from '../../../lib/hooks/useDashboard';
 import { supabase } from '../../../lib/supabase';
@@ -20,6 +22,7 @@ import { supabase } from '../../../lib/supabase';
 export default function AddHomeScreen() {
   const { user } = useAuth();
   const { fetchDashboardStats } = useDashboard();
+  const { addHome } = useHomes();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -43,7 +46,28 @@ export default function AddHomeScreen() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('homes').insert([
+      // Create the home object
+      const newHome = {
+        id: Date.now().toString(), // Temporary ID, will be replaced by Supabase
+        name: formData.name,
+        address: formData.address || null,
+        city: formData.city || null,
+        state: formData.state || null,
+        zip: formData.zip || null,
+        bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
+        bathrooms: formData.bathrooms ? parseFloat(formData.bathrooms) : null,
+        square_footage: formData.square_footage ? parseInt(formData.square_footage) : null,
+        year_built: formData.year_built ? parseInt(formData.year_built) : null,
+        purchase_date: formData.purchase_date || null,
+        notes: formData.notes || null,
+        user_id: user?.id,
+      };
+
+      // Immediately add to local state for UI update
+      addHome(newHome);
+
+      // Then save to Supabase
+      const { data, error } = await supabase.from('homes').insert([
         {
           name: formData.name,
           address: formData.address || null,
@@ -58,16 +82,15 @@ export default function AddHomeScreen() {
           notes: formData.notes || null,
           user_id: user?.id,
         },
-      ]);
+      ]).select();
 
       if (error) throw error;
 
       // Refresh dashboard stats
       await fetchDashboardStats();
 
-      Alert.alert('Success', 'Home added successfully!', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      // Navigate back - note we don't need to alert since UI already updated
+      router.back();
     } catch (error) {
       console.error('Error adding home:', error);
       Alert.alert('Error', 'Failed to add home');
@@ -222,13 +245,14 @@ export default function AddHomeScreen() {
           </View>
           
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Purchase Date</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD"
+            <DatePicker
+              label="Purchase Date"
               value={formData.purchase_date}
-              onChangeText={(text) => setFormData({ ...formData, purchase_date: text })}
-              placeholderTextColor="#9CA3AF"
+              placeholder="Select purchase date"
+              onChange={(dateString) => setFormData({ ...formData, purchase_date: dateString as string})}
+              isOptional={true}
+              testID="purchase-date-picker"
+              helperText="When you purchased this property"
             />
           </View>
         </View>
@@ -348,4 +372,4 @@ const styles = StyleSheet.create({
   bottomSpacing: {
     height: 40,
   },
-}); 
+});

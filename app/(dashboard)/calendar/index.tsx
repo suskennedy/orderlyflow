@@ -1,24 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { DateData } from 'react-native-calendars';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import reusable components
 import CalendarAgendaView from '../../../components/calendar/CalendarAgendaView';
-import CalendarMonthView, { CalendarEvent } from '../../../components/calendar/CalendarMonthView';
+import CalendarMonthView from '../../../components/calendar/CalendarMonthView';
 import CalendarViewToggle from '../../../components/calendar/CalendarViewToggle';
 import LoadingState from '../../../components/layout/LoadingState';
 import DeleteConfirmationModal from '../../../components/ui/DeleteConfirmationModal';
 
 // Import hooks and utilities
-import { useAuth } from '../../../lib/hooks/useAuth';
-import { supabase } from '../../../lib/supabase';
-import { getCalendarTheme, getColorHex, getEventColor } from '../../../lib/utils/colorHelpers';
-
-// Define event type
-
+import { useCalendar } from '../../../lib/contexts/CalendarContext';
+import { getCalendarTheme, getColorHex } from '../../../lib/utils/colorHelpers';
 
 // Define MarkingProps interface for TypeScript
 interface MarkingProps {
@@ -36,75 +32,18 @@ interface MarkingProps {
 
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { events, loading, refreshing, deleteEvent, onRefresh } = useCalendar();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [calendarView, setCalendarView] = useState<'month' | 'agenda'>('month');
-
-  // Fetch calendar events from Supabase
-  const fetchEvents = async () => {
-    if (!user?.id) return;
-    
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('calendar_events')
-        .select('*')
-        .eq('user_id', user.id);
-        
-      if (error) throw error;
-      setEvents(data as CalendarEvent[]);
-    } catch (error) {
-      console.error('Error fetching calendar events:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchEvents();
-  }, [user]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchEvents();
-  };
-
-  const handleDeletePress = (event: CalendarEvent) => {
-    setSelectedEvent(event);
-    setShowDeleteModal(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!selectedEvent) return;
-    
-    try {
-      const { error } = await supabase
-        .from('calendar_events')
-        .delete()
-        .eq('id', selectedEvent.id);
-        
-      if (error) throw error;
-      
-      setEvents(prev => prev.filter(event => event.id !== selectedEvent.id));
-      setShowDeleteModal(false);
-      setSelectedEvent(null);
-    } catch (error) {
-      console.error('Error deleting event:', error);
-    }
-  };
 
   // Enhanced format events for calendar markers - with filled color highlights for event dates
   const markedDates = useMemo(() => {
     const markers: Record<string, MarkingProps> = {};
     
     // Create a map of dates to their respective events
-    const eventsByDate: Record<string, CalendarEvent[]> = {};
+    const eventsByDate: Record<string, any[]> = {};
     
     events.forEach(event => {
       // Get date part of the start time
@@ -123,7 +62,7 @@ export default function CalendarScreen() {
       
       markers[date] = {
         marked: true,
-        selectedColor: getEventColor(primaryColor),
+        selectedColor: getColorHex(primaryColor) + '40',
         dotColor: getColorHex(primaryColor),
         // Add dots for multi-dot representation
         dots: dateEvents.map(event => ({
@@ -175,6 +114,23 @@ export default function CalendarScreen() {
 
   const handleViewChange = (view: 'month' | 'agenda') => {
     setCalendarView(view);
+  };
+
+  const handleDeletePress = (event: any) => {
+    setSelectedEvent(event);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedEvent) return;
+    
+    try {
+      await deleteEvent(selectedEvent.id);
+      setShowDeleteModal(false);
+      setSelectedEvent(null);
+    } catch (error) {
+      console.error('Error deleting event:', error);
+    }
   };
 
   // Render the header section
@@ -235,42 +191,39 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    paddingVertical: 20,
   },
   headerLeft: {
     flex: 1,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#111827',
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#6B7280',
-    marginTop: 4,
   },
   addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#4F46E5',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#4F46E5',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 5,
+    shadowRadius: 8,
+    elevation: 4,
   },
 });

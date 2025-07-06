@@ -1,24 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { RelativePathString, router } from 'expo-router';
 import React from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
-interface InventoryItem {
-  id: string;
-  name: string;
-  brand?: string | null;
-  model?: string | null;
-  serial_number?: string | null;
-  location?: string | null;
-  purchase_date?: string | null;
-  purchase_price?: number | null;
-  warranty_expiration?: string | null | undefined;
-  manual_url?: string | null;
-  notes?: string | null;
-  home_id?: string | null;
-  homes?: { name: string } | null;
-  user_id?: string | null;
-}
+import { InventoryItem } from '../../lib/services/InventoryService';
 
 interface InventoryItemCardProps {
   item: InventoryItem;
@@ -31,13 +15,9 @@ export default function InventoryItemCard({ item, onDelete }: InventoryItemCardP
     if (!dateString) return 'N/A';
     
     try {
-      // Parse the ISO date string to a Date object
       const date = new Date(dateString);
-      
-      // Check if date is valid
       if (isNaN(date.getTime())) return 'Invalid Date';
       
-      // Format the date
       return date.toLocaleDateString(undefined, {
         year: 'numeric',
         month: 'short',
@@ -49,17 +29,14 @@ export default function InventoryItemCard({ item, onDelete }: InventoryItemCardP
     }
   };
   
-  // Check if a warranty is active or expired
+  // Check warranty status
   const checkWarrantyStatus = (expirationDate: string | null | undefined): 'active' | 'expired' | 'none' => {
     if (!expirationDate) return 'none';
     
     try {
       const expDate = new Date(expirationDate);
       const today = new Date();
-      
-      // Check if date is valid
       if (isNaN(expDate.getTime())) return 'none';
-      
       return expDate > today ? 'active' : 'expired';
     } catch (error) {
       console.error('Error checking warranty status:', error);
@@ -67,18 +44,33 @@ export default function InventoryItemCard({ item, onDelete }: InventoryItemCardP
     }
   };
 
-  // Determine icon based on item name
-  const getItemIcon = () => {
-    const name = item.name?.toLowerCase() || '';
-    if (name.includes('refrigerator') || name.includes('fridge')) return 'snow';
-    if (name.includes('washer') || name.includes('washing')) return 'water';
-    if (name.includes('dryer')) return 'flame';
-    if (name.includes('dishwasher')) return 'restaurant';
-    if (name.includes('oven') || name.includes('stove')) return 'flame';
-    if (name.includes('microwave')) return 'radio';
-    if (name.includes('tv') || name.includes('television')) return 'tv';
-    if (name.includes('air') || name.includes('hvac')) return 'thermometer';
-    return 'cube';
+  // Get item icon based on type and name
+  const getItemIcon = (): string => {
+    // First check item type
+    switch (item.item_type) {
+      case 'appliance': {
+        const name = item.name.toLowerCase();
+        if (name.includes('refrigerator') || name.includes('fridge')) return 'snow';
+        if (name.includes('washer') || name.includes('washing')) return 'water';
+        if (name.includes('dryer')) return 'flame';
+        if (name.includes('dishwasher')) return 'restaurant';
+        if (name.includes('oven') || name.includes('stove')) return 'flame';
+        if (name.includes('microwave')) return 'radio';
+        return 'cube';
+      }
+      case 'filter':
+        return 'filter';
+      case 'light_fixture':
+        return 'bulb';
+      case 'cabinet':
+        return 'file-tray-stacked';
+      case 'tile':
+        return 'grid';
+      case 'paint':
+        return 'color-palette';
+      default:
+        return 'cube';
+    }
   };
 
   // Handle manual URL opening
@@ -87,6 +79,24 @@ export default function InventoryItemCard({ item, onDelete }: InventoryItemCardP
       Linking.openURL(item.manual_url).catch(err => 
         console.error('Error opening manual URL:', err)
       );
+    }
+  };
+
+  // Get URL for editing based on item type
+  const getEditUrl = () => {
+    return `/inventory/edit/${item.item_type}/${item.id}`;
+  };
+
+  // Get item type display name
+  const getItemTypeLabel = (): string => {
+    switch (item.item_type) {
+      case 'appliance': return 'Appliance';
+      case 'filter': return 'Filter';
+      case 'light_fixture': return 'Light Fixture';
+      case 'cabinet': return 'Cabinet';
+      case 'tile': return 'Tile';
+      case 'paint': return 'Paint';
+      default: return 'Item';
     }
   };
 
@@ -104,9 +114,12 @@ export default function InventoryItemCard({ item, onDelete }: InventoryItemCardP
           </View>
           <View style={styles.itemTitleInfo}>
             <Text style={styles.itemName}>{item.name}</Text>
-            {item.brand && (
-              <Text style={styles.itemBrand}>{item.brand}</Text>
-            )}
+            <View style={styles.itemSubtitleRow}>
+              {item.brand && (
+                <Text style={styles.itemBrand}>{item.brand}</Text>
+              )}
+              <Text style={styles.itemType}>{getItemTypeLabel()}</Text>
+            </View>
           </View>
         </View>
         <TouchableOpacity
@@ -118,13 +131,15 @@ export default function InventoryItemCard({ item, onDelete }: InventoryItemCardP
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.warrantyBadge, { backgroundColor: `${warrantyColor}15` }]}>
-        <View style={[styles.warrantyDot, { backgroundColor: warrantyColor }]} />
-        <Text style={[styles.warrantyText, { color: warrantyColor }]}>
-          {warrantyStatus === 'active' ? 'Warranty Active' : 
-           warrantyStatus === 'expired' ? 'Warranty Expired' : 'No Warranty'}
-        </Text>
-      </View>
+      {item.warranty_expiration && (
+        <View style={[styles.warrantyBadge, { backgroundColor: `${warrantyColor}15` }]}>
+          <View style={[styles.warrantyDot, { backgroundColor: warrantyColor }]} />
+          <Text style={[styles.warrantyText, { color: warrantyColor }]}>
+            {warrantyStatus === 'active' ? 'Warranty Active' : 
+            warrantyStatus === 'expired' ? 'Warranty Expired' : 'No Warranty'}
+          </Text>
+        </View>
+      )}
 
       <View style={styles.itemDetails}>
         {item.model && (
@@ -171,10 +186,38 @@ export default function InventoryItemCard({ item, onDelete }: InventoryItemCardP
             </Text>
           </View>
         )}
+        
+        {/* Display additional fields based on item type */}
+        {item.item_type === 'filter' && item.replacement_frequency && (
+          <View style={styles.detailItem}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons name="time" size={16} color="#6B7280" />
+            </View>
+            <Text style={styles.detailText}>
+              Replace every {item.replacement_frequency} months
+            </Text>
+          </View>
+        )}
+        {item.item_type === 'paint' && item.color_code && (
+          <View style={styles.detailItem}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons name="color-palette" size={16} color="#6B7280" />
+            </View>
+            <Text style={styles.detailText}>Color: {item.color_code}</Text>
+          </View>
+        )}
+        {(item.item_type === 'cabinet' || item.item_type === 'tile') && item.material && (
+          <View style={styles.detailItem}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons name="layers" size={16} color="#6B7280" />
+            </View>
+            <Text style={styles.detailText}>Material: {item.material}</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.cardFooter}>
-        {item.homes && (
+        {item.homes?.name && (
           <View style={styles.homeInfo}>
             <Ionicons name="home" size={16} color="#F59E0B" />
             <Text style={styles.homeText}>{item.homes.name}</Text>
@@ -194,7 +237,7 @@ export default function InventoryItemCard({ item, onDelete }: InventoryItemCardP
           
           <TouchableOpacity 
             style={styles.editButton}
-            onPress={() => router.push(`/inventory/edit/${item.id}`)}
+            onPress={() => router.push(getEditUrl() as RelativePathString)}
           >
             <Ionicons name="create-outline" size={16} color="#10B981" />
             <Text style={styles.editButtonText}>Edit</Text>
@@ -227,12 +270,15 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'flex-start', // Change from 'center' to 'flex-start'
     marginBottom: 16,
+    width: '100%', // Ensure the header takes full width
   },
   itemTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1, // Add flex:1 to allow title row to shrink if needed
+    marginRight: 10, // Add margin to create space between title and delete button
   },
   itemIcon: {
     width: 40,
@@ -244,17 +290,32 @@ const styles = StyleSheet.create({
   itemTitleInfo: {
     marginLeft: 12,
     flex: 1,
+    flexShrink: 1, // Allow title info to shrink if text is too long
   },
   itemName: {
     fontSize: 18,
     fontWeight: '600',
     color: '#111827',
     marginBottom: 2,
+    flexShrink: 1, // Allow text to wrap rather than push content
+  },
+  itemSubtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   itemBrand: {
     fontSize: 14,
     color: '#6B7280',
     fontWeight: '500',
+    marginRight: 8,
+  },
+  itemType: {
+    fontSize: 12,
+    color: '#6B7280',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   deleteButton: {
     width: 36,
@@ -265,6 +326,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#FECACA',
+    flexShrink: 0, // Prevent delete button from shrinking
   },
   warrantyBadge: {
     flexDirection: 'row',

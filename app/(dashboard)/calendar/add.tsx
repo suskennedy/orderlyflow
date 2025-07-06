@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import DatePicker from '../../../components/DatePicker';
 import TimePicker from '../../../components/TimePicker';
+import { useCalendar } from '../../../lib/contexts/CalendarContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { supabase } from '../../../lib/supabase';
 
@@ -37,6 +38,7 @@ interface Task {
 
 export default function AddCalendarEventScreen() {
   const { user } = useAuth();
+  const { addEvent } = useCalendar();
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [formData, setFormData] = useState({
@@ -138,13 +140,16 @@ export default function AddCalendarEventScreen() {
         user_id: user?.id,
       };
 
+      // Add to local state for immediate UI update
+      addEvent(eventData);
+
+      // Then insert into Supabase
       const { error } = await supabase.from('calendar_events').insert([eventData]);
 
       if (error) throw error;
 
-      Alert.alert('Success', 'Calendar event added successfully!', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      // Navigate back
+      router.back();
     } catch (error) {
       console.error('Error adding calendar event:', error);
       Alert.alert('Error', 'Failed to add calendar event');

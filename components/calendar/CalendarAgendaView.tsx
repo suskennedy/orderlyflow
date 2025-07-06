@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { FlatList, RefreshControl, StyleSheet } from 'react-native';
 import CalendarEventCard from '../dashboard/CalendarCard';
 import EmptyState from '../layout/EmptyState';
@@ -23,7 +23,8 @@ interface CalendarAgendaViewProps {
   onDeletePress: (event: CalendarEvent) => void;
 }
 
-const CalendarAgendaView = ({
+// Use React.memo for performance optimization
+const CalendarAgendaView = memo(({
   events,
   refreshing,
   onRefresh,
@@ -60,7 +61,7 @@ const CalendarAgendaView = ({
       )}
     />
   );
-};
+});
 
 const styles = StyleSheet.create({
   agendaList: {

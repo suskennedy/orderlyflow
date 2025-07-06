@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, usePathname } from 'expo-router';
+import { RelativePathString, router, usePathname } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -28,7 +28,7 @@ export default function ScreenHeader({
       if (pathname) {
         const basePath = pathname.split('/')[1];
         if (basePath) {
-          router.push(`/${basePath}/add`);
+          router.push(`/${basePath}/add` as RelativePathString);
         }
       }
     }

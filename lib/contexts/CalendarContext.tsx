@@ -1,35 +1,17 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import { CalendarEvent } from '../../components/calendar/CalendarMonthView';
 import { useAuth } from '../hooks/useAuth';
+import { useRealTimeSubscription } from '../hooks/useRealTimeSubscription';
 import { supabase } from '../supabase';
-
-export interface CalendarEvent {
-  id: string;
-  title: string;
-  description?: string | null;
-  start_time: string;
-  end_time: string;
-  location?: string | null;
-  color?: string | null;
-  all_day?: boolean | null;
-  apple_event_id?: string | null;
-  google_event_id?: string | null;
-  home_id?: string | null;
-  task_id?: string | null;
-  created_at: string | null;
-  updated_at?: string | null;
-  user_id: string | null;
-}
 
 interface CalendarContextType {
   events: CalendarEvent[];
   loading: boolean;
   refreshing: boolean;
-  fetchEvents: () => Promise<void>;
-  addEvent: (event: Omit<CalendarEvent, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
-  updateEvent: (id: string, updates: Partial<CalendarEvent>) => Promise<void>;
-  deleteEvent: (id: string) => Promise<void>;
-  onRefresh: () => void;
+  addEvent: (event: Partial<CalendarEvent>) => void;
+  updateEvent: (eventId: string, updates: Partial<CalendarEvent>) => Promise<void>;
+  deleteEvent: (eventId: string) => Promise<void>;
+  onRefresh: () => Promise<void>;
 }
 
 const CalendarContext = createContext<CalendarContextType | undefined>(undefined);
@@ -42,138 +24,159 @@ export const useCalendar = () => {
   return context;
 };
 
-export function CalendarProvider({ children }: { children: React.ReactNode }) {
+interface CalendarProviderProps {
+  children: ReactNode;
+}
+
+export const CalendarProvider = ({ children }: CalendarProviderProps) => {
+  const { user } = useAuth();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const { user } = useAuth();
 
-  const fetchEvents = async () => {
-    if (!user) return;
-
+  // Fetch calendar events from Supabase
+  const fetchEvents = useCallback(async () => {
+    if (!user?.id) return;
+    
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('calendar_events')
         .select('*')
-        .eq('user_id', user.id)
-        .order('start_time', { ascending: true });
-
-      if (error) throw error;
-      setEvents(data || []);
-    } catch (error) {
-      console.error('Error fetching events:', error);
-      Alert.alert('Error', 'Failed to fetch events');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const addEvent = async (eventData: Omit<CalendarEvent, 'id' | 'created_at' | 'user_id'>) => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('calendar_events')
-        .insert([{ ...eventData, user_id: user.id }])
-        .select('*')
-        .single();
-
+        .eq('user_id', user.id);
+        
       if (error) throw error;
       
-      setEvents(prev => [...prev, data].sort((a, b) => 
-        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-      ));
-      Alert.alert('Success', 'Event added successfully');
+      setEvents(data as CalendarEvent[]);
     } catch (error) {
-      console.error('Error adding event:', error);
-      Alert.alert('Error', 'Failed to add event');
+      console.error('Error fetching calendar events:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
+  }, [user?.id]);
+
+  // Handle real-time calendar event updates
+  const handleEventChange = useCallback((payload: any) => {
+    if (payload.new?.user_id === user?.id || payload.old?.user_id === user?.id) {
+      console.log('Calendar event change detected:', payload.eventType);
+      
+      switch (payload.eventType) {
+        case 'INSERT': {
+          const newEvent = payload.new as CalendarEvent;
+          setEvents(current => {
+            // Check if event already exists (prevent duplicates)
+            if (current.some(e => e.id === newEvent.id)) {
+              return current;
+            }
+            return [...current, newEvent];
+          });
+          break;
+        }
+          
+        case 'UPDATE': {
+          const updatedEvent = payload.new as CalendarEvent;
+          setEvents(current => 
+            current.map(event => 
+              event.id === updatedEvent.id ? updatedEvent : event
+            )
+          );
+          break;
+        }
+          
+        case 'DELETE': {
+          if (payload.old?.id) {
+            setEvents(current => 
+              current.filter(event => event.id !== payload.old.id)
+            );
+          }
+          break;
+        }
+      }
+    }
+  }, [user?.id]);
+
+  // Set up real-time subscription
+  useRealTimeSubscription(
+    { 
+      table: 'calendar_events',
+      filter: user?.id ? `user_id=eq.${user.id}` : undefined
+    },
+    handleEventChange
+  );
+
+  // Initial data fetch
+  useEffect(() => {
+    if (user?.id) {
+      fetchEvents();
+    } else {
+      setEvents([]);
+    }
+  }, [user, fetchEvents]);
+
+  // Add a new calendar event (for immediate UI update)
+  const addEvent = (newEvent: Partial<CalendarEvent>) => {
+    const tempId = `temp_${Date.now()}`;
+    const eventWithTempId = {
+      ...newEvent,
+      id: tempId,
+    } as CalendarEvent;
+    
+    setEvents(current => [...current, eventWithTempId]);
   };
 
-  const updateEvent = async (id: string, updates: Partial<CalendarEvent>) => {
+  // Update an existing calendar event
+  const updateEvent = async (eventId: string, updates: Partial<CalendarEvent>) => {
     try {
-      const { data, error } = await supabase
+      // Update in Supabase
+      const { error } = await supabase
         .from('calendar_events')
         .update(updates)
-        .eq('id', id)
-        .select('*')
-        .single();
-
+        .eq('id', eventId);
+        
       if (error) throw error;
-
-      setEvents(prev => prev.map(event => event.id === id ? data : event)
-        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()));
-      Alert.alert('Success', 'Event updated successfully');
+      
+      // Update locally for immediate UI update
+      setEvents(current => 
+        current.map(event => 
+          event.id === eventId ? { ...event, ...updates } : event
+        )
+      );
     } catch (error) {
-      console.error('Error updating event:', error);
-      Alert.alert('Error', 'Failed to update event');
+      console.error('Error updating calendar event:', error);
+      throw error;
     }
   };
 
-  const deleteEvent = async (id: string) => {
+  // Delete a calendar event
+  const deleteEvent = async (eventId: string) => {
     try {
+      // Delete from Supabase
       const { error } = await supabase
         .from('calendar_events')
         .delete()
-        .eq('id', id);
-
+        .eq('id', eventId);
+        
       if (error) throw error;
-
-      setEvents(prev => prev.filter(event => event.id !== id));
-      Alert.alert('Success', 'Event deleted successfully');
+      
+      // Update locally for immediate UI update
+      setEvents(current => current.filter(event => event.id !== eventId));
     } catch (error) {
-      console.error('Error deleting event:', error);
-      Alert.alert('Error', 'Failed to delete event');
+      console.error('Error deleting calendar event:', error);
+      throw error;
     }
   };
 
-  const onRefresh = () => {
+  // Refresh calendar events
+  const onRefresh = async () => {
     setRefreshing(true);
-    fetchEvents().finally(() => setRefreshing(false));
+    await fetchEvents();
   };
 
-  useEffect(() => {
-    if (user) {
-      fetchEvents();
-    }
-  }, [user]);
-
-  // Set up real-time subscription
-  useEffect(() => {
-    if (!user) return;
-
-    const subscription = supabase
-      .channel('calendar_events_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'calendar_events',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            fetchEvents(); // Refetch to get updated data
-          } else if (payload.eventType === 'UPDATE') {
-            fetchEvents(); // Refetch to get updated data
-          } else if (payload.eventType === 'DELETE') {
-            setEvents(prev => prev.filter(event => event.id !== payload.old.id));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [user]);
-
-  const value: CalendarContextType = {
+  const value = {
     events,
     loading,
     refreshing,
-    fetchEvents,
     addEvent,
     updateEvent,
     deleteEvent,
@@ -185,4 +188,4 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
       {children}
     </CalendarContext.Provider>
   );
-} 
+};

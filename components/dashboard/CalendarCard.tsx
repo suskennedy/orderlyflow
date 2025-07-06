@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React from 'react';
+import { RelativePathString, router } from 'expo-router';
+import React, { memo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface CalendarEvent {
@@ -21,7 +21,7 @@ interface CalendarEventCardProps {
   onDelete: (event: CalendarEvent) => void;
 }
 
-export default function CalendarEventCard({ 
+function CalendarEventCard({ 
   event, 
   onDelete 
 }: CalendarEventCardProps) {
@@ -66,7 +66,7 @@ export default function CalendarEventCard({
   return (
     <TouchableOpacity
       style={[styles.card, { borderLeftColor: colorStyle.color }]}
-      onPress={() => router.push(`/calendar/edit/${event.id}`)}
+      onPress={() => router.push(`/calendar/edit/${event.id}` as RelativePathString)}
     >
       <View style={styles.header}>
         <View style={styles.titleRow}>
@@ -165,3 +165,5 @@ const styles = StyleSheet.create({
     padding: 6,
   },
 });
+
+export default memo(CalendarEventCard);
