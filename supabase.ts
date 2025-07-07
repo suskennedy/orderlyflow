@@ -219,6 +219,7 @@ export type Database = {
         }
         Insert: {
           brand?: string | null
+          model?: string | null,
           created_at?: string | null
           home_id?: string | null
           id?: string
