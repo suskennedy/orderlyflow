@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -26,7 +25,7 @@ interface TaskCardProps {
 }
 
 export default function TaskCard({ task, onDelete, onToggleStatus }: TaskCardProps) {
-  const isCompleted = task.status === 'completed';
+  const isCompleted = task.status === 'completed' || task.status === 'Completed';
 
   const getPriorityColor = (priority: string | null) => {
     if (!priority) return '#6B7280';
@@ -35,6 +34,7 @@ export default function TaskCard({ task, onDelete, onToggleStatus }: TaskCardPro
       case 'high': return '#EF4444';
       case 'medium': return '#F59E0B';
       case 'low': return '#10B981';
+      case 'urgent': return '#DC2626';
       default: return '#6B7280';
     }
   };

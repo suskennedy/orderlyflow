@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useRealTimeSubscription } from '../hooks/useRealTimeSubscription';
 import { supabase } from '../supabase';
 
 export interface VendorItem {
@@ -22,11 +22,10 @@ interface VendorsContextType {
   vendors: VendorItem[];
   loading: boolean;
   refreshing: boolean;
-  fetchVendors: () => Promise<void>;
-  addVendor: (vendor: Omit<VendorItem, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => Promise<void>;
-  updateVendor: (id: string, updates: Partial<VendorItem>) => Promise<void>;
-  deleteVendor: (id: string) => Promise<void>;
-  onRefresh: () => void;
+  addVendor: (vendor: VendorItem) => void;
+  updateVendor: (vendorId: string, updates: Partial<VendorItem>) => Promise<void>;
+  deleteVendor: (vendorId: string) => Promise<void>;
+  onRefresh: () => Promise<void>;
 }
 
 const VendorsContext = createContext<VendorsContextType | undefined>(undefined);
@@ -39,137 +38,140 @@ export const useVendors = () => {
   return context;
 };
 
-export function VendorsProvider({ children }: { children: React.ReactNode }) {
+interface VendorsProviderProps {
+  children: ReactNode;
+}
+
+export const VendorsProvider = ({ children }: VendorsProviderProps) => {
+  const { user } = useAuth();
   const [vendors, setVendors] = useState<VendorItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const { user } = useAuth();
 
-  const fetchVendors = async () => {
-    if (!user) return;
-
+  // Fetch vendors from Supabase
+  const fetchVendors = useCallback(async () => {
+    if (!user?.id) return;
+    
     try {
+      setLoading(true);
+      
       const { data, error } = await supabase
         .from('vendors')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
-
+        
       if (error) throw error;
+      
       setVendors(data || []);
     } catch (error) {
       console.error('Error fetching vendors:', error);
-      Alert.alert('Error', 'Failed to fetch vendors');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  }, [user?.id]);
+
+  // Set up real-time subscription for vendors table
+  const handleVendorChange = useCallback((payload: any) => {
+    // Only process changes relevant to the current user
+    if (payload.new?.user_id === user?.id || payload.old?.user_id === user?.id) {
+      const eventType = payload.eventType;
+
+      if (eventType === 'INSERT') {
+        setVendors(current => [payload.new, ...current]);
+      } 
+      else if (eventType === 'UPDATE') {
+        setVendors(current => 
+          current.map(vendor => 
+            vendor.id === payload.new.id ? payload.new : vendor
+          )
+        );
+      } 
+      else if (eventType === 'DELETE') {
+        setVendors(current => 
+          current.filter(vendor => vendor.id !== payload.old.id)
+        );
+      }
+    }
+  }, [user?.id]);
+
+  // Set up the real-time subscription
+  useRealTimeSubscription(
+    { 
+      table: 'vendors',
+      filter: user?.id ? `user_id=eq.${user.id}` : undefined
+    },
+    handleVendorChange
+  );
+
+  // Initial data fetch
+  useEffect(() => {
+    if (user?.id) {
+      fetchVendors();
+    } else {
+      setVendors([]);
+    }
+  }, [user, fetchVendors]);
+
+  // Add a new vendor
+  const addVendor = (vendor: VendorItem) => {
+    // Add locally for immediate UI update (the subscription will sync with server)
+    setVendors(current => [vendor, ...current]);
   };
 
-  const addVendor = async (vendorData: Omit<VendorItem, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => {
-    if (!user) return;
-
+  // Update an existing vendor
+  const updateVendor = async (vendorId: string, updates: Partial<VendorItem>) => {
     try {
-      const { data, error } = await supabase
-        .from('vendors')
-        .insert([{ ...vendorData, user_id: user.id }])
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      setVendors(prev => [data, ...prev]);
-      Alert.alert('Success', 'Vendor added successfully');
-    } catch (error) {
-      console.error('Error adding vendor:', error);
-      Alert.alert('Error', 'Failed to add vendor');
-    }
-  };
-
-  const updateVendor = async (id: string, updates: Partial<VendorItem>) => {
-    try {
-      const { data, error } = await supabase
+      // Update in Supabase
+      const { error } = await supabase
         .from('vendors')
         .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
+        .eq('id', vendorId);
+        
       if (error) throw error;
-
-      setVendors(prev => prev.map(vendor => vendor.id === id ? data : vendor));
-      Alert.alert('Success', 'Vendor updated successfully');
+      
+      // Update locally for immediate UI update
+      setVendors(current => 
+        current.map(vendor => 
+          vendor.id === vendorId ? { ...vendor, ...updates } : vendor
+        )
+      );
     } catch (error) {
       console.error('Error updating vendor:', error);
-      Alert.alert('Error', 'Failed to update vendor');
+      throw error;
     }
   };
 
-  const deleteVendor = async (id: string) => {
+  // Delete a vendor
+  const deleteVendor = async (vendorId: string) => {
     try {
+      // Delete from Supabase
       const { error } = await supabase
         .from('vendors')
         .delete()
-        .eq('id', id);
-
+        .eq('id', vendorId);
+        
       if (error) throw error;
-
-      setVendors(prev => prev.filter(vendor => vendor.id !== id));
-      Alert.alert('Success', 'Vendor deleted successfully');
+      
+      // Remove from local state for immediate UI update
+      setVendors(current => current.filter(vendor => vendor.id !== vendorId));
     } catch (error) {
       console.error('Error deleting vendor:', error);
-      Alert.alert('Error', 'Failed to delete vendor');
+      throw error;
     }
   };
 
-  const onRefresh = () => {
+  // Refresh data
+  const onRefresh = async () => {
     setRefreshing(true);
-    fetchVendors().finally(() => setRefreshing(false));
+    await fetchVendors();
   };
 
-  useEffect(() => {
-    if (user) {
-      fetchVendors();
-    }
-  }, [user]);
-
-  // Set up real-time subscription
-  useEffect(() => {
-    if (!user) return;
-
-    const subscription = supabase
-      .channel('vendors_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'vendors',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setVendors(prev => [payload.new as VendorItem, ...prev]);
-          } else if (payload.eventType === 'UPDATE') {
-            setVendors(prev => prev.map(vendor => 
-              vendor.id === payload.new.id ? payload.new as VendorItem : vendor
-            ));
-          } else if (payload.eventType === 'DELETE') {
-            setVendors(prev => prev.filter(vendor => vendor.id !== payload.old.id));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [user]);
-
-  const value: VendorsContextType = {
+  const value = {
     vendors,
     loading,
     refreshing,
-    fetchVendors,
     addVendor,
     updateVendor,
     deleteVendor,
@@ -181,4 +183,4 @@ export function VendorsProvider({ children }: { children: React.ReactNode }) {
       {children}
     </VendorsContext.Provider>
   );
-} 
+}; 

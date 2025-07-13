@@ -51,8 +51,14 @@ export const InventoryProvider = ({ children }: InventoryProviderProps) => {
   // Delete an item
   const deleteItem = async (itemId: string, itemType?: string) => {
     try {
-      // If itemType is provided, use it directly
-      // Otherwise, find the item to get its type
+      // Check if this is a temporary ID (starts with "temp_")
+      if (itemId.startsWith("temp_")) {
+        // Just remove from local state, no need to call the database
+        setItems(prevItems => prevItems.filter(item => item.id !== itemId));
+        return;
+      }
+
+      // Otherwise proceed with normal deletion from database
       if (!itemType) {
         const item = items.find(i => i.id === itemId);
         if (!item) {
@@ -67,6 +73,7 @@ export const InventoryProvider = ({ children }: InventoryProviderProps) => {
       setItems(prevItems => prevItems.filter(item => item.id !== itemId));
     } catch (error) {
       console.error('Error deleting inventory item:', error);
+      throw error; // Rethrow to allow calling code to handle it
     }
   };
   

@@ -29,6 +29,7 @@ function CalendarEventCard({
   const getColorStyle = (color: string) => {
     switch (color) {
       case 'red': return { backgroundColor: '#FEE2E2', color: '#DC2626' };
+      case 'orange': return { backgroundColor: '#FEF3C7', color: '#F59E0B' };
       case 'blue': return { backgroundColor: '#E0E7FF', color: '#4F46E5' };
       case 'green': return { backgroundColor: '#D1FAE5', color: '#10B981' };
       case 'yellow': return { backgroundColor: '#FEF3C7', color: '#F59E0B' };
@@ -62,6 +63,7 @@ function CalendarEventCard({
   };
 
   const colorStyle = getColorStyle(event.color);
+  const isTaskEvent = event.task_id !== null;
 
   return (
     <TouchableOpacity
@@ -70,7 +72,14 @@ function CalendarEventCard({
     >
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Text numberOfLines={1} style={styles.title}>{event.title}</Text>
+          <View style={styles.titleContainer}>
+            {isTaskEvent && (
+              <View style={[styles.taskIcon, { backgroundColor: colorStyle.backgroundColor }]}>
+                <Ionicons name="checkmark-circle" size={14} color={colorStyle.color} />
+              </View>
+            )}
+            <Text numberOfLines={1} style={styles.title}>{event.title}</Text>
+          </View>
           <TouchableOpacity
             style={styles.deleteButton}
             onPress={() => onDelete(event)}
@@ -96,7 +105,7 @@ function CalendarEventCard({
       
       <View style={[styles.tag, { backgroundColor: colorStyle.backgroundColor }]}>
         <Text style={[styles.tagText, { color: colorStyle.color }]}>
-          {event.task_id ? 'Task Event' : 'Calendar Event'}
+          {isTaskEvent ? 'Task Event' : 'Calendar Event'}
         </Text>
       </View>
     </TouchableOpacity>
@@ -123,6 +132,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  taskIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
   title: {
     fontSize: 16,

@@ -34,58 +34,74 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Helper function to sort events by start time
+  const sortEvents = useCallback((eventsList: CalendarEvent[]) => {
+    return [...eventsList].sort((a, b) => 
+      new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    );
+  }, []);
+
   // Fetch calendar events from Supabase
   const fetchEvents = useCallback(async () => {
     if (!user?.id) return;
     
     try {
       setLoading(true);
+      console.log('Fetching calendar events for user:', user.id);
+      
       const { data, error } = await supabase
         .from('calendar_events')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .order('start_time', { ascending: true });
         
       if (error) throw error;
       
-      setEvents(data as CalendarEvent[]);
+      console.log('Fetched calendar events:', data?.length || 0);
+      setEvents(sortEvents(data as CalendarEvent[]));
     } catch (error) {
       console.error('Error fetching calendar events:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?.id]);
+  }, [user?.id, sortEvents]);
 
   // Handle real-time calendar event updates
   const handleEventChange = useCallback((payload: any) => {
+    console.log('Calendar event change detected:', payload.eventType, payload.new?.title);
+    
     if (payload.new?.user_id === user?.id || payload.old?.user_id === user?.id) {
-      console.log('Calendar event change detected:', payload.eventType);
-      
       switch (payload.eventType) {
         case 'INSERT': {
           const newEvent = payload.new as CalendarEvent;
+          console.log('New calendar event received:', newEvent);
           setEvents(current => {
             // Check if event already exists (prevent duplicates)
             if (current.some(e => e.id === newEvent.id)) {
+              console.log('Event already exists, skipping duplicate');
               return current;
             }
-            return [...current, newEvent];
+            console.log('Adding new event to calendar, total events:', current.length + 1);
+            return sortEvents([...current, newEvent]);
           });
           break;
         }
           
         case 'UPDATE': {
           const updatedEvent = payload.new as CalendarEvent;
+          console.log('Calendar event updated:', updatedEvent);
           setEvents(current => 
-            current.map(event => 
+            sortEvents(current.map(event => 
               event.id === updatedEvent.id ? updatedEvent : event
-            )
+            ))
           );
           break;
         }
           
         case 'DELETE': {
           if (payload.old?.id) {
+            console.log('Calendar event deleted:', payload.old.id);
             setEvents(current => 
               current.filter(event => event.id !== payload.old.id)
             );
@@ -94,7 +110,7 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
         }
       }
     }
-  }, [user?.id]);
+  }, [user?.id, sortEvents]);
 
   // Set up real-time subscription
   useRealTimeSubscription(
@@ -122,7 +138,7 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
       id: tempId,
     } as CalendarEvent;
     
-    setEvents(current => [...current, eventWithTempId]);
+    setEvents(current => sortEvents([...current, eventWithTempId]));
   };
 
   // Update an existing calendar event
@@ -138,9 +154,9 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
       
       // Update locally for immediate UI update
       setEvents(current => 
-        current.map(event => 
+        sortEvents(current.map(event => 
           event.id === eventId ? { ...event, ...updates } : event
-        )
+        ))
       );
     } catch (error) {
       console.error('Error updating calendar event:', error);

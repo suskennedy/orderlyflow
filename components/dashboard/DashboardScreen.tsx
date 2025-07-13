@@ -2,17 +2,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHomes } from '../../lib/contexts/HomesContext';
+import { useTasks } from '../../lib/contexts/TasksContext';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 
@@ -46,6 +47,7 @@ interface InventoryItem {
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { homes, loading: homesLoading } = useHomes();
+  const { syncTasksToCalendar } = useTasks();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -112,6 +114,17 @@ export default function DashboardScreen() {
     fetchDashboardData();
   };
 
+  const handleSyncTasksToCalendar = async () => {
+    try {
+      await syncTasksToCalendar();
+      Alert.alert('Success', 'Tasks synced to calendar successfully!');
+      fetchDashboardData(); // Refresh dashboard data
+    } catch (error) {
+      console.error('Error syncing tasks to calendar:', error);
+      Alert.alert('Error', 'Failed to sync tasks to calendar');
+    }
+  };
+
   const getUpcomingTasks = () => {
     return tasks.filter(task => task.status !== 'completed').slice(0, 3);
   };
@@ -175,6 +188,15 @@ export default function DashboardScreen() {
           <Text style={styles.quickActionText}>Add Item</Text>
         </TouchableOpacity>
       </View>
+      
+      {/* Test button for calendar sync */}
+      <TouchableOpacity
+        style={styles.syncButton}
+        onPress={handleSyncTasksToCalendar}
+      >
+        <Ionicons name="sync-outline" size={20} color="#FFFFFF" />
+        <Text style={styles.syncButtonText}>Sync Tasks to Calendar</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -447,6 +469,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+    marginBottom: 16,
   },
   quickActionCard: {
     flex: 1,
@@ -475,6 +498,21 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#111827',
     textAlign: 'center',
+  },
+  syncButton: {
+    backgroundColor: '#10B981',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  syncButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   recentActivityContainer: {
     paddingHorizontal: 20,

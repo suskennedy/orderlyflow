@@ -1,19 +1,19 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  View
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import VendorCard from '../../../components/dashboard/VendorCard';
 import EmptyState from '../../../components/layout/EmptyState';
 import LoadingState from '../../../components/layout/LoadingState';
 import ScreenHeader from '../../../components/layout/ScreenHeader';
 import DeleteConfirmationModal from '../../../components/ui/DeleteConfirmationModal';
 import StatsDisplay from '../../../components/ui/StatsDisplay';
 import { useVendors } from '../../../lib/contexts/VendorsContext';
-import VendorCard from '../../../components/dashboard/VendorCard';
 
 interface Vendor {
   id: string;
@@ -43,9 +43,13 @@ export default function VendorsScreen() {
 
   const confirmDelete = async () => {
     if (selectedVendor) {
-      await deleteVendor(selectedVendor.id);
-      setShowDeleteModal(false);
-      setSelectedVendor(null);
+      try {
+        await deleteVendor(selectedVendor.id);
+        setShowDeleteModal(false);
+        setSelectedVendor(null);
+      } catch (error) {
+        console.error('Error deleting vendor:', error);
+      }
     }
   };
 

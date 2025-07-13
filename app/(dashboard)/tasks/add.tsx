@@ -3,19 +3,20 @@ import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import DatePicker from '../../../components/DatePicker';
+import { useTasks } from '../../../lib/contexts/TasksContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { useDashboard } from '../../../lib/hooks/useDashboard';
 import { supabase } from '../../../lib/supabase';
@@ -41,6 +42,7 @@ interface Home {
 export default function AddTaskScreen() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const { fetchDashboardStats } = useDashboard();
+  const { addTask } = useTasks();
   const [loading, setLoading] = useState(false);
   const [homes, setHomes] = useState<Home[]>([]);
   
@@ -51,6 +53,7 @@ export default function AddTaskScreen() {
       router.replace('/(auth)/signin');
     }
   }, [authLoading, isAuthenticated]);
+  
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -85,26 +88,138 @@ export default function AddTaskScreen() {
     } catch (error) {
       console.error('Error fetching homes:', error);
     }
-  };// Validate date string format (YYYY-MM-DD) and ensure it's a valid date
+  };
+
   useEffect(() => {
     if (user?.id) {
       fetchHomes();
     }
   }, [user]);
-  const isValidDateFormat = (dateString: string) => {
-    if (!dateString) return true; // Empty is allowed
-    
-    // Check format using regex
-    const regex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!regex.test(dateString)) return false;
-    
-    // Validate it's an actual date (e.g., not 2023-02-31)
-    const [year, month, day] = dateString.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    return date.getFullYear() === year && 
-           date.getMonth() === month - 1 && 
-           date.getDate() === day;
+
+  // Helper function to create calendar events for tasks
+  const createCalendarEventsForTask = async (taskData: any) => {
+    if (!taskData.due_date || !user?.id) return;
+
+    try {
+      // Determine event color based on priority
+      const getEventColor = (priority: string) => {
+        switch (priority?.toLowerCase()) {
+          case 'urgent': return 'red';
+          case 'high': return 'orange';
+          case 'medium': return 'blue';
+          case 'low': return 'green';
+          default: return 'gray';
+        }
+      };
+
+      const eventColor = getEventColor(taskData.priority);
+
+      // Create the base calendar event
+      const calendarEvent = {
+        title: `Task: ${taskData.title}`,
+        description: taskData.description || `Task: ${taskData.title}${taskData.notes ? `\n\nNotes: ${taskData.notes}` : ''}`,
+        start_time: `${taskData.due_date}T09:00:00`, // Default to 9 AM
+        end_time: `${taskData.due_date}T10:00:00`,   // Default to 10 AM
+        location: null,
+        color: eventColor,
+        all_day: false,
+        task_id: taskData.id,
+        user_id: user.id,
+      };
+
+      // Insert the calendar event
+      const { error } = await supabase
+        .from('calendar_events')
+        .insert([calendarEvent]);
+
+      if (error) {
+        console.error('Error creating calendar event for task:', error);
+      }
+
+      // If it's a recurring task, create recurring events
+      if (taskData.is_recurring && taskData.recurrence_pattern) {
+        await createRecurringCalendarEvents(taskData, eventColor);
+      }
+    } catch (error) {
+      console.error('Error creating calendar events for task:', error);
+    }
   };
+
+  // Helper function to create recurring calendar events
+  const createRecurringCalendarEvents = async (taskData: any, eventColor: string) => {
+    if (!taskData.due_date || !taskData.is_recurring || !taskData.recurrence_pattern || !user?.id) return;
+
+    try {
+      const startDate = new Date(taskData.due_date);
+      const endDate = taskData.recurrence_end_date ? new Date(taskData.recurrence_end_date) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year default
+      
+      const events = [];
+      let currentDate = new Date(startDate);
+      
+      while (currentDate <= endDate) {
+        const eventDate = currentDate.toISOString().split('T')[0];
+        
+        const calendarEvent = {
+          title: `Task: ${taskData.title}`,
+          description: taskData.description || `Recurring Task: ${taskData.title}${taskData.notes ? `\n\nNotes: ${taskData.notes}` : ''}`,
+          start_time: `${eventDate}T09:00:00`,
+          end_time: `${eventDate}T10:00:00`,
+          location: null,
+          color: eventColor,
+          all_day: false,
+          task_id: taskData.id,
+          user_id: user.id,
+        };
+
+        events.push(calendarEvent);
+
+        // Calculate next occurrence based on pattern (case-insensitive)
+        const pattern = taskData.recurrence_pattern.toLowerCase();
+        switch (pattern) {
+          case 'daily':
+            currentDate.setDate(currentDate.getDate() + 1);
+            break;
+          case 'weekly':
+            currentDate.setDate(currentDate.getDate() + 7);
+            break;
+          case 'bi-weekly':
+          case 'biweekly':
+            currentDate.setDate(currentDate.getDate() + 14);
+            break;
+          case 'monthly':
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            break;
+          case 'quarterly':
+            currentDate.setMonth(currentDate.getMonth() + 3);
+            break;
+          case 'semi-annually':
+          case 'semi-annually':
+            currentDate.setMonth(currentDate.getMonth() + 6);
+            break;
+          case 'annually':
+          case 'yearly':
+            currentDate.setFullYear(currentDate.getFullYear() + 1);
+            break;
+          default:
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+      }
+
+      // Insert all recurring events
+      if (events.length > 0) {
+        const { error } = await supabase
+          .from('calendar_events')
+          .insert(events);
+
+        if (error) {
+          console.error('Error creating recurring calendar events:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating recurring calendar events:', error);
+    }
+  };
+
   const handleSave = async () => {
     // Check if user is authenticated
     if (!user?.id) {
@@ -117,9 +232,6 @@ export default function AddTaskScreen() {
       return;
     }
 
-    // Dates are now properly formatted by the DatePicker component,
-    // so we can remove the date format validation checks
-    
     // Only validate recurrence pattern if recurring
     if (formData.is_recurring) {
       if (!formData.recurrence_pattern || formData.recurrence_pattern.trim() === '') {
@@ -140,8 +252,10 @@ export default function AddTaskScreen() {
     }
     
     setLoading(true);
-    try {      // Prepare task data with proper null handling for database
-      const taskData = {
+    try {
+      // Create the task object
+      const newTask = {
+        id: Date.now().toString(), // Temporary ID, will be replaced by Supabase
         title: formData.title.trim(),
         description: formData.description ? formData.description.trim() : null,
         category: formData.category || null,
@@ -150,42 +264,47 @@ export default function AddTaskScreen() {
         due_date: formData.due_date || null,
         home_id: formData.home_id || null,
         is_recurring: formData.is_recurring,
-        // Only include recurrence fields if this is a recurring task
         recurrence_pattern: formData.is_recurring && formData.recurrence_pattern ? formData.recurrence_pattern.trim() : null,
         recurrence_end_date: formData.is_recurring && formData.recurrence_end_date ? formData.recurrence_end_date : null,
         notes: formData.notes ? formData.notes.trim() : null,
         user_id: user?.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
-      console.log('Sending task data to Supabase:', JSON.stringify(taskData, null, 2));
-      
-      // Insert the task with explicit error handling
-      const { data, error } = await supabase.from('tasks').insert([taskData]).select();
+      // Immediately add to local state for UI update
+      addTask(newTask);
 
-      if (error) {
-        console.error('Supabase error details:', error);
-        
-        // Show more specific error message based on the error code
-        if (error.code === '23502') { // not_null_violation
-          Alert.alert('Error', 'Required field missing. Please check all required fields.');
-        } else if (error.code === '23503') { // foreign_key_violation
-          Alert.alert('Error', 'Invalid reference. Please check that the home exists.');
-        } else if (error.code === '22P02') { // invalid_text_representation
-          Alert.alert('Error', 'Invalid data format. Please check date fields.');
-        } else {
-          Alert.alert('Error', `Database error: ${error.message}`);
-        }
-        return;
+      // Then save to Supabase
+      const { data, error } = await supabase.from('tasks').insert([
+        {
+          title: formData.title.trim(),
+          description: formData.description ? formData.description.trim() : null,
+          category: formData.category || null,
+          priority: formData.priority,
+          status: formData.status,
+          due_date: formData.due_date || null,
+          home_id: formData.home_id || null,
+          is_recurring: formData.is_recurring,
+          recurrence_pattern: formData.is_recurring && formData.recurrence_pattern ? formData.recurrence_pattern.trim() : null,
+          recurrence_end_date: formData.is_recurring && formData.recurrence_end_date ? formData.recurrence_end_date : null,
+          notes: formData.notes ? formData.notes.trim() : null,
+          user_id: user?.id,
+        },
+      ]).select();
+
+      if (error) throw error;
+
+      // Create calendar events for the new task
+      if (data && data[0]) {
+        await createCalendarEventsForTask(data[0]);
       }
-
-      console.log('Task created successfully:', data);
 
       // Refresh dashboard stats
       await fetchDashboardStats();
 
-      Alert.alert('Success', 'Task added successfully!', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      // Navigate back - note we don't need to alert since UI already updated
+      router.back();
     } catch (error: any) {
       console.error('Error adding task:', error);
       Alert.alert('Error', `Failed to add task: ${error.message || 'Unknown error'}`);
@@ -312,7 +431,7 @@ export default function AddTaskScreen() {
               value={formData.due_date}
               placeholder="Select a due date"
               onChange={(dateString) => setFormData({ ...formData, due_date: dateString  as string})}
-              helperText="When this task should be completed"
+              helperText="When this task should be completed (will appear in calendar)"
               isOptional={true}
               testID="due-date-picker"
             />
@@ -515,12 +634,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#374151',
     flex: 1,
-  },  bottomSpacing: {
-    height: 120,
   },
-  helperText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
+  bottomSpacing: {
+    height: 120,
   },
 });

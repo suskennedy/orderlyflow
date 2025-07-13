@@ -3,17 +3,18 @@ import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import { useVendors } from '../../../lib/contexts/VendorsContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { useDashboard } from '../../../lib/hooks/useDashboard';
 import { supabase } from '../../../lib/supabase';
@@ -39,6 +40,7 @@ const VENDOR_CATEGORIES = [
 export default function AddVendorScreen() {
   const { user } = useAuth();
   const { fetchDashboardStats } = useDashboard();
+  const { addVendor } = useVendors();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -64,6 +66,26 @@ export default function AddVendorScreen() {
 
     setLoading(true);
     try {
+      // Create the vendor object
+      const newVendor = {
+        id: Date.now().toString(), // Temporary ID, will be replaced by Supabase
+        name: formData.name.trim(),
+        category: formData.category || null,
+        contact_name: formData.contact_name.trim() || null,
+        phone: formData.phone.trim() || null,
+        email: formData.email.trim() || null,
+        address: formData.address.trim() || null,
+        website: formData.website.trim() || null,
+        notes: formData.notes.trim() || null,
+        user_id: user?.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // Immediately add to local state for UI update
+      addVendor(newVendor);
+
+      // Then save to Supabase
       const { data, error } = await supabase.from('vendors').insert([
         {
           name: formData.name.trim(),
@@ -78,20 +100,16 @@ export default function AddVendorScreen() {
         },
       ]);
 
-      if (error) {
-        console.error('Database error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       // Refresh dashboard stats
       await fetchDashboardStats();
 
-      Alert.alert('Success', 'Vendor added successfully!', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
-    } catch (error) {
+      // Navigate back - note we don't need to alert since UI already updated
+      router.back();
+    } catch (error: any) {
       console.error('Error adding vendor:', error);
-      Alert.alert('Error', `Failed to add vendor: ${error || 'Unknown error'}`);
+      Alert.alert('Error', `Failed to add vendor: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }

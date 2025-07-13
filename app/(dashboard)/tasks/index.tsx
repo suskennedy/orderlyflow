@@ -4,16 +4,15 @@ import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import reusable components
-import DeleteConfirmationModal from '../../../components/ui/DeleteConfirmationModal';
+import TaskCard, { Task } from '../../../components/dashboard/TasksCard';
 import EmptyState from '../../../components/layout/EmptyState';
 import LoadingState from '../../../components/layout/LoadingState';
 import ScreenHeader from '../../../components/layout/ScreenHeader';
+import DeleteConfirmationModal from '../../../components/ui/DeleteConfirmationModal';
 import StatsDisplay from '../../../components/ui/StatsDisplay';
-import TaskCard, { Task } from '../../../components/dashboard/TasksCard';
 
 // Import hooks
 import { useTasks } from '../../../lib/contexts/TasksContext';
-
 
 export default function TasksScreen() {
   const insets = useSafeAreaInsets();
@@ -29,16 +28,24 @@ export default function TasksScreen() {
 
   const confirmDelete = async () => {
     if (selectedTask) {
-      await deleteTask(selectedTask.id);
-      setShowDeleteModal(false);
-      setSelectedTask(null);
+      try {
+        await deleteTask(selectedTask.id);
+        setShowDeleteModal(false);
+        setSelectedTask(null);
+      } catch (error) {
+        console.error('Error deleting task:', error);
+      }
     }
   };
 
   // Handle toggle task status
   const toggleTaskStatus = async (task: Task) => {
-    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-    await updateTask(task.id, { status: newStatus });
+    try {
+      const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+      await updateTask(task.id, { status: newStatus });
+    } catch (error) {
+      console.error('Error updating task status:', error);
+    }
   };
 
   // Render statistics component
@@ -77,7 +84,6 @@ export default function TasksScreen() {
 
       <View style={styles.content}>
         {tasks.length === 0 ? (
-          // Fixed: Removed JSX comment and curly braces that were causing the error
           <EmptyState
             title="No Tasks Yet"
             message="Add your first task to start managing your home maintenance and projects"

@@ -80,8 +80,8 @@ export default function VendorCard({ vendor, onDelete }: VendorCardProps) {
     }
   };
   
-  const categoryColor = getCategoryColor(vendor?.category );
-  const categoryIcon = getCategoryIcon(vendor?.category );
+  const categoryColor = getCategoryColor(vendor?.category);
+  const categoryIcon = getCategoryIcon(vendor?.category);
 
   return (
     <View style={styles.card}>
