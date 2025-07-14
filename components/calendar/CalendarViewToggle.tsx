@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 
 interface CalendarViewToggleProps {
   currentView: 'month' | 'agenda';
@@ -11,12 +12,14 @@ const CalendarViewToggle = ({
   currentView,
   onViewChange,
 }: CalendarViewToggleProps) => {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.viewToggle}>
+    <View style={[styles.viewToggle, { backgroundColor: colors.surface }]}>
       <TouchableOpacity
         style={[
           styles.viewToggleButton,
-          currentView === 'month' && styles.viewToggleButtonActive,
+          currentView === 'month' && { backgroundColor: colors.primaryLight },
         ]}
         onPress={() => onViewChange('month')}
         accessibilityLabel="Month view"
@@ -24,12 +27,12 @@ const CalendarViewToggle = ({
         <Ionicons
           name="calendar"
           size={18}
-          color={currentView === 'month' ? '#4F46E5' : '#6B7280'}
+          color={currentView === 'month' ? colors.primary : colors.textTertiary}
         />
         <Text
           style={[
             styles.viewToggleText,
-            currentView === 'month' && styles.viewToggleTextActive,
+            { color: currentView === 'month' ? colors.primary : colors.textTertiary },
           ]}
         >
           Month
@@ -38,7 +41,7 @@ const CalendarViewToggle = ({
       <TouchableOpacity
         style={[
           styles.viewToggleButton,
-          currentView === 'agenda' && styles.viewToggleButtonActive,
+          currentView === 'agenda' && { backgroundColor: colors.primaryLight },
         ]}
         onPress={() => onViewChange('agenda')}
         accessibilityLabel="Agenda view"
@@ -46,12 +49,12 @@ const CalendarViewToggle = ({
         <Ionicons
           name="list"
           size={18}
-          color={currentView === 'agenda' ? '#4F46E5' : '#6B7280'}
+          color={currentView === 'agenda' ? colors.primary : colors.textTertiary}
         />
         <Text
           style={[
             styles.viewToggleText,
-            currentView === 'agenda' && styles.viewToggleTextActive,
+            { color: currentView === 'agenda' ? colors.primary : colors.textTertiary },
           ]}
         >
           Agenda
@@ -65,7 +68,6 @@ const styles = StyleSheet.create({
   viewToggle: {
     flexDirection: 'row',
     padding: 8,
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     margin: 16,
     marginBottom: 8,
@@ -83,17 +85,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
-  viewToggleButtonActive: {
-    backgroundColor: '#EEF2FF',
-  },
   viewToggleText: {
     fontSize: 14,
     fontWeight: '500',
     marginLeft: 4,
-    color: '#6B7280',
-  },
-  viewToggleTextActive: {
-    color: '#4F46E5',
   },
 });
 

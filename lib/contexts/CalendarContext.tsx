@@ -1,5 +1,5 @@
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
-import { CalendarEvent } from '../../components/calendar/CalendarMonthView';
+import { CalendarEvent } from '../../types/database';
 import { useAuth } from '../hooks/useAuth';
 import { useRealTimeSubscription } from '../hooks/useRealTimeSubscription';
 import { supabase } from '../supabase';
@@ -11,7 +11,11 @@ interface CalendarContextType {
   addEvent: (event: Partial<CalendarEvent>) => void;
   updateEvent: (eventId: string, updates: Partial<CalendarEvent>) => Promise<void>;
   deleteEvent: (eventId: string) => Promise<void>;
+  removeEventsByTaskId: (taskId: string) => void;
+  refreshEvents: () => Promise<void>;
   onRefresh: () => Promise<void>;
+  getAgendaEvents: () => CalendarEvent[];
+  cleanupOrphanedEvents: () => Promise<void>;
 }
 
 const CalendarContext = createContext<CalendarContextType | undefined>(undefined);
@@ -41,12 +45,68 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
     );
   }, []);
 
+  // Helper function to get agenda events (grouped recurring tasks)
+  const getAgendaEvents = useCallback(() => {
+    const now = new Date();
+    const futureEvents = events.filter(event => new Date(event.start_time) >= now);
+    
+    console.log('Processing agenda events:', {
+      totalEvents: events.length,
+      futureEvents: futureEvents.length
+    });
+    
+    // Group events by task_id to handle recurring tasks
+    const taskGroups = new Map<string, CalendarEvent[]>();
+    const nonTaskEvents: CalendarEvent[] = [];
+    
+    futureEvents.forEach(event => {
+      if (event.task_id) {
+        // This is a task event
+        if (!taskGroups.has(event.task_id)) {
+          taskGroups.set(event.task_id, []);
+        }
+        taskGroups.get(event.task_id)!.push(event);
+      } else {
+        // This is a regular calendar event
+        nonTaskEvents.push(event);
+      }
+    });
+    
+    console.log('Task groups in agenda:', taskGroups.size);
+    
+    // For each task group, take only the next occurrence
+    const nextTaskEvents: CalendarEvent[] = [];
+    taskGroups.forEach((taskEvents, taskId) => {
+      if (taskEvents.length > 1 || taskEvents[0]?.is_recurring) {
+        // This is a recurring task - take the next occurrence
+        const nextEvent = taskEvents.sort((a, b) => 
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        )[0];
+        
+        // Modify the title to indicate it's recurring if not already marked
+        if (!nextEvent.title.includes('(Recurring)')) {
+          nextEvent.title = `${nextEvent.title} (Recurring)`;
+        }
+        nextTaskEvents.push(nextEvent);
+        console.log(`Recurring task in agenda: ${nextEvent.title} on ${nextEvent.start_time}`);
+      } else {
+        // Single occurrence task
+        nextTaskEvents.push(taskEvents[0]);
+      }
+    });
+    
+    const result = sortEvents([...nextTaskEvents, ...nonTaskEvents]);
+    console.log('Final agenda events:', result.length);
+    return result;
+  }, [events, sortEvents]);
+
   // Fetch calendar events from Supabase
   const fetchEvents = useCallback(async () => {
     if (!user?.id) return;
     
     try {
       setLoading(true);
+      console.log('=== FETCHING CALENDAR EVENTS ===');
       console.log('Fetching calendar events for user:', user.id);
       
       const { data, error } = await supabase
@@ -57,8 +117,74 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
         
       if (error) throw error;
       
-      console.log('Fetched calendar events:', data?.length || 0);
+      console.log('Raw calendar events from database:', data?.length || 0);
+      
+      if (data && data.length > 0) {
+        const recurringEvents = data.filter(event => event.is_recurring);
+        const regularEvents = data.filter(event => !event.is_recurring);
+        
+        console.log('Regular events:', regularEvents.length);
+        console.log('Recurring events:', recurringEvents.length);
+        
+        recurringEvents.forEach((event, index) => {
+          console.log(`Recurring Event ${index + 1}:`, {
+            id: event.id,
+            title: event.title,
+            is_recurring: event.is_recurring,
+            recurrence_pattern: event.recurrence_pattern,
+            recurrence_end_date: event.recurrence_end_date,
+            start_time: event.start_time,
+            task_id: event.task_id
+          });
+        });
+      }
+      
+      // Clean up orphaned calendar events (events that reference non-existent tasks)
+      if (data && data.length > 0) {
+        const taskEvents = data.filter(event => event.task_id);
+        if (taskEvents.length > 0) {
+          const taskIds = taskEvents.map(event => event.task_id);
+          
+          // Check which tasks still exist
+          const { data: existingTasks } = await supabase
+            .from('tasks')
+            .select('id')
+            .in('id', taskIds);
+            
+          const existingTaskIds = new Set(existingTasks?.map(task => task.id) || []);
+          const orphanedEvents = taskEvents.filter(event => !existingTaskIds.has(event.task_id));
+          
+          if (orphanedEvents.length > 0) {
+            console.log(`Found ${orphanedEvents.length} orphaned calendar events, cleaning up...`);
+            const orphanedEventIds = orphanedEvents.map(event => event.id);
+            
+            const { error: cleanupError } = await supabase
+              .from('calendar_events')
+              .delete()
+              .in('id', orphanedEventIds);
+              
+            if (cleanupError) {
+              console.error('Error cleaning up orphaned events:', cleanupError);
+            } else {
+              console.log('Successfully cleaned up orphaned events');
+              // Fetch events again after cleanup
+              const { data: cleanedData, error: refetchError } = await supabase
+                .from('calendar_events')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('start_time', { ascending: true });
+                
+              if (refetchError) throw refetchError;
+              setEvents(sortEvents(cleanedData as CalendarEvent[]));
+              console.log('=== END FETCHING CALENDAR EVENTS ===');
+              return;
+            }
+          }
+        }
+      }
+      
       setEvents(sortEvents(data as CalendarEvent[]));
+      console.log('=== END FETCHING CALENDAR EVENTS ===');
     } catch (error) {
       console.error('Error fetching calendar events:', error);
     } finally {
@@ -102,9 +228,11 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
         case 'DELETE': {
           if (payload.old?.id) {
             console.log('Calendar event deleted:', payload.old.id);
-            setEvents(current => 
-              current.filter(event => event.id !== payload.old.id)
-            );
+            setEvents(current => {
+              const filtered = current.filter(event => event.id !== payload.old.id);
+              console.log(`Removed event ${payload.old.id}, remaining events:`, filtered.length);
+              return filtered;
+            });
           }
           break;
         }
@@ -136,8 +264,11 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
     const eventWithTempId = {
       ...newEvent,
       id: tempId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     } as CalendarEvent;
     
+    console.log('Adding event to local state for immediate UI update:', eventWithTempId);
     setEvents(current => sortEvents([...current, eventWithTempId]));
   };
 
@@ -189,6 +320,110 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
     await fetchEvents();
   };
 
+  // Refresh events (same as fetchEvents but can be called externally)
+  const refreshEvents = async () => {
+    await fetchEvents();
+  };
+
+  // Manual cleanup for orphaned calendar events
+  const cleanupOrphanedEvents = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      setLoading(true);
+      console.log('Attempting to clean up orphaned calendar events for user:', user.id);
+
+      const { data: orphanedEvents } = await supabase
+        .from('calendar_events')
+        .select('*')
+        .eq('user_id', user.id)
+        .is('task_id', null); // Find events that have no task_id
+
+      if (orphanedEvents && orphanedEvents.length > 0) {
+        const orphanedEventIds = orphanedEvents.map(event => event.id);
+        console.log(`Found ${orphanedEventIds.length} orphaned calendar events, cleaning up...`);
+
+        const { error: cleanupError } = await supabase
+          .from('calendar_events')
+          .delete()
+          .in('id', orphanedEventIds);
+
+        if (cleanupError) {
+          console.error('Error cleaning up orphaned events:', cleanupError);
+        } else {
+          console.log('Successfully cleaned up orphaned events');
+          // Re-fetch events after cleanup
+          const { data: cleanedData, error: refetchError } = await supabase
+            .from('calendar_events')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('start_time', { ascending: true });
+
+          if (refetchError) throw refetchError;
+          setEvents(sortEvents(cleanedData as CalendarEvent[]));
+        }
+      } else {
+        console.log('No orphaned calendar events found to clean up.');
+      }
+    } catch (error) {
+      console.error('Error during orphaned event cleanup:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, sortEvents]);
+
+  // Remove calendar events by task_id
+  const removeEventsByTaskId = useCallback(async (taskId: string) => {
+    if (!user?.id) return;
+
+    try {
+      console.log(`Removing calendar events for task_id: ${taskId}`);
+      
+      // First, remove events from local state immediately for better UX
+      setEvents(current => {
+        const filtered = current.filter(event => event.task_id !== taskId);
+        console.log(`Removed events for task ${taskId} from local state, remaining:`, filtered.length);
+        return filtered;
+      });
+
+      // Then delete from database
+      const { data: eventsToDelete, error: selectError } = await supabase
+        .from('calendar_events')
+        .select('id')
+        .eq('task_id', taskId)
+        .eq('user_id', user.id);
+
+      if (selectError) {
+        console.error('Error selecting events to delete by task_id:', selectError);
+        return;
+      }
+
+      if (eventsToDelete && eventsToDelete.length > 0) {
+        const eventIds = eventsToDelete.map(event => event.id);
+        console.log(`Found ${eventIds.length} calendar events to delete for task_id: ${taskId}`);
+
+        const { error: deleteError } = await supabase
+          .from('calendar_events')
+          .delete()
+          .in('id', eventIds);
+
+        if (deleteError) {
+          console.error('Error deleting calendar events by task_id:', deleteError);
+          // If deletion failed, refresh events to restore correct state
+          await fetchEvents();
+        } else {
+          console.log('Successfully deleted calendar events by task_id');
+        }
+      } else {
+        console.log(`No calendar events found for task_id: ${taskId} to delete.`);
+      }
+    } catch (error) {
+      console.error('Error during calendar events by task_id removal:', error);
+      // If there's an error, refresh events to ensure correct state
+      await fetchEvents();
+    }
+  }, [user?.id, fetchEvents]);
+
   const value = {
     events,
     loading,
@@ -196,7 +431,11 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
     addEvent,
     updateEvent,
     deleteEvent,
+    removeEventsByTaskId,
+    refreshEvents,
     onRefresh,
+    getAgendaEvents,
+    cleanupOrphanedEvents,
   };
 
   return (

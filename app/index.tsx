@@ -1,10 +1,12 @@
 import React, { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { useTheme } from "../lib/contexts/ThemeContext";
 import { useAuth } from "../lib/hooks/useAuth";
 import { navigate } from "../lib/navigation";
 
 export default function Index() {
   const { user, loading } = useAuth();
+  const { colors } = useTheme();
 
   useEffect(() => {
     if (!loading) {
@@ -20,8 +22,8 @@ export default function Index() {
 
   // Show loading spinner while checking authentication
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color="#4F46E5" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ActivityIndicator size="large" color={colors.primary} />
     </View>
   );
 }
@@ -29,7 +31,6 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#EEF2FF",
     justifyContent: "center",
     alignItems: "center",
   },

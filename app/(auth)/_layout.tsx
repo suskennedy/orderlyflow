@@ -1,16 +1,23 @@
 import { Stack } from "expo-router";
 import React from "react";
 import { StatusBar } from "react-native";
+import { useTheme } from "../../lib/contexts/ThemeContext";
 
 export default function AuthLayout() {
+  const { isDark, colors } = useTheme();
+
   return (
     <>
-      <StatusBar barStyle="dark-content" backgroundColor="#EEF2FF" />
+      <StatusBar 
+        barStyle={isDark ? "light-content" : "dark-content"} 
+        backgroundColor="transparent" 
+        translucent={true} 
+      />
       <Stack
         screenOptions={{
           headerShown: false, // Hide all headers from Expo Router
           contentStyle: {
-            backgroundColor: "#EEF2FF",
+            backgroundColor: colors.background,
           },
           animation: "slide_from_right",
         }}

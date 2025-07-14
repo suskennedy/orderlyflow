@@ -3,19 +3,20 @@ import { Picker } from "@react-native-picker/picker";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import DatePicker from "../../../../components/DatePicker";
 import { useInventory } from "../../../../lib/contexts/InventoryContext";
+import { useTheme } from "../../../../lib/contexts/ThemeContext";
 import { useAuth } from "../../../../lib/hooks/useAuth";
 import { useDashboard } from "../../../../lib/hooks/useDashboard";
 import { supabase } from "../../../../lib/supabase";
@@ -94,6 +95,7 @@ export default function AddInventoryItemScreen() {
   const { user } = useAuth();
   const { fetchDashboardStats } = useDashboard();
   const { addItem } = useInventory();
+  const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
   const [homes, setHomes] = useState<Home[]>([]);
   const [homesLoading, setHomesLoading] = useState(true);
@@ -377,27 +379,35 @@ export default function AddInventoryItemScreen() {
         return (
           <>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Color Code</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Color Code</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., SW-7036, BM-2124-40"
                 value={formData.color}
                 onChangeText={(text) =>
                   setFormData({ ...formData, color: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Room</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Room</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., Living Room, Bedroom, Bathroom"
                 value={formData.room}
                 onChangeText={(text) =>
                   setFormData({ ...formData, room: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
           </>
@@ -408,39 +418,51 @@ export default function AddInventoryItemScreen() {
         return (
           <>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Filter Type</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Filter Type</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., HVAC, Water, Air Purifier"
                 value={formData.filter_type}
                 onChangeText={(text) =>
                   setFormData({ ...formData, filter_type: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Size</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Size</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., 16x20x1, 10-inch"
                 value={formData.size}
                 onChangeText={(text) =>
                   setFormData({ ...formData, size: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Replacement Frequency (months)</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Replacement Frequency (months)</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., 3, 6, 12"
                 value={formData.replacement_frequency}
                 onChangeText={(text) =>
                   setFormData({ ...formData, replacement_frequency: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="numeric"
               />
             </View>
@@ -463,52 +485,68 @@ export default function AddInventoryItemScreen() {
         return (
           <>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Bulb Type</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Bulb Type</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., LED, Incandescent, Fluorescent"
                 value={formData.bulb_type}
                 onChangeText={(text) =>
                   setFormData({ ...formData, bulb_type: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Wattage</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Wattage</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., 60W, 9W"
                 value={formData.wattage}
                 onChangeText={(text) =>
                   setFormData({ ...formData, wattage: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="numeric"
               />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Style</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Style</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., Modern, Traditional, Industrial"
                 value={formData.style}
                 onChangeText={(text) =>
                   setFormData({ ...formData, style: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Room</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Room</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., Living Room, Kitchen, Bathroom"
                 value={formData.room}
                 onChangeText={(text) =>
                   setFormData({ ...formData, room: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
           </>
@@ -518,51 +556,67 @@ export default function AddInventoryItemScreen() {
         return (
           <>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Color</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Color</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., White, Black, Gray"
                 value={formData.color}
                 onChangeText={(text) =>
                   setFormData({ ...formData, color: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Size</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Size</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., 12x12, 6x24"
                 value={formData.size}
                 onChangeText={(text) =>
                   setFormData({ ...formData, size: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Material</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Material</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., Ceramic, Porcelain, Marble"
                 value={formData.material}
                 onChangeText={(text) =>
                   setFormData({ ...formData, material: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Room</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Room</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., Bathroom, Kitchen, Entry"
                 value={formData.room}
                 onChangeText={(text) =>
                   setFormData({ ...formData, room: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
           </>
@@ -572,51 +626,67 @@ export default function AddInventoryItemScreen() {
         return (
           <>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Material</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Material</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., Wood, MDF, Laminate"
                 value={formData.material}
                 onChangeText={(text) =>
                   setFormData({ ...formData, material: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Color</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Color</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., White, Cherry, Oak"
                 value={formData.color}
                 onChangeText={(text) =>
                   setFormData({ ...formData, color: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Style</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Style</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., Shaker, Modern, Traditional"
                 value={formData.style}
                 onChangeText={(text) =>
                   setFormData({ ...formData, style: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Room</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Room</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., Kitchen, Bathroom, Laundry"
                 value={formData.room}
                 onChangeText={(text) =>
                   setFormData({ ...formData, room: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
           </>
@@ -625,15 +695,19 @@ export default function AddInventoryItemScreen() {
       case "appliance":
         return (
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Manual URL</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Manual URL</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { 
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                color: colors.text
+              }]}
               placeholder="e.g., https://example.com/manual.pdf"
               value={formData.manual_url}
               onChangeText={(text) =>
                 setFormData({ ...formData, manual_url: text })
               }
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
               autoCapitalize="none"
               keyboardType="url"
             />
@@ -653,67 +727,78 @@ export default function AddInventoryItemScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { 
+        backgroundColor: colors.surface,
+        borderBottomColor: colors.border 
+      }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>{config.title}</Text>
+        <Text style={[styles.title, { color: colors.text }]}>{config.title}</Text>
         <TouchableOpacity
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+          style={[styles.saveButton, { backgroundColor: colors.primary }, loading && { opacity: 0.6 }]}
           onPress={handleSave}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={colors.textInverse} />
           ) : (
-            <Text style={styles.saveButtonText}>Save</Text>
+            <Text style={[styles.saveButtonText, { color: colors.textInverse }]}>Save</Text>
           )}
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.itemTypeDisplay}>
-          <View style={[styles.itemTypeIcon, { backgroundColor: "#DBEAFE" }]}>
-            <Ionicons name={config.icon} size={24} color="#3B82F6" />
+        <View style={[styles.itemTypeDisplay, { backgroundColor: colors.surfaceVariant }]}>
+          <View style={[styles.itemTypeIcon, { backgroundColor: colors.primaryLight }]}>
+            <Ionicons name={config.icon} size={24} color={colors.primary} />
           </View>
-          <Text style={styles.itemTypeDescription}>{config.description}</Text>
+          <Text style={[styles.itemTypeDescription, { color: colors.textSecondary }]}>{config.description}</Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Item Information</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Item Information</Text>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Item Name *</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Item Name *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { 
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                color: colors.text
+              }]}
               placeholder={`Enter ${itemType} name`}
               value={formData.name}
               onChangeText={(text) => setFormData({ ...formData, name: text })}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Category</Text>
-            <View style={styles.pickerContainer}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Category</Text>
+            <View style={[styles.pickerContainer, { 
+              backgroundColor: colors.surface,
+              borderColor: colors.border 
+            }]}>
               <Picker
                 selectedValue={formData.category}
                 onValueChange={(itemValue) =>
                   setFormData({ ...formData, category: itemValue })
                 }
-                style={styles.picker}
+                style={[styles.picker, { color: colors.text }]}
               >
-                <Picker.Item label="Select a category..." value="" />
+                <Picker.Item label="Select a category..." value="" color={colors.textTertiary} />
                 {INVENTORY_CATEGORIES.map((category) => (
                   <Picker.Item
                     key={category}
                     label={category}
                     value={category}
+                    color={colors.text}
                   />
                 ))}
               </Picker>
@@ -722,28 +807,36 @@ export default function AddInventoryItemScreen() {
 
           <View style={styles.row}>
             <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Brand</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Brand</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="Samsung, Filtrete, etc."
                 value={formData.brand}
                 onChangeText={(text) =>
                   setFormData({ ...formData, brand: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
             {showModelFields && (
               <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
-                <Text style={styles.label}>Model</Text>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Model</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { 
+                    borderColor: colors.border,
+                    backgroundColor: colors.surface,
+                    color: colors.text
+                  }]}
                   placeholder="Model number"
                   value={formData.model}
                   onChangeText={(text) =>
                     setFormData({ ...formData, model: text })
                   }
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={colors.textTertiary}
                 />
               </View>
             )}
@@ -751,15 +844,19 @@ export default function AddInventoryItemScreen() {
 
           {showSerialNumberField && (
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Serial Number</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Serial Number</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="Serial number"
                 value={formData.serial_number}
                 onChangeText={(text) =>
                   setFormData({ ...formData, serial_number: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
           )}
@@ -768,32 +865,39 @@ export default function AddInventoryItemScreen() {
           {renderTypeSpecificFields()}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Location & Assignment</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Location & Assignment</Text>
           {showLocationField && (
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Location</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Location</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="e.g., Kitchen, Basement, Garage"
                 value={formData.location}
                 onChangeText={(text) =>
                   setFormData({ ...formData, location: text })
                 }
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Assign to Home</Text>
-            <View style={styles.pickerContainer}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Assign to Home</Text>
+            <View style={[styles.pickerContainer, { 
+              backgroundColor: colors.surface,
+              borderColor: colors.border 
+            }]}>
               <Picker
                 selectedValue={formData.home_id}
                 onValueChange={(itemValue) =>
                   setFormData({ ...formData, home_id: itemValue })
                 }
-                style={styles.picker}
+                style={[styles.picker, { color: colors.text }]}
                 enabled={!homesLoading}
               >
                 <Picker.Item
@@ -805,29 +909,31 @@ export default function AddInventoryItemScreen() {
                       : "Select a home..."
                   }
                   value=""
+                  color={colors.textTertiary}
                 />
                 {homes.map((home) => (
                   <Picker.Item
                     key={home.id}
                     label={home.name}
                     value={home.id}
+                    color={colors.text}
                   />
                 ))}
               </Picker>
             </View>
             {homes.length === 0 && !homesLoading && (
               <TouchableOpacity
-                style={styles.addHomeButton}
+                style={[styles.addHomeButton, { backgroundColor: colors.surfaceVariant }]}
                 onPress={() => router.push("/homes/add")}
               >
-                <Text style={styles.addHomeButtonText}>Add a Home</Text>
+                <Text style={[styles.addHomeButtonText, { color: colors.primary }]}>Add a Home</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Purchase Information</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Purchase Information</Text>
 
           <View style={styles.inputGroup}>
             <DatePicker
@@ -861,17 +967,21 @@ export default function AddInventoryItemScreen() {
           )}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Additional Information</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Additional Information</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Notes</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Notes</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, { 
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                color: colors.text
+              }]}
               placeholder="Add any additional notes about this item"
               value={formData.notes}
               onChangeText={(text) => setFormData({ ...formData, notes: text })}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -888,7 +998,6 @@ export default function AddInventoryItemScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",
@@ -896,8 +1005,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-    backgroundColor: "#FFFFFF",
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   backButton: {
     width: 40,
@@ -908,24 +1020,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#111827",
     flex: 1,
     textAlign: "center",
   },
   saveButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: "#4F46E5",
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
     minWidth: 70,
   },
-  saveButtonDisabled: {
-    backgroundColor: "#A5B4FC",
-  },
   saveButtonText: {
-    color: "#FFFFFF",
     fontWeight: "600",
     fontSize: 14,
   },
@@ -937,7 +1043,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    backgroundColor: "#F9FAFB",
     borderRadius: 8,
     marginBottom: 16,
   },
@@ -951,16 +1056,21 @@ const styles = StyleSheet.create({
   },
   itemTypeDescription: {
     fontSize: 14,
-    color: "#4B5563",
     flex: 1,
   },
   section: {
     marginBottom: 24,
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#111827",
     marginBottom: 16,
   },
   inputGroup: {
@@ -969,26 +1079,20 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#374151",
     marginBottom: 6,
   },
   input: {
-    backgroundColor: "#F9FAFB",
     borderWidth: 1,
-    borderColor: "#D1D5DB",
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
-    color: "#111827",
   },
   textArea: {
     height: 100,
     textAlignVertical: "top",
   },
   pickerContainer: {
-    backgroundColor: "#F9FAFB",
     borderWidth: 1,
-    borderColor: "#D1D5DB",
     borderRadius: 8,
     overflow: "hidden",
   },
@@ -1001,14 +1105,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   addHomeButton: {
-    backgroundColor: "#F3F4F6",
     padding: 10,
     borderRadius: 8,
     marginTop: 8,
     alignItems: "center",
   },
   addHomeButtonText: {
-    color: "#4F46E5",
     fontWeight: "500",
   },
   bottomSpacing: {

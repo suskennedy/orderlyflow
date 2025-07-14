@@ -1,6 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 
 interface DeleteConfirmationModalProps {
   visible: boolean;
@@ -8,11 +15,6 @@ interface DeleteConfirmationModalProps {
   onConfirm: () => void;
   title: string;
   message: string;
-  confirmButtonText?: string;
-  cancelButtonText?: string;
-  iconName?: keyof typeof Ionicons.glyphMap;
-  iconColor?: string;
-  iconSize?: number;
 }
 
 export default function DeleteConfirmationModal({
@@ -21,12 +23,9 @@ export default function DeleteConfirmationModal({
   onConfirm,
   title,
   message,
-  confirmButtonText = 'Delete',
-  cancelButtonText = 'Cancel',
-  iconName = 'warning',
-  iconColor = '#EF4444',
-  iconSize = 48,
 }: DeleteConfirmationModalProps) {
+  const { colors } = useTheme();
+
   return (
     <Modal
       visible={visible}
@@ -34,27 +33,28 @@ export default function DeleteConfirmationModal({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Ionicons name={iconName} size={iconSize} color={iconColor} />
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.message}>{message}</Text>
+      <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
+        <View style={[styles.modal, { backgroundColor: colors.surface }]}>
+          <View style={[styles.iconContainer, { backgroundColor: colors.error + '15' }]}>
+            <Ionicons name="warning" size={32} color={colors.error} />
           </View>
-          <View style={styles.buttons}>
+          
+          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+          <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
+          
+          <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={styles.cancelButton}
+              style={[styles.button, styles.cancelButton, { borderColor: colors.border }]}
               onPress={onClose}
-              accessibilityLabel={cancelButtonText}
             >
-              <Text style={styles.cancelButtonText}>{cancelButtonText}</Text>
+              <Text style={[styles.buttonText, { color: colors.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
+            
             <TouchableOpacity
-              style={styles.confirmButton}
+              style={[styles.button, styles.deleteButton, { backgroundColor: colors.error }]}
               onPress={onConfirm}
-              accessibilityLabel={confirmButtonText}
             >
-              <Text style={styles.confirmButtonText}>{confirmButtonText}</Text>
+              <Text style={[styles.buttonText, { color: colors.textInverse }]}>Delete</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -68,65 +68,60 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 24,
+    padding: 20,
   },
-  content: {
-    backgroundColor: '#FFFFFF',
-    padding: 24,
+  modal: {
     borderRadius: 16,
-    width: '100%',
-    maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  header: {
+    padding: 24,
     alignItems: 'center',
-    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+    maxWidth: 400,
+    width: '100%',
+  },
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
-    marginTop: 16,
+    textAlign: 'center',
     marginBottom: 8,
   },
   message: {
     fontSize: 16,
-    color: '#4B5563',
     textAlign: 'center',
     lineHeight: 24,
+    marginBottom: 24,
   },
-  buttons: {
+  buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     gap: 12,
+    width: '100%',
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelButton: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 10,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
+    borderWidth: 1,
   },
-  cancelButtonText: {
+  deleteButton: {
+    // backgroundColor is set dynamically
+  },
+  buttonText: {
     fontSize: 16,
-    color: '#4B5563',
-    fontWeight: '600',
-  },
-  confirmButton: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 10,
-    backgroundColor: '#EF4444',
-    alignItems: 'center',
-  },
-  confirmButtonText: {
-    fontSize: 16,
-    color: '#FFFFFF',
     fontWeight: '600',
   },
 });

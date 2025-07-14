@@ -13,10 +13,12 @@ import StatsDisplay from '../../../components/ui/StatsDisplay';
 
 // Import hooks
 import { useTasks } from '../../../lib/contexts/TasksContext';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
 
 export default function TasksScreen() {
   const insets = useSafeAreaInsets();
   const { tasks, loading, refreshing, updateTask, deleteTask, onRefresh } = useTasks();
+  const { colors } = useTheme();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
@@ -59,9 +61,9 @@ export default function TasksScreen() {
       <StatsDisplay
         stats={[
           { value: totalTasks, label: 'Total Tasks' },
-          { value: completedTasks, label: 'Completed', color: '#10B981' },
-          { value: pendingTasks, label: 'Pending', color: '#F59E0B' },
-          { value: highPriorityTasks, label: 'High Priority', color: '#EF4444' }
+          { value: completedTasks, label: 'Completed', color: colors.success },
+          { value: pendingTasks, label: 'Pending', color: colors.warning },
+          { value: highPriorityTasks, label: 'High Priority', color: colors.error }
         ]}
       />
     );
@@ -73,7 +75,10 @@ export default function TasksScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom + 100 }]}>
+    <View style={[styles.container, { 
+      backgroundColor: colors.background,
+      paddingBottom: insets.bottom + 100 
+    }]}>
       {/* Header */}
       <ScreenHeader
         title="Tasks"
@@ -106,7 +111,7 @@ export default function TasksScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                colors={['#4F46E5']}
+                colors={[colors.primary]}
               />
             }
             ListHeaderComponent={renderStats}
@@ -131,7 +136,6 @@ export default function TasksScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
   },
   content: {
     flex: 1,

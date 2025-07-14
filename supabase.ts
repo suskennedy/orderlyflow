@@ -153,7 +153,10 @@ export type Database = {
           end_time: string
           google_event_id: string | null
           id: string
+          is_recurring: boolean | null
           location: string | null
+          recurrence_end_date: string | null
+          recurrence_pattern: string | null
           start_time: string
           task_id: string | null
           title: string
@@ -169,7 +172,10 @@ export type Database = {
           end_time: string
           google_event_id?: string | null
           id?: string
+          is_recurring?: boolean | null
           location?: string | null
+          recurrence_end_date?: string | null
+          recurrence_pattern?: string | null
           start_time: string
           task_id?: string | null
           title: string
@@ -185,7 +191,10 @@ export type Database = {
           end_time?: string
           google_event_id?: string | null
           id?: string
+          is_recurring?: boolean | null
           location?: string | null
+          recurrence_end_date?: string | null
+          recurrence_pattern?: string | null
           start_time?: string
           task_id?: string | null
           title?: string

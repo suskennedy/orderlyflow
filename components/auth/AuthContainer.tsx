@@ -1,64 +1,25 @@
-import React, { ReactNode } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 
 interface AuthContainerProps {
-  children: ReactNode;
-  scrollEnabled?: boolean;
-  keyboardShouldPersistTaps?: 'always' | 'never' | 'handled';
+  children: React.ReactNode;
 }
 
-export default function AuthContainer({
-  children,
-  scrollEnabled = true,
-  keyboardShouldPersistTaps = 'handled',
-}: AuthContainerProps) {
+export default function AuthContainer({ children }: AuthContainerProps) {
+  const { colors } = useTheme();
+
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        {scrollEnabled ? (
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps={keyboardShouldPersistTaps}
-          >
-            {children}
-          </ScrollView>
-        ) : (
-          <View style={styles.nonScrollContent}>
-            {children}
-          </View>
-        )}
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {children}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEF2FF',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
-  },
-  nonScrollContent: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
   },
 });

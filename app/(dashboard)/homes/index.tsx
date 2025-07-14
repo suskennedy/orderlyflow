@@ -1,23 +1,24 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  View
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import reusable components
-import DeleteConfirmationModal from '../../../components/ui/DeleteConfirmationModal';
-import EmptyState from '../../../components/layout/EmptyState';
 import HomeCard from '../../../components/dashboard/HomeCard';
+import EmptyState from '../../../components/layout/EmptyState';
 import LoadingState from '../../../components/layout/LoadingState';
 import ScreenHeader from '../../../components/layout/ScreenHeader';
+import DeleteConfirmationModal from '../../../components/ui/DeleteConfirmationModal';
 import StatsDisplay from '../../../components/ui/StatsDisplay';
 
 // Import hooks
 import { useHomes } from '../../../lib/contexts/HomesContext';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
 
 // Define interface for Home type
@@ -40,6 +41,7 @@ interface Home {
 export default function HomesScreen() {
   const { user } = useAuth();
   const { homes, loading, refreshing, deleteHome, onRefresh } = useHomes();
+  const { colors } = useTheme();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedHome, setSelectedHome] = useState<Home | null>(null);
   const insets = useSafeAreaInsets();
@@ -70,9 +72,9 @@ export default function HomesScreen() {
       <StatsDisplay
         stats={[
           { value: totalHomes, label: 'Total Homes' },
-          { value: totalBedrooms, label: 'Total Bedrooms', color: '#3B82F6' },
-          { value: totalBathrooms, label: 'Total Bathrooms', color: '#10B981' },
-          { value: averageYear || 'N/A', label: 'Avg Year Built', color: '#F59E0B' }
+          { value: totalBedrooms, label: 'Total Bedrooms', color: colors.info },
+          { value: totalBathrooms, label: 'Total Bathrooms', color: colors.success },
+          { value: averageYear || 'N/A', label: 'Avg Year Built', color: colors.warning }
         ]}
       />
     );
@@ -84,7 +86,10 @@ export default function HomesScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom + 100 }]}>
+    <View style={[styles.container, { 
+      backgroundColor: colors.background,
+      paddingBottom: insets.bottom + 100 
+    }]}>
       {/* Screen header */}
       <ScreenHeader
         title="Homes"
@@ -116,7 +121,7 @@ export default function HomesScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                colors={['#4F46E5']}
+                colors={[colors.primary]}
               />
             }
             ListHeaderComponent={renderStats}
@@ -141,7 +146,6 @@ export default function HomesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
   },
   content: {
     flex: 1,

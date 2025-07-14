@@ -3,22 +3,21 @@ import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import DatePicker from '../../../components/DatePicker';
 import { useTasks } from '../../../lib/contexts/TasksContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
-import { useDashboard } from '../../../lib/hooks/useDashboard';
 import { supabase } from '../../../lib/supabase';
 
 const TASK_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'];
@@ -41,7 +40,6 @@ interface Home {
 
 export default function AddTaskScreen() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
-  const { fetchDashboardStats } = useDashboard();
   const { addTask } = useTasks();
   const [loading, setLoading] = useState(false);
   const [homes, setHomes] = useState<Home[]>([]);
@@ -98,9 +96,24 @@ export default function AddTaskScreen() {
 
   // Helper function to create calendar events for tasks
   const createCalendarEventsForTask = async (taskData: any) => {
-    if (!taskData.due_date || !user?.id) return;
+    if (!user?.id) return;
 
     try {
+      // Use today's date if no due date is provided
+      const eventDate = taskData.due_date || new Date().toISOString().split('T')[0];
+      
+      // Check if calendar event already exists for this task
+      const { data: existingEvents } = await supabase
+        .from('calendar_events')
+        .select('id')
+        .eq('task_id', taskData.id)
+        .eq('user_id', user.id);
+
+      if (existingEvents && existingEvents.length > 0) {
+        console.log('Calendar event already exists for task:', taskData.id);
+        return;
+      }
+
       // Determine event color based on priority
       const getEventColor = (priority: string) => {
         switch (priority?.toLowerCase()) {
@@ -118,13 +131,16 @@ export default function AddTaskScreen() {
       const calendarEvent = {
         title: `Task: ${taskData.title}`,
         description: taskData.description || `Task: ${taskData.title}${taskData.notes ? `\n\nNotes: ${taskData.notes}` : ''}`,
-        start_time: `${taskData.due_date}T09:00:00`, // Default to 9 AM
-        end_time: `${taskData.due_date}T10:00:00`,   // Default to 10 AM
+        start_time: `${eventDate}T09:00:00`, // Default to 9 AM
+        end_time: `${eventDate}T10:00:00`,   // Default to 10 AM
         location: null,
         color: eventColor,
         all_day: false,
         task_id: taskData.id,
         user_id: user.id,
+        is_recurring: taskData.is_recurring || false,
+        recurrence_pattern: taskData.recurrence_pattern || null,
+        recurrence_end_date: taskData.recurrence_end_date || null,
       };
 
       // Insert the calendar event
@@ -147,16 +163,45 @@ export default function AddTaskScreen() {
 
   // Helper function to create recurring calendar events
   const createRecurringCalendarEvents = async (taskData: any, eventColor: string) => {
-    if (!taskData.due_date || !taskData.is_recurring || !taskData.recurrence_pattern || !user?.id) return;
+    if (!taskData.is_recurring || !taskData.recurrence_pattern || !user?.id) {
+      console.log('Skipping recurring calendar events - missing required fields:', {
+        is_recurring: taskData.is_recurring,
+        recurrence_pattern: taskData.recurrence_pattern,
+        user_id: user?.id
+      });
+      return;
+    }
 
     try {
-      const startDate = new Date(taskData.due_date);
+      console.log('Creating recurring calendar events for task:', taskData.title, 'pattern:', taskData.recurrence_pattern);
+      
+      // Use today's date if no due date is provided
+      const startDate = new Date(taskData.due_date || new Date().toISOString().split('T')[0]);
       const endDate = taskData.recurrence_end_date ? new Date(taskData.recurrence_end_date) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year default
+      
+      console.log('Recurring task date range:', {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        pattern: taskData.recurrence_pattern
+      });
+      
+      // Check if recurring events already exist for this task
+      const { data: existingEvents } = await supabase
+        .from('calendar_events')
+        .select('id')
+        .eq('task_id', taskData.id)
+        .eq('user_id', user.id);
+
+      if (existingEvents && existingEvents.length > 0) {
+        console.log('Recurring calendar events already exist for task:', taskData.id, 'count:', existingEvents.length);
+        return;
+      }
       
       const events = [];
       let currentDate = new Date(startDate);
+      let eventCount = 0;
       
-      while (currentDate <= endDate) {
+      while (currentDate <= endDate && eventCount < 100) { // Limit to 100 events to prevent infinite loops
         const eventDate = currentDate.toISOString().split('T')[0];
         
         const calendarEvent = {
@@ -169,9 +214,13 @@ export default function AddTaskScreen() {
           all_day: false,
           task_id: taskData.id,
           user_id: user.id,
+          is_recurring: taskData.is_recurring || false,
+          recurrence_pattern: taskData.recurrence_pattern || null,
+          recurrence_end_date: taskData.recurrence_end_date || null,
         };
 
         events.push(calendarEvent);
+        eventCount++;
 
         // Calculate next occurrence based on pattern (case-insensitive)
         const pattern = taskData.recurrence_pattern.toLowerCase();
@@ -205,6 +254,8 @@ export default function AddTaskScreen() {
         }
       }
 
+      console.log(`Creating ${events.length} recurring calendar events for task: ${taskData.title}`);
+
       // Insert all recurring events
       if (events.length > 0) {
         const { error } = await supabase
@@ -213,7 +264,11 @@ export default function AddTaskScreen() {
 
         if (error) {
           console.error('Error creating recurring calendar events:', error);
+        } else {
+          console.log('Successfully created recurring calendar events:', events.length);
         }
+      } else {
+        console.log('No recurring events to create for task:', taskData.title);
       }
     } catch (error) {
       console.error('Error creating recurring calendar events:', error);
@@ -231,7 +286,7 @@ export default function AddTaskScreen() {
       Alert.alert('Error', 'Please enter a task title');
       return;
     }
-
+    
     // Only validate recurrence pattern if recurring
     if (formData.is_recurring) {
       if (!formData.recurrence_pattern || formData.recurrence_pattern.trim() === '') {
@@ -299,9 +354,6 @@ export default function AddTaskScreen() {
       if (data && data[0]) {
         await createCalendarEventsForTask(data[0]);
       }
-
-      // Refresh dashboard stats
-      await fetchDashboardStats();
 
       // Navigate back - note we don't need to alert since UI already updated
       router.back();

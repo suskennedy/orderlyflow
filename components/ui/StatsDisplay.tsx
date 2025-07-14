@@ -1,34 +1,30 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 
-export interface StatItem {
+interface Stat {
   value: string | number;
   label: string;
   color?: string;
 }
 
 interface StatsDisplayProps {
-  stats: StatItem[];
-  containerStyle?: object;
+  stats: Stat[];
 }
 
-export default function StatsDisplay({
-  stats,
-  containerStyle,
-}: StatsDisplayProps) {
+export default function StatsDisplay({ stats }: StatsDisplayProps) {
+  const { colors } = useTheme();
+
   return (
-    <View style={[styles.container, containerStyle]}>
+    <View style={styles.container}>
       {stats.map((stat, index) => (
-        <View key={index} style={styles.statCard}>
-          <Text 
-            style={[
-              styles.statValue, 
-              stat.color ? { color: stat.color } : null
-            ]}
-          >
+        <View key={index} style={[styles.statCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.statValue, { color: stat.color || colors.text }]}>
             {stat.value}
           </Text>
-          <Text style={styles.statLabel}>{stat.label}</Text>
+          <Text style={[styles.statLabel, { color: colors.textTertiary }]}>
+            {stat.label}
+          </Text>
         </View>
       ))}
     </View>
@@ -38,13 +34,11 @@ export default function StatsDisplay({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
     gap: 12,
+    marginBottom: 16,
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -55,14 +49,12 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#4F46E5',
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6B7280',
     fontWeight: '500',
     textAlign: 'center',
   },

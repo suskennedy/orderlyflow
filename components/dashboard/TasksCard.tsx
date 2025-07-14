@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 
 export interface Task {
   id: string;
@@ -25,82 +26,96 @@ interface TaskCardProps {
 }
 
 export default function TaskCard({ task, onDelete, onToggleStatus }: TaskCardProps) {
+  const { colors } = useTheme();
   const isCompleted = task.status === 'completed' || task.status === 'Completed';
 
   const getPriorityColor = (priority: string | null) => {
-    if (!priority) return '#6B7280';
+    if (!priority) return colors.textTertiary;
     
     switch (priority.toLowerCase()) {
-      case 'high': return '#EF4444';
-      case 'medium': return '#F59E0B';
-      case 'low': return '#10B981';
-      case 'urgent': return '#DC2626';
-      default: return '#6B7280';
+      case 'high': return colors.error;
+      case 'medium': return colors.warning;
+      case 'low': return colors.success;
+      case 'urgent': return colors.error;
+      default: return colors.textTertiary;
     }
   };
 
   const priorityColor = getPriorityColor(task.priority);
 
   return (
-    <View style={[styles.card, isCompleted && styles.completedCard]}>
+    <View style={[
+      styles.card, 
+      { backgroundColor: colors.surface },
+      isCompleted && { backgroundColor: colors.surfaceVariant }
+    ]}>
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.checkboxContainer}
+          style={[styles.checkboxContainer, { backgroundColor: colors.surfaceVariant }]}
           onPress={() => onToggleStatus(task)}
         >
           <View style={[
             styles.checkbox,
-            isCompleted && styles.checkedBox
+            { borderColor: colors.border },
+            isCompleted && { backgroundColor: colors.primary, borderColor: colors.primary }
           ]}>
             {isCompleted && (
-              <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+              <Ionicons name="checkmark" size={16} color={colors.textInverse} />
             )}
           </View>
         </TouchableOpacity>
         
         <View style={styles.content}>
-          <Text style={[styles.title, isCompleted && styles.completedText]}>
+          <Text style={[
+            styles.title, 
+            { color: colors.text },
+            isCompleted && { color: colors.textTertiary, textDecorationLine: 'line-through' }
+          ]}>
             {task.title}
           </Text>
           {task.description && (
-            <Text style={[styles.description, isCompleted && styles.completedText]}>
+            <Text style={[
+              styles.description, 
+              { color: colors.textSecondary },
+              isCompleted && { color: colors.textTertiary, textDecorationLine: 'line-through' }
+            ]}>
               {task.description}
             </Text>
           )}
         </View>
 
         <TouchableOpacity
-          style={styles.deleteButton}
+          style={[styles.deleteButton, { backgroundColor: colors.error + '15' }]}
           onPress={() => onDelete(task)}
         >
-          <Ionicons name="trash-outline" size={20} color="#EF4444" />
+          <Ionicons name="trash-outline" size={20} color={colors.error} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.footer}>
         <View style={styles.meta}>
           {task.priority && (
-            <View style={[styles.priorityBadge, { backgroundColor: `${priorityColor}15` }]}>
+            <View style={[styles.priorityBadge, { backgroundColor: priorityColor + '15' }]}>
               <Text style={[styles.priorityText, { color: priorityColor }]}>
                 {task.priority.toUpperCase()}
               </Text>
             </View>
           )}
           {task.category && (
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{task.category}</Text>
+            <View style={[styles.categoryBadge, { backgroundColor: colors.primaryLight }]}>
+              <Text style={[styles.categoryText, { color: colors.primary }]}>{task.category}</Text>
             </View>
           )}
         </View>
         {task.due_date && (
-          <Text style={styles.dueDate}>
+          <Text style={[styles.dueDate, { color: colors.textTertiary }]}>
             Due: {new Date(task.due_date).toLocaleDateString()}
           </Text>
         )}
       </View>
 
       {task.homes && (
-        <Text style={styles.homeText}>🏠 {task.homes.name}</Text>
+        <Text style={[styles.homeText, { color: colors.textTertiary }]}>🏠 {task.homes.name}</Text>
       )}
     </View>
   );
@@ -108,7 +123,6 @@ export default function TaskCard({ task, onDelete, onToggleStatus }: TaskCardPro
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -117,9 +131,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
-  },
-  completedCard: {
-    backgroundColor: '#F9FAFB',
   },
   header: {
     flexDirection: 'row',
@@ -130,20 +141,14 @@ const styles = StyleSheet.create({
   checkboxContainer: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
   },
   checkbox: {
     width: 20,
     height: 20,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#6B7280',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  checkedBox: {
-    backgroundColor: '#4F46E5',
-    borderColor: '#4F46E5',
   },
   content: {
     flex: 1,
@@ -152,23 +157,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 4,
   },
   description: {
     fontSize: 14,
-    color: '#6B7280',
     marginBottom: 12,
     lineHeight: 20,
-  },
-  completedText: {
-    textDecorationLine: 'line-through',
-    color: '#9CA3AF',
   },
   deleteButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#FEF2F2',
   },
   footer: {
     flexDirection: 'row',
@@ -197,20 +195,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: '#EEF2FF',
   },
   categoryText: {
     fontSize: 10,
-    color: '#4F46E5',
     fontWeight: '600',
     letterSpacing: 0.5,
   },
   dueDate: {
     fontSize: 12,
-    color: '#6B7280',
   },
   homeText: {
     fontSize: 12,
-    color: '#6B7280',
   },
 });

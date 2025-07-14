@@ -1,56 +1,138 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
+import {
+    ActivityIndicator,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    TouchableOpacityProps,
+} from 'react-native';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 
-interface ButtonProps {
+interface ButtonProps extends TouchableOpacityProps {
   title: string;
-  onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
   size?: 'small' | 'medium' | 'large';
   loading?: boolean;
-  disabled?: boolean;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  icon?: keyof typeof Ionicons.glyphMap;
+  iconPosition?: 'left' | 'right';
 }
 
 export default function Button({
   title,
-  onPress,
   variant = 'primary',
   size = 'medium',
   loading = false,
-  disabled = false,
+  icon,
+  iconPosition = 'left',
+  disabled,
   style,
-  textStyle,
+  ...props
 }: ButtonProps) {
-  const buttonStyle = [
-    styles.button,
-    styles[variant],
-    styles[size],
-    (disabled || loading) && styles.disabled,
-    style,
-  ];
+  const { colors } = useTheme();
 
-  const textStyles = [
-    styles.text,
-    styles[`${variant}Text`],
-    styles[`${size}Text`],
-    textStyle,
-  ];
+  const getButtonStyle = () => {
+    const baseStyle = [styles.button, styles[size]];
+    
+    switch (variant) {
+      case 'primary':
+        return [
+          ...baseStyle,
+          {
+            backgroundColor: disabled ? colors.textTertiary : colors.primary,
+            borderColor: disabled ? colors.textTertiary : colors.primary,
+          }
+        ];
+      case 'secondary':
+        return [
+          ...baseStyle,
+          {
+            backgroundColor: disabled ? colors.surfaceVariant : colors.secondary,
+            borderColor: disabled ? colors.surfaceVariant : colors.secondary,
+          }
+        ];
+      case 'outline':
+        return [
+          ...baseStyle,
+          {
+            backgroundColor: 'transparent',
+            borderColor: disabled ? colors.textTertiary : colors.primary,
+          }
+        ];
+      case 'ghost':
+        return [
+          ...baseStyle,
+          {
+            backgroundColor: 'transparent',
+            borderColor: 'transparent',
+          }
+        ];
+      default:
+        return baseStyle;
+    }
+  };
+
+  const getTextStyle = () => {
+    const baseStyle = [styles.text, styles[`${size}Text`]];
+    
+    switch (variant) {
+      case 'primary':
+      case 'secondary':
+        return [...baseStyle, { color: colors.textInverse }];
+      case 'outline':
+        return [...baseStyle, { color: disabled ? colors.textTertiary : colors.primary }];
+      case 'ghost':
+        return [...baseStyle, { color: disabled ? colors.textTertiary : colors.primary }];
+      default:
+        return baseStyle;
+    }
+  };
+
+  const getIconColor = () => {
+    switch (variant) {
+      case 'primary':
+      case 'secondary':
+        return colors.textInverse;
+      case 'outline':
+      case 'ghost':
+        return disabled ? colors.textTertiary : colors.primary;
+      default:
+        return colors.textInverse;
+    }
+  };
 
   return (
     <TouchableOpacity
-      style={buttonStyle}
-      onPress={onPress}
+      style={[getButtonStyle(), style]}
       disabled={disabled || loading}
       activeOpacity={0.8}
+      {...props}
     >
       {loading ? (
         <ActivityIndicator 
           size="small" 
-          color={variant === 'primary' ? '#FFFFFF' : '#4F46E5'} 
+          color={variant === 'primary' || variant === 'secondary' ? colors.textInverse : colors.primary} 
         />
       ) : (
-        <Text style={textStyles}>{title}</Text>
+        <>
+          {icon && iconPosition === 'left' && (
+            <Ionicons 
+              name={icon} 
+              size={size === 'small' ? 16 : size === 'large' ? 24 : 20} 
+              color={getIconColor()} 
+              style={styles.leftIcon}
+            />
+          )}
+          <Text style={getTextStyle()}>{title}</Text>
+          {icon && iconPosition === 'right' && (
+            <Ionicons 
+              name={icon} 
+              size={size === 'small' ? 16 : size === 'large' ? 24 : 20} 
+              color={getIconColor()} 
+              style={styles.rightIcon}
+            />
+          )}
+        </>
       )}
     </TouchableOpacity>
   );
@@ -58,60 +140,31 @@ export default function Button({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  
-  // Variants
-  primary: {
-    backgroundColor: '#4F46E5',
-  },
-  secondary: {
-    backgroundColor: '#F3F4F6',
-  },
-  outline: {
-    backgroundColor: 'transparent',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#4F46E5',
   },
-  danger: {
-    backgroundColor: '#EF4444',
-  },
-  
-  // Sizes
   small: {
-    paddingHorizontal: 12,
     paddingVertical: 8,
+    paddingHorizontal: 16,
+    minHeight: 36,
   },
   medium: {
-    paddingHorizontal: 16,
     paddingVertical: 12,
+    paddingHorizontal: 24,
+    minHeight: 44,
   },
   large: {
-    paddingHorizontal: 24,
     paddingVertical: 16,
+    paddingHorizontal: 32,
+    minHeight: 52,
   },
-  
-  // Text styles
   text: {
     fontWeight: '600',
+    textAlign: 'center',
   },
-  primaryText: {
-    color: '#FFFFFF',
-  },
-  secondaryText: {
-    color: '#374151',
-  },
-  outlineText: {
-    color: '#4F46E5',
-  },
-  dangerText: {
-    color: '#FFFFFF',
-  },
-  
-  // Text sizes
   smallText: {
     fontSize: 14,
   },
@@ -121,8 +174,10 @@ const styles = StyleSheet.create({
   largeText: {
     fontSize: 18,
   },
-  
-  disabled: {
-    opacity: 0.5,
+  leftIcon: {
+    marginRight: 8,
+  },
+  rightIcon: {
+    marginLeft: 8,
   },
 }); 

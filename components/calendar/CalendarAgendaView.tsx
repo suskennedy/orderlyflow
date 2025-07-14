@@ -1,23 +1,11 @@
 import React, { memo } from 'react';
 import { FlatList, RefreshControl, StyleSheet } from 'react-native';
+import { useCalendar } from '../../lib/contexts/CalendarContext';
+import { CalendarEvent } from '../../types/database';
 import CalendarEventCard from '../dashboard/CalendarCard';
 import EmptyState from '../layout/EmptyState';
 
-interface CalendarEvent {
-  id: string;
-  title: string;
-  description: string | null;
-  start_time: string;
-  end_time: string;
-  location: string | null;
-  color: string;
-  all_day: boolean;
-  task_id: string | null;
-  [key: string]: any;
-}
-
 interface CalendarAgendaViewProps {
-  events: CalendarEvent[];
   refreshing: boolean;
   onRefresh: () => void;
   onDeletePress: (event: CalendarEvent) => void;
@@ -25,19 +13,18 @@ interface CalendarAgendaViewProps {
 
 // Use React.memo for performance optimization
 const CalendarAgendaView = memo(({
-  events,
   refreshing,
   onRefresh,
   onDeletePress,
 }: CalendarAgendaViewProps) => {
-  // Sort events by start time
-  const sortedEvents = [...events].sort(
-    (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-  );
+  const { getAgendaEvents } = useCalendar();
+  
+  // Get processed events for agenda view (grouped recurring tasks)
+  const agendaEvents = getAgendaEvents();
 
   return (
     <FlatList
-      data={sortedEvents}
+      data={agendaEvents}
       renderItem={({ item }) => (
         <CalendarEventCard event={item} onDelete={onDeletePress} />
       )}

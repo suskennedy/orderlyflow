@@ -4,20 +4,23 @@ import { Platform, StatusBar } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { CalendarProvider } from '../lib/contexts/CalendarContext';
 import { HomesProvider } from '../lib/contexts/HomesContext';
+import { ThemeProvider, useTheme } from '../lib/contexts/ThemeContext';
 
-export default function RootLayout() {
+function AppContent() {
+  const { isDark, colors } = useTheme();
+
   return (
-    <SafeAreaProvider>
-      {/* Make status bar transparent to avoid overlapping issues */}
+    <>
+      {/* Dynamic status bar based on theme */}
       <StatusBar 
-        barStyle="dark-content" 
+        barStyle={isDark ? "light-content" : "dark-content"} 
         backgroundColor="transparent" 
         translucent={true} 
       />
       
       {/* Use SafeAreaView with edges prop to handle both top and bottom system UI elements */}
       <SafeAreaView 
-        style={{ flex: 1 }} 
+        style={{ flex: 1, backgroundColor: colors.background }} 
         edges={['top', 'bottom', 'left', 'right']}
       >
         <HomesProvider>
@@ -26,7 +29,7 @@ export default function RootLayout() {
               screenOptions={{
                 headerShown: false,
                 contentStyle: {
-                  backgroundColor: "#F8FAFC",
+                  backgroundColor: colors.background,
                   ...(Platform.OS === 'android' && { 
                     paddingBottom: 0 
                   })
@@ -58,6 +61,16 @@ export default function RootLayout() {
           </CalendarProvider>
         </HomesProvider>
       </SafeAreaView>
+    </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

@@ -1,50 +1,77 @@
 import { Ionicons } from '@expo/vector-icons';
-import { RelativePathString, router, usePathname } from 'expo-router';
+import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 
 interface ScreenHeaderProps {
   title: string;
   subtitle?: string;
-  onAddPress?: () => void;
-  addButtonVisible?: boolean;
   paddingTop?: number;
+  onAddPress?: () => void;
+  showBackButton?: boolean;
+  onBackPress?: () => void;
 }
 
 export default function ScreenHeader({
   title,
   subtitle,
+  paddingTop = 0,
   onAddPress,
-  addButtonVisible = true,
-  paddingTop = 20,
+  showBackButton = false,
+  onBackPress,
 }: ScreenHeaderProps) {
-  const pathname = usePathname();
-  
-  const handleAddPress = () => {
-    if (onAddPress) {
-      onAddPress();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  const handleBackPress = () => {
+    if (onBackPress) {
+      onBackPress();
     } else {
-      // Default behavior: navigate to add screen based on current path
-      if (pathname) {
-        const basePath = pathname.split('/')[1];
-        if (basePath) {
-          router.push(`/${basePath}/add` as RelativePathString);
-        }
-      }
+      router.back();
     }
   };
 
   return (
-    <View style={[styles.header, { paddingTop }]}>
-      <View style={styles.headerLeft}>
-        <Text style={styles.title}>{title}</Text>
-        {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+    <View style={[
+      styles.header,
+      {
+        paddingTop: paddingTop || insets.top + 20,
+        backgroundColor: colors.surface,
+        borderBottomColor: colors.border,
+      }
+    ]}>
+      <View style={styles.leftSection}>
+        {showBackButton && (
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBackPress}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+        )}
       </View>
-      {addButtonVisible && (
-        <TouchableOpacity style={styles.addButton} onPress={handleAddPress}>
-          <Ionicons name="add" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      )}
+
+      <View style={styles.centerSection}>
+        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+        {subtitle && (
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            {subtitle}
+          </Text>
+        )}
+      </View>
+
+      <View style={styles.rightSection}>
+        {onAddPress && (
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: colors.primary }]}
+            onPress={onAddPress}
+          >
+            <Ionicons name="add" size={24} color={colors.textInverse} />
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
@@ -52,44 +79,48 @@ export default function ScreenHeader({
 const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
   },
-  headerLeft: {
+  leftSection: {
     flex: 1,
+    alignItems: 'flex-start',
+  },
+  centerSection: {
+    flex: 2,
+    alignItems: 'center',
+  },
+  rightSection: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 8,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
+    fontSize: 20,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    fontWeight: '500',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 2,
   },
   addButton: {
-    backgroundColor: '#4F46E5',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
 });

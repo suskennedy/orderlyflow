@@ -2,13 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { RelativePathString, router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  FlatList,
-  Modal,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    FlatList,
+    Modal,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,11 +22,13 @@ import StatsDisplay from '../../../components/ui/StatsDisplay';
 
 // Import hooks
 import { useInventory } from '../../../lib/contexts/InventoryContext';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { InventoryItem } from '../../../lib/services/InventoryService';
 
 export default function InventoryScreen() {
   const insets = useSafeAreaInsets();
   const { items, loading, refreshing, deleteItem, onRefresh } = useInventory();
+  const { colors } = useTheme();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddTypeModal, setShowAddTypeModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -96,9 +98,9 @@ export default function InventoryScreen() {
       <StatsDisplay
         stats={[
           { value: totalItems, label: 'Total Items' },
-          { value: warrantyActive, label: 'Active Warranty', color: '#10B981' },
-          { value: warrantyExpired, label: 'Expired Warranty', color: '#EF4444' },
-          { value: itemTypeCount['appliance'] || 0, label: 'Appliances', color: '#3B82F6' }
+          { value: warrantyActive, label: 'Active Warranty', color: colors.success },
+          { value: warrantyExpired, label: 'Expired Warranty', color: colors.error },
+          { value: itemTypeCount['appliance'] || 0, label: 'Appliances', color: colors.info }
         ]}
       />
     );
@@ -110,7 +112,10 @@ export default function InventoryScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom + 100 }]}>
+    <View style={[styles.container, { 
+      backgroundColor: colors.background,
+      paddingBottom: insets.bottom + 100 
+    }]}>
       {/* Screen header with custom add action */}
       <ScreenHeader
         title="Inventory"

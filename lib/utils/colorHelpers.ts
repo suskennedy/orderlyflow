@@ -1,3 +1,5 @@
+import { ThemeColors } from '../contexts/ThemeContext';
+
 /**
  * Helper function to get hex color codes for calendar events
  */
@@ -29,21 +31,21 @@ export const getEventColor = (colorName: string): string => {
 };
 
 /**
- * Get calendar theme configuration
+ * Get calendar theme configuration with theme support
  */
-export const getCalendarTheme = () => ({
-  backgroundColor: '#FFFFFF',
-  calendarBackground: '#FFFFFF',
-  textSectionTitleColor: '#6B7280',
-  selectedDayBackgroundColor: '#4F46E5',
-  selectedDayTextColor: '#FFFFFF',
-  todayTextColor: '#4F46E5',
-  dayTextColor: '#111827',
-  textDisabledColor: '#D1D5DB',
-  dotColor: '#4F46E5',
-  selectedDotColor: '#FFFFFF',
-  arrowColor: '#4F46E5',
-  monthTextColor: '#111827',
+export const getCalendarTheme = (colors: ThemeColors) => ({
+  backgroundColor: colors.surface,
+  calendarBackground: colors.surface,
+  textSectionTitleColor: colors.textTertiary,
+  selectedDayBackgroundColor: colors.primary,
+  selectedDayTextColor: colors.textInverse,
+  todayTextColor: colors.primary,
+  dayTextColor: colors.text,
+  textDisabledColor: colors.textTertiary,
+  dotColor: colors.primary,
+  selectedDotColor: colors.textInverse,
+  arrowColor: colors.primary,
+  monthTextColor: colors.text,
   textMonthFontWeight: '600',
   textMonthFontSize: 16,
   textDayFontSize: 14,
@@ -57,7 +59,7 @@ export const getCalendarTheme = () => ({
     },
     today: {
       borderWidth: 1,
-      borderColor: '#4F46E5',
+      borderColor: colors.primary,
       borderRadius: 20,
     },
   },
@@ -72,7 +74,56 @@ export const getCalendarTheme = () => ({
     monthText: {
       fontSize: 16,
       fontWeight: '600',
-      color: '#111827',
+      color: colors.text,
+    },
+  },
+});
+
+/**
+ * Get dark theme calendar colors
+ */
+export const getDarkCalendarTheme = (colors: ThemeColors) => ({
+  backgroundColor: colors.surface,
+  calendarBackground: colors.surface,
+  textSectionTitleColor: colors.textTertiary,
+  selectedDayBackgroundColor: colors.primary,
+  selectedDayTextColor: colors.textInverse,
+  todayTextColor: colors.primary,
+  dayTextColor: colors.text,
+  textDisabledColor: colors.textTertiary,
+  dotColor: colors.primary,
+  selectedDotColor: colors.textInverse,
+  arrowColor: colors.primary,
+  monthTextColor: colors.text,
+  textMonthFontWeight: '600',
+  textMonthFontSize: 16,
+  textDayFontSize: 14,
+  textDayHeaderFontSize: 12,
+  'stylesheet.day.basic': {
+    base: {
+      width: 36,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    today: {
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: 20,
+    },
+  },
+  'stylesheet.calendar.header': {
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 10,
+    },
+    monthText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
     },
   },
 });

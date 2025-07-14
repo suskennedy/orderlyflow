@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { signUp } from '../../../lib/auth/actions';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import navigate from '../../../lib/navigation';
 import Button from '../../ui/Button';
@@ -51,6 +52,7 @@ interface FormData {
 
 export default function SignUpForm() {
   const { user, loading: authLoading } = useAuth();
+  const { colors } = useTheme();
   
   // Form state
   const [formData, setFormData] = useState<FormData>({
@@ -174,15 +176,14 @@ export default function SignUpForm() {
   }
 
   const getPasswordStrengthHints = () => {
-    if (!formData.password) return null;
-    
     const hints = [
-      { met: formData.password.length >= 8, text: 'At least 8 characters' },
-      { met: /[a-z]/.test(formData.password), text: 'At least one lowercase letter' },
-      { met: /[A-Z]/.test(formData.password), text: 'At least one uppercase letter' },
-      { met: /\d/.test(formData.password), text: 'At least one number' }
+      { text: 'At least 8 characters', met: formData.password.length >= 8 },
+      { text: 'Contains uppercase letter', met: /[A-Z]/.test(formData.password) },
+      { text: 'Contains lowercase letter', met: /[a-z]/.test(formData.password) },
+      { text: 'Contains number', met: /\d/.test(formData.password) },
+      { text: 'Contains special character', met: /[!@#$%^&*(),.?":{}|<>]/.test(formData.password) },
     ];
-    
+
     return (
       <View style={styles.passwordHints}>
         {hints.map((hint, index) => (
@@ -190,12 +191,13 @@ export default function SignUpForm() {
             <Ionicons 
               name={hint.met ? 'checkmark-circle' : 'ellipse-outline'} 
               size={16} 
-              color={hint.met ? '#10B981' : '#9CA3AF'} 
+              color={hint.met ? colors.success : colors.textTertiary} 
               style={styles.hintIcon}
             />
             <Text style={[
               styles.hintText,
-              hint.met && styles.hintTextMet
+              { color: colors.textTertiary },
+              hint.met && { color: colors.success }
             ]}>
               {hint.text}
             </Text>
@@ -302,9 +304,5 @@ const styles = StyleSheet.create({
   },
   hintText: {
     fontSize: 12,
-    color: '#9CA3AF',
-  },
-  hintTextMet: {
-    color: '#10B981',
   },
 });

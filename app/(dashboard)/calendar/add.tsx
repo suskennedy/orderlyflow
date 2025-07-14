@@ -3,17 +3,17 @@ import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import DatePicker from '../../../components/DatePicker';
 import TimePicker from '../../../components/TimePicker';
@@ -52,6 +52,9 @@ export default function AddCalendarEventScreen() {
     color: 'blue',
     all_day: false,
     task_id: '',
+    is_recurring: false,
+    recurrence_pattern: '',
+    recurrence_end_date: '',
   });
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
@@ -99,6 +102,104 @@ export default function AddCalendarEventScreen() {
     }
   };
 
+  // Helper function to create recurring calendar events
+  const createRecurringCalendarEvents = async (eventData: any) => {
+    if (!eventData.is_recurring || !eventData.recurrence_pattern || !user?.id) {
+      console.log('Skipping recurring calendar events - missing required fields');
+      return;
+    }
+
+    try {
+      console.log('Creating recurring calendar events for event:', eventData.title, 'pattern:', eventData.recurrence_pattern);
+      
+      const startDate = new Date(eventData.start_time);
+      const endDate = eventData.recurrence_end_date ? new Date(eventData.recurrence_end_date) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year default
+      
+      console.log('Recurring event date range:', {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        pattern: eventData.recurrence_pattern
+      });
+      
+      const events = [];
+      let currentDate = new Date(startDate);
+      let eventCount = 0;
+      
+      while (currentDate <= endDate && eventCount < 100) { // Limit to 100 events to prevent infinite loops
+        const eventDate = currentDate.toISOString().split('T')[0];
+        const eventTime = startDate.toTimeString().split(' ')[0]; // Get time part
+        const endTime = new Date(eventData.end_time).toTimeString().split(' ')[0];
+        
+        const calendarEvent = {
+          title: eventData.title,
+          description: eventData.description,
+          start_time: `${eventDate}T${eventTime}`,
+          end_time: `${eventDate}T${endTime}`,
+          location: eventData.location,
+          color: eventData.color,
+          all_day: eventData.all_day,
+          task_id: eventData.task_id,
+          user_id: user.id,
+          is_recurring: true,
+          recurrence_pattern: eventData.recurrence_pattern,
+          recurrence_end_date: eventData.recurrence_end_date,
+        };
+
+        events.push(calendarEvent);
+        eventCount++;
+
+        // Calculate next occurrence based on pattern (case-insensitive)
+        const pattern = eventData.recurrence_pattern.toLowerCase();
+        switch (pattern) {
+          case 'daily':
+            currentDate.setDate(currentDate.getDate() + 1);
+            break;
+          case 'weekly':
+            currentDate.setDate(currentDate.getDate() + 7);
+            break;
+          case 'bi-weekly':
+          case 'biweekly':
+            currentDate.setDate(currentDate.getDate() + 14);
+            break;
+          case 'monthly':
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            break;
+          case 'quarterly':
+            currentDate.setMonth(currentDate.getMonth() + 3);
+            break;
+          case 'semi-annually':
+            currentDate.setMonth(currentDate.getMonth() + 6);
+            break;
+          case 'annually':
+          case 'yearly':
+            currentDate.setFullYear(currentDate.getFullYear() + 1);
+            break;
+          default:
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+      }
+
+      console.log(`Creating ${events.length} recurring calendar events for event: ${eventData.title}`);
+
+      // Insert all recurring events
+      if (events.length > 0) {
+        const { error } = await supabase
+          .from('calendar_events')
+          .insert(events);
+
+        if (error) {
+          console.error('Error creating recurring calendar events:', error);
+        } else {
+          console.log('Successfully created recurring calendar events:', events.length);
+        }
+      } else {
+        console.log('No recurring events to create for event:', eventData.title);
+      }
+    } catch (error) {
+      console.error('Error creating recurring calendar events:', error);
+    }
+  };
+
   const handleSave = async () => {
     if (!formData.title.trim()) {
       Alert.alert('Error', 'Please enter an event title');
@@ -113,6 +214,25 @@ export default function AddCalendarEventScreen() {
     if (!formData.all_day && (!formData.end_date || !formData.start_time || !formData.end_time)) {
       Alert.alert('Error', 'Please select both start and end times');
       return;
+    }
+
+    // Validate recurring event fields
+    if (formData.is_recurring) {
+      if (!formData.recurrence_pattern || formData.recurrence_pattern.trim() === '') {
+        Alert.alert('Error', 'Please specify a recurrence pattern for recurring events');
+        return;
+      }
+      
+      // If recurrence end date is provided, make sure it's after start date
+      if (formData.recurrence_end_date && formData.start_date) {
+        const startDate = new Date(formData.start_date);
+        const endDate = new Date(formData.recurrence_end_date);
+        
+        if (endDate < startDate) {
+          Alert.alert('Error', 'Recurrence end date must be after the start date');
+          return;
+        }
+      }
     }
 
     setLoading(true);
@@ -138,15 +258,23 @@ export default function AddCalendarEventScreen() {
         all_day: formData.all_day,
         task_id: formData.task_id || null,
         user_id: user?.id,
+        is_recurring: formData.is_recurring,
+        recurrence_pattern: formData.is_recurring && formData.recurrence_pattern ? formData.recurrence_pattern : null,
+        recurrence_end_date: formData.is_recurring && formData.recurrence_end_date ? formData.recurrence_end_date : null,
       };
 
       // Add to local state for immediate UI update
       addEvent(eventData);
 
       // Then insert into Supabase
-      const { error } = await supabase.from('calendar_events').insert([eventData]);
+      const { data, error } = await supabase.from('calendar_events').insert([eventData]);
 
       if (error) throw error;
+
+      // If it's a recurring event, create recurring calendar events
+      if (formData.is_recurring && formData.recurrence_pattern) {
+        await createRecurringCalendarEvents(eventData);
+      }
 
       // Navigate back
       router.back();
@@ -338,6 +466,54 @@ export default function AddCalendarEventScreen() {
               </Picker>
             </View>
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Recurring Event</Text>
+          <View style={styles.switchContainer}>
+            <Text style={styles.label}>Make this a recurring event</Text>
+            <Switch
+              value={formData.is_recurring}
+              onValueChange={(value) => setFormData({ ...formData, is_recurring: value })}
+              trackColor={{ false: '#D1D5DB', true: '#4F46E5' }}
+              thumbColor={formData.is_recurring ? '#FFFFFF' : '#F3F4F6'}
+            />
+          </View>
+          
+          {formData.is_recurring && (
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Recurrence Pattern</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={formData.recurrence_pattern}
+                    onValueChange={(itemValue) => setFormData({ ...formData, recurrence_pattern: itemValue })}
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Select a recurrence pattern..." value="" />
+                    <Picker.Item label="Daily" value="Daily" />
+                    <Picker.Item label="Weekly" value="Weekly" />
+                    <Picker.Item label="Bi-weekly" value="Bi-weekly" />
+                    <Picker.Item label="Monthly" value="Monthly" />
+                    <Picker.Item label="Quarterly" value="Quarterly" />
+                    <Picker.Item label="Semi-annually" value="Semi-annually" />
+                    <Picker.Item label="Annually" value="Annually" />
+                  </Picker>
+                </View>
+              </View>
+              <View style={styles.inputGroup}>
+                <DatePicker
+                  label="Recurrence End Date"
+                  value={formData.recurrence_end_date}
+                  placeholder="Select an end date (optional)"
+                  onChange={(dateString) => setFormData({ ...formData, recurrence_end_date: dateString as string })}
+                  helperText="When recurring event should stop"
+                  isOptional={true}
+                  testID="recurrence-end-date-picker"
+                />
+              </View>
+            </>
+          )}
         </View>
         
         <View style={styles.bottomSpacing} />

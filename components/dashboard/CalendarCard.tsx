@@ -2,19 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { RelativePathString, router } from 'expo-router';
 import React, { memo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
-interface CalendarEvent {
-  id: string;
-  title: string;
-  description: string | null;
-  start_time: string;
-  end_time: string;
-  location: string | null;
-  color: string;
-  all_day: boolean;
-  task_id: string | null;
-  [key: string]: any;
-}
+import { useTheme } from '../../lib/contexts/ThemeContext';
+import { CalendarEvent } from '../../types/database';
 
 interface CalendarEventCardProps {
   event: CalendarEvent;
@@ -25,6 +14,8 @@ function CalendarEventCard({
   event, 
   onDelete 
 }: CalendarEventCardProps) {
+  const { colors } = useTheme();
+  
   // Helper function for color styles
   const getColorStyle = (color: string) => {
     switch (color) {
@@ -62,12 +53,16 @@ function CalendarEventCard({
     return `${start} - ${end}`;
   };
 
-  const colorStyle = getColorStyle(event.color);
+  const colorStyle = getColorStyle(event.color as string);
   const isTaskEvent = event.task_id !== null;
+  const isRecurring = event.is_recurring || event.title.includes('(Recurring)');
 
   return (
     <TouchableOpacity
-      style={[styles.card, { borderLeftColor: colorStyle.color }]}
+      style={[styles.card, { 
+        backgroundColor: colors.surface,
+        borderLeftColor: colorStyle.color 
+      }]}
       onPress={() => router.push(`/calendar/edit/${event.id}` as RelativePathString)}
     >
       <View style={styles.header}>
@@ -78,34 +73,39 @@ function CalendarEventCard({
                 <Ionicons name="checkmark-circle" size={14} color={colorStyle.color} />
               </View>
             )}
-            <Text numberOfLines={1} style={styles.title}>{event.title}</Text>
+            {isRecurring && (
+              <View style={[styles.recurringIcon, { backgroundColor: colorStyle.backgroundColor }]}>
+                <Ionicons name="repeat" size={14} color={colorStyle.color} />
+              </View>
+            )}
+            <Text numberOfLines={1} style={[styles.title, { color: colors.text }]}>{event.title}</Text>
           </View>
           <TouchableOpacity
             style={styles.deleteButton}
             onPress={() => onDelete(event)}
           >
-            <Ionicons name="trash" size={18} color="#EF4444" />
+            <Ionicons name="trash" size={18} color={colors.error} />
           </TouchableOpacity>
         </View>
-        <Text style={styles.time}>{formatEventTime(event)}</Text>
+        <Text style={[styles.time, { color: colors.textTertiary }]}>{formatEventTime(event)}</Text>
       </View>
       
       {event.location && (
         <View style={styles.infoRow}>
-          <Ionicons name="location-outline" size={16} color="#6B7280" />
-          <Text style={styles.infoText} numberOfLines={1}>{event.location}</Text>
+          <Ionicons name="location-outline" size={16} color={colors.textTertiary} />
+          <Text style={[styles.infoText, { color: colors.textTertiary }]} numberOfLines={1}>{event.location}</Text>
         </View>
       )}
       
       {event.description && (
-        <Text style={styles.description} numberOfLines={2}>
+        <Text style={[styles.description, { color: colors.textSecondary }]} numberOfLines={2}>
           {event.description}
         </Text>
       )}
       
       <View style={[styles.tag, { backgroundColor: colorStyle.backgroundColor }]}>
         <Text style={[styles.tagText, { color: colorStyle.color }]}>
-          {isTaskEvent ? 'Task Event' : 'Calendar Event'}
+          {isRecurring ? 'Recurring Task' : isTaskEvent ? 'Task Event' : 'Calendar Event'}
         </Text>
       </View>
     </TouchableOpacity>
@@ -114,7 +114,6 @@ function CalendarEventCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     padding: 12,
     borderLeftWidth: 4,
@@ -146,15 +145,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 8,
   },
+  recurringIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
     flex: 1,
   },
   time: {
     fontSize: 14,
-    color: '#6B7280',
     marginTop: 4,
   },
   infoRow: {
@@ -164,13 +169,11 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: '#6B7280',
     marginLeft: 6,
     flex: 1,
   },
   description: {
     fontSize: 14,
-    color: '#4B5563',
     marginBottom: 8,
   },
   tag: {

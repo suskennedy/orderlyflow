@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RelativePathString, router } from 'expo-router';
 import React from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 import { InventoryItem } from '../../lib/services/InventoryService';
 
 interface InventoryItemCardProps {
@@ -10,6 +11,8 @@ interface InventoryItemCardProps {
 }
 
 export default function InventoryItemCard({ item, onDelete }: InventoryItemCardProps) {
+  const { colors } = useTheme();
+
   // Format date for display
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return 'N/A';
@@ -102,37 +105,37 @@ export default function InventoryItemCard({ item, onDelete }: InventoryItemCardP
 
   const warrantyStatus = checkWarrantyStatus(item.warranty_expiration);
   const warrantyColor = 
-    warrantyStatus === 'active' ? '#10B981' : 
-    warrantyStatus === 'expired' ? '#EF4444' : '#6B7280';
+    warrantyStatus === 'active' ? colors.success : 
+    warrantyStatus === 'expired' ? colors.error : colors.textTertiary;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.surface }]}>
       <View style={styles.cardHeader}>
         <View style={styles.itemTitleRow}>
-          <View style={[styles.itemIcon, { backgroundColor: `${warrantyColor}15` }]}>
+          <View style={[styles.itemIcon, { backgroundColor: warrantyColor + '15' }]}>
             <Ionicons name={getItemIcon() as any} size={24} color={warrantyColor} />
           </View>
           <View style={styles.itemTitleInfo}>
-            <Text style={styles.itemName}>{item.name}</Text>
+            <Text style={[styles.itemName, { color: colors.text }]}>{item.name}</Text>
             <View style={styles.itemSubtitleRow}>
               {item.brand && (
-                <Text style={styles.itemBrand}>{item.brand}</Text>
+                <Text style={[styles.itemBrand, { color: colors.textSecondary }]}>{item.brand}</Text>
               )}
-              <Text style={styles.itemType}>{getItemTypeLabel()}</Text>
+              <Text style={[styles.itemType, { backgroundColor: colors.surfaceVariant, color: colors.textTertiary }]}>{getItemTypeLabel()}</Text>
             </View>
           </View>
         </View>
         <TouchableOpacity
-          style={styles.deleteButton}
+          style={[styles.deleteButton, { backgroundColor: colors.error + '15' }]}
           onPress={() => onDelete(item)}
           accessibilityLabel={`Delete ${item.name}`}
         >
-          <Ionicons name="trash" size={18} color="#EF4444" />
+          <Ionicons name="trash" size={18} color={colors.error} />
         </TouchableOpacity>
       </View>
 
       {item.warranty_expiration && (
-        <View style={[styles.warrantyBadge, { backgroundColor: `${warrantyColor}15` }]}>
+        <View style={[styles.warrantyBadge, { backgroundColor: warrantyColor + '15' }]}>
           <View style={[styles.warrantyDot, { backgroundColor: warrantyColor }]} />
           <Text style={[styles.warrantyText, { color: warrantyColor }]}>
             {warrantyStatus === 'active' ? 'Warranty Active' : 
@@ -145,33 +148,33 @@ export default function InventoryItemCard({ item, onDelete }: InventoryItemCardP
         {item.model && (
           <View style={styles.detailItem}>
             <View style={styles.detailIconContainer}>
-              <Ionicons name="cube" size={16} color="#6B7280" />
+              <Ionicons name="cube" size={16} color={colors.textTertiary} />
             </View>
-            <Text style={styles.detailText}>Model: {item.model}</Text>
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>Model: {item.model}</Text>
           </View>
         )}
         {item.serial_number && (
           <View style={styles.detailItem}>
             <View style={styles.detailIconContainer}>
-              <Ionicons name="barcode" size={16} color="#6B7280" />
+              <Ionicons name="barcode" size={16} color={colors.textTertiary} />
             </View>
-            <Text style={styles.detailText}>S/N: {item.serial_number}</Text>
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>S/N: {item.serial_number}</Text>
           </View>
         )}
         {item.location && (
           <View style={styles.detailItem}>
             <View style={styles.detailIconContainer}>
-              <Ionicons name="location" size={16} color="#6B7280" />
+              <Ionicons name="location" size={16} color={colors.textTertiary} />
             </View>
-            <Text style={styles.detailText}>{item.location}</Text>
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>{item.location}</Text>
           </View>
         )}
         {item.purchase_date && (
           <View style={styles.detailItem}>
             <View style={styles.detailIconContainer}>
-              <Ionicons name="calendar" size={16} color="#6B7280" />
+              <Ionicons name="calendar" size={16} color={colors.textTertiary} />
             </View>
-            <Text style={styles.detailText}>
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
               Purchased: {formatDate(item.purchase_date)}
             </Text>
           </View>
@@ -191,9 +194,9 @@ export default function InventoryItemCard({ item, onDelete }: InventoryItemCardP
         {item.item_type === 'filter' && item.replacement_frequency && (
           <View style={styles.detailItem}>
             <View style={styles.detailIconContainer}>
-              <Ionicons name="time" size={16} color="#6B7280" />
+              <Ionicons name="time" size={16} color={colors.textTertiary} />
             </View>
-            <Text style={styles.detailText}>
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
               Replace every {item.replacement_frequency} months
             </Text>
           </View>
@@ -201,17 +204,17 @@ export default function InventoryItemCard({ item, onDelete }: InventoryItemCardP
         {item.item_type === 'paint' && item.color_code && (
           <View style={styles.detailItem}>
             <View style={styles.detailIconContainer}>
-              <Ionicons name="color-palette" size={16} color="#6B7280" />
+              <Ionicons name="color-palette" size={16} color={colors.textTertiary} />
             </View>
-            <Text style={styles.detailText}>Color: {item.color_code}</Text>
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>Color: {item.color_code}</Text>
           </View>
         )}
         {(item.item_type === 'cabinet' || item.item_type === 'tile') && item.material && (
           <View style={styles.detailItem}>
             <View style={styles.detailIconContainer}>
-              <Ionicons name="layers" size={16} color="#6B7280" />
+              <Ionicons name="layers" size={16} color={colors.textTertiary} />
             </View>
-            <Text style={styles.detailText}>Material: {item.material}</Text>
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>Material: {item.material}</Text>
           </View>
         )}
       </View>
@@ -219,36 +222,36 @@ export default function InventoryItemCard({ item, onDelete }: InventoryItemCardP
       <View style={styles.cardFooter}>
         {item.homes?.name && (
           <View style={styles.homeInfo}>
-            <Ionicons name="home" size={16} color="#F59E0B" />
-            <Text style={styles.homeText}>{item.homes.name}</Text>
+            <Ionicons name="home" size={16} color={colors.warning} />
+            <Text style={[styles.homeText, { color: colors.textSecondary }]}>{item.homes.name}</Text>
           </View>
         )}
 
         <View style={styles.footerActions}>
           {item.manual_url && (
             <TouchableOpacity 
-              style={styles.manualButton}
+              style={[styles.manualButton, { backgroundColor: colors.primaryLight }]}
               onPress={openManual}
             >
-              <Ionicons name="document-text" size={16} color="#4F46E5" />
-              <Text style={styles.manualText}>Manual</Text>
+              <Ionicons name="document-text" size={16} color={colors.primary} />
+              <Text style={[styles.manualText, { color: colors.primary }]}>Manual</Text>
             </TouchableOpacity>
           )}
           
           <TouchableOpacity 
-            style={styles.editButton}
+            style={[styles.editButton, { backgroundColor: colors.success + '15' }]}
             onPress={() => router.push(getEditUrl() as RelativePathString)}
           >
-            <Ionicons name="create-outline" size={16} color="#10B981" />
-            <Text style={styles.editButtonText}>Edit</Text>
+            <Ionicons name="create-outline" size={16} color={colors.success} />
+            <Text style={[styles.editButtonText, { color: colors.success }]}>Edit</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {item.notes && (
         <View style={styles.notesSection}>
-          <Text style={styles.notesLabel}>Notes</Text>
-          <Text style={styles.notesText}>{item.notes}</Text>
+          <Text style={[styles.notesLabel, { color: colors.text }]}>Notes</Text>
+          <Text style={[styles.notesText, { color: colors.textSecondary }]}>{item.notes}</Text>
         </View>
       )}
     </View>
@@ -257,7 +260,6 @@ export default function InventoryItemCard({ item, onDelete }: InventoryItemCardP
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -270,15 +272,15 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start', // Change from 'center' to 'flex-start'
+    alignItems: 'flex-start',
     marginBottom: 16,
-    width: '100%', // Ensure the header takes full width
+    width: '100%',
   },
   itemTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1, // Add flex:1 to allow title row to shrink if needed
-    marginRight: 10, // Add margin to create space between title and delete button
+    flex: 1,
+    marginRight: 10,
   },
   itemIcon: {
     width: 40,
@@ -290,14 +292,13 @@ const styles = StyleSheet.create({
   itemTitleInfo: {
     marginLeft: 12,
     flex: 1,
-    flexShrink: 1, // Allow title info to shrink if text is too long
+    flexShrink: 1,
   },
   itemName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 2,
-    flexShrink: 1, // Allow text to wrap rather than push content
+    flexShrink: 1,
   },
   itemSubtitleRow: {
     flexDirection: 'row',
@@ -305,14 +306,11 @@ const styles = StyleSheet.create({
   },
   itemBrand: {
     fontSize: 14,
-    color: '#6B7280',
     fontWeight: '500',
     marginRight: 8,
   },
   itemType: {
     fontSize: 12,
-    color: '#6B7280',
-    backgroundColor: '#F3F4F6',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -321,12 +319,11 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FEF2F2',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#FECACA',
-    flexShrink: 0, // Prevent delete button from shrinking
+    flexShrink: 0,
   },
   warrantyBadge: {
     flexDirection: 'row',
@@ -365,7 +362,6 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
-    color: '#374151',
     fontWeight: '500',
   },
   cardFooter: {
@@ -381,7 +377,6 @@ const styles = StyleSheet.create({
   },
   homeText: {
     fontSize: 14,
-    color: '#6B7280',
     fontWeight: '500',
   },
   footerActions: {
@@ -394,13 +389,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#EEF2FF',
     gap: 4,
   },
   manualText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#4F46E5',
   },
   editButton: {
     flexDirection: 'row',
@@ -408,13 +401,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#D1FAE5',
     gap: 4,
   },
   editButtonText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#10B981',
   },
   notesSection: {
     marginTop: 12,
@@ -425,12 +416,10 @@ const styles = StyleSheet.create({
   notesLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 4,
   },
   notesText: {
     fontSize: 14,
-    color: '#6B7280',
     lineHeight: 20,
   },
 });

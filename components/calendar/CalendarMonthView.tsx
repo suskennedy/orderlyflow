@@ -3,20 +3,9 @@ import { router } from 'expo-router';
 import React, { useRef } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar, DateData } from 'react-native-calendars';
+import { useTheme } from '../../lib/contexts/ThemeContext';
+import { CalendarEvent } from '../../types/database';
 import CalendarEventCard from '../dashboard/CalendarCard';
-
-export interface CalendarEvent {
-  id: string;
-  title: string;
-  description: string | null;
-  start_time: string;
-  end_time: string;
-  location: string | null;
-  color: string;
-  all_day: boolean;
-  task_id: string | null;
-  [key: string]: any;
-}
 
 interface MarkingProps {
   selected?: boolean;
@@ -48,6 +37,7 @@ const CalendarMonthView = ({
   onDayPress,
   onDeletePress,
 }: CalendarMonthViewProps) => {
+  const { colors } = useTheme();
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Handler to scroll to events section when a day is pressed
@@ -68,7 +58,7 @@ const CalendarMonthView = ({
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingBottom: 100 }}
     >
-      <View style={styles.calendarWrapper}>
+      <View style={[styles.calendarWrapper, { backgroundColor: colors.surface }]}>
         <Calendar
           markingType="dot"
           markedDates={markedDates}
@@ -80,7 +70,7 @@ const CalendarMonthView = ({
       </View>
 
       <View style={styles.eventsHeaderContainer}>
-        <Text style={styles.eventsHeaderTitle}>
+        <Text style={[styles.eventsHeaderTitle, { color: colors.text }]}>
           Events for {new Date(selectedDate).toLocaleDateString(undefined, {
             weekday: 'long',
             month: 'long',
@@ -88,18 +78,18 @@ const CalendarMonthView = ({
             year: 'numeric',
           })}
         </Text>
-        <View style={styles.eventsHeaderDivider} />
+        <View style={[styles.eventsHeaderDivider, { backgroundColor: colors.border }]} />
       </View>
 
       {selectedDateEvents.length === 0 ? (
         <View style={styles.noEventsContainer}>
-          <Ionicons name="calendar-outline" size={48} color="#D1D5DB" />
-          <Text style={styles.noEventsText}>No events scheduled</Text>
+          <Ionicons name="calendar-outline" size={48} color={colors.textTertiary} />
+          <Text style={[styles.noEventsText, { color: colors.textTertiary }]}>No events scheduled</Text>
           <TouchableOpacity
-            style={styles.addEventButton}
+            style={[styles.addEventButton, { backgroundColor: colors.primary }]}
             onPress={() => router.push('/calendar/add')}
           >
-            <Text style={styles.addEventText}>Add Event</Text>
+            <Text style={[styles.addEventText, { color: colors.textInverse }]}>Add Event</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -120,7 +110,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   calendarWrapper: {
-    backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
     marginTop: 8,
     borderRadius: 12,
@@ -139,11 +128,9 @@ const styles = StyleSheet.create({
   eventsHeaderTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
   },
   eventsHeaderDivider: {
     height: 1,
-    backgroundColor: '#E5E7EB',
     marginTop: 8,
   },
   eventsList: {
@@ -159,18 +146,15 @@ const styles = StyleSheet.create({
   },
   noEventsText: {
     fontSize: 16,
-    color: '#6B7280',
     marginTop: 12,
     marginBottom: 16,
   },
   addEventButton: {
-    backgroundColor: '#4F46E5',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   addEventText: {
-    color: '#FFFFFF',
     fontWeight: '500',
   },
 });

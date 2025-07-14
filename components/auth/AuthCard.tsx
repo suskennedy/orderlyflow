@@ -1,17 +1,16 @@
-import React, { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 
 interface AuthCardProps {
-  children: ReactNode;
-  title: string;
-  subtitle?: string;
+  children: React.ReactNode;
 }
 
-export default function AuthCard({ children, title, subtitle }: AuthCardProps) {
+export default function AuthCard({ children }: AuthCardProps) {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>{title}</Text>
-      {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+    <View style={[styles.card, { backgroundColor: colors.surface }]}>
       {children}
     </View>
   );
@@ -19,26 +18,12 @@ export default function AuthCard({ children, title, subtitle }: AuthCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 32,
+    borderRadius: 16,
+    padding: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 12,
     elevation: 4,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 32,
   },
 });

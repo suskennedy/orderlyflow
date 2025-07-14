@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 
 interface Vendor {
   id: string;
@@ -23,6 +24,8 @@ interface VendorCardProps {
 }
 
 export default function VendorCard({ vendor, onDelete }: VendorCardProps) {
+  const { colors } = useTheme();
+
   const handleCall = (phone: string) => {
     Linking.openURL(`tel:${phone}`);
   };
@@ -59,24 +62,24 @@ export default function VendorCard({ vendor, onDelete }: VendorCardProps) {
   };
 
   const getCategoryColor = (category: string | null | undefined) => {
-    if (!category) return '#6B7280';
+    if (!category) return colors.textTertiary;
     
     switch (category.toLowerCase()) {
-      case 'plumber': return '#3B82F6';
-      case 'electrician': return '#F59E0B';
-      case 'hvac': return '#EF4444';
-      case 'landscaping': return '#10B981';
-      case 'cleaning': return '#8B5CF6';
-      case 'handyman': return '#F97316';
-      case 'contractor': return '#6B7280';
-      case 'painter': return '#EC4899';
-      case 'roofer': return '#84CC16';
-      case 'flooring': return '#14B8A6';
-      case 'appliance repair': return '#F59E0B';
-      case 'pest control': return '#DC2626';
-      case 'security': return '#1F2937';
-      case 'pool service': return '#06B6D4';
-      default: return '#6B7280';
+      case 'plumber': return colors.info;
+      case 'electrician': return colors.warning;
+      case 'hvac': return colors.error;
+      case 'landscaping': return colors.success;
+      case 'cleaning': return colors.accent;
+      case 'handyman': return colors.warning;
+      case 'contractor': return colors.textTertiary;
+      case 'painter': return colors.accent;
+      case 'roofer': return colors.success;
+      case 'flooring': return colors.info;
+      case 'appliance repair': return colors.warning;
+      case 'pest control': return colors.error;
+      case 'security': return colors.text;
+      case 'pool service': return colors.info;
+      default: return colors.textTertiary;
     }
   };
   
@@ -84,22 +87,22 @@ export default function VendorCard({ vendor, onDelete }: VendorCardProps) {
   const categoryIcon = getCategoryIcon(vendor?.category);
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.surface }]}>
       <View style={styles.header}>
         <View style={styles.vendorInfo}>
           <View style={styles.titleRow}>
-            <View style={[styles.categoryIcon, { backgroundColor: `${categoryColor}15` }]}>
+            <View style={[styles.categoryIcon, { backgroundColor: categoryColor + '15' }]}>
               <Ionicons name={categoryIcon as any} size={20} color={categoryColor} />
             </View>
             <View style={styles.titleInfo}>
-              <Text style={styles.vendorName}>{vendor.name}</Text>
+              <Text style={[styles.vendorName, { color: colors.text }]}>{vendor.name}</Text>
               {vendor.contact_name && (
-                <Text style={styles.contactName}>Contact: {vendor.contact_name}</Text>
+                <Text style={[styles.contactName, { color: colors.textSecondary }]}>Contact: {vendor.contact_name}</Text>
               )}
             </View>
           </View>
           {vendor.category && (
-            <View style={[styles.categoryBadge, { backgroundColor: `${categoryColor}15` }]}>
+            <View style={[styles.categoryBadge, { backgroundColor: categoryColor + '15' }]}>
               <Text style={[styles.categoryText, { color: categoryColor }]}>
                 {vendor.category.toUpperCase()}
               </Text>
@@ -107,10 +110,10 @@ export default function VendorCard({ vendor, onDelete }: VendorCardProps) {
           )}
         </View>
         <TouchableOpacity
-          style={styles.deleteButton}
+          style={[styles.deleteButton, { backgroundColor: colors.error + '15' }]}
           onPress={onDelete}
         >
-          <Ionicons name="trash" size={18} color="#EF4444" />
+          <Ionicons name="trash" size={18} color={colors.error} />
         </TouchableOpacity>
       </View>
 
@@ -120,10 +123,10 @@ export default function VendorCard({ vendor, onDelete }: VendorCardProps) {
             style={styles.contactItem}
             onPress={() => handleCall(vendor.phone!)}
           >
-            <View style={styles.contactIconContainer}>
-              <Ionicons name="call" size={16} color="#10B981" />
+            <View style={[styles.contactIconContainer, { backgroundColor: colors.surfaceVariant }]}>
+              <Ionicons name="call" size={16} color={colors.success} />
             </View>
-            <Text style={styles.contactText}>{vendor.phone}</Text>
+            <Text style={[styles.contactText, { color: colors.textSecondary }]}>{vendor.phone}</Text>
           </TouchableOpacity>
         )}
         {vendor.email && (
@@ -131,10 +134,10 @@ export default function VendorCard({ vendor, onDelete }: VendorCardProps) {
             style={styles.contactItem}
             onPress={() => handleEmail(vendor.email!)}
           >
-            <View style={styles.contactIconContainer}>
-              <Ionicons name="mail" size={16} color="#3B82F6" />
+            <View style={[styles.contactIconContainer, { backgroundColor: colors.surfaceVariant }]}>
+              <Ionicons name="mail" size={16} color={colors.info} />
             </View>
-            <Text style={styles.contactText}>{vendor.email}</Text>
+            <Text style={[styles.contactText, { color: colors.textSecondary }]}>{vendor.email}</Text>
           </TouchableOpacity>
         )}
         {vendor.website && (
@@ -142,27 +145,27 @@ export default function VendorCard({ vendor, onDelete }: VendorCardProps) {
             style={styles.contactItem}
             onPress={() => handleWebsite(vendor.website!)}
           >
-            <View style={styles.contactIconContainer}>
-              <Ionicons name="globe" size={16} color="#8B5CF6" />
+            <View style={[styles.contactIconContainer, { backgroundColor: colors.surfaceVariant }]}>
+              <Ionicons name="globe" size={16} color={colors.accent} />
             </View>
-            <Text style={styles.contactText}>{vendor.website}</Text>
+            <Text style={[styles.contactText, { color: colors.textSecondary }]}>{vendor.website}</Text>
           </TouchableOpacity>
         )}
       </View>
 
       {vendor.address && (
         <View style={styles.addressSection}>
-          <View style={styles.addressIconContainer}>
-            <Ionicons name="location" size={16} color="#F59E0B" />
+          <View style={[styles.addressIconContainer, { backgroundColor: colors.surfaceVariant }]}>
+            <Ionicons name="location" size={16} color={colors.warning} />
           </View>
-          <Text style={styles.addressText}>{vendor.address}</Text>
+          <Text style={[styles.addressText, { color: colors.textSecondary }]}>{vendor.address}</Text>
         </View>
       )}
 
       {vendor.notes && (
         <View style={styles.notesSection}>
-          <Text style={styles.notesLabel}>Notes</Text>
-          <Text style={styles.notesText}>{vendor.notes}</Text>
+          <Text style={[styles.notesLabel, { color: colors.text }]}>Notes</Text>
+          <Text style={[styles.notesText, { color: colors.textSecondary }]}>{vendor.notes}</Text>
         </View>
       )}
     </View>
@@ -171,7 +174,6 @@ export default function VendorCard({ vendor, onDelete }: VendorCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 20,
     marginBottom: 16,
@@ -208,12 +210,10 @@ const styles = StyleSheet.create({
   vendorName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 2,
   },
   contactName: {
     fontSize: 14,
-    color: '#6B7280',
     fontWeight: '500',
   },
   categoryBadge: {
@@ -231,7 +231,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FEF2F2',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -249,14 +248,12 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   contactText: {
     fontSize: 14,
-    color: '#374151',
     fontWeight: '500',
     flex: 1,
   },
@@ -270,14 +267,12 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   addressText: {
     fontSize: 14,
-    color: '#374151',
     fontWeight: '500',
     flex: 1,
   },
@@ -290,12 +285,10 @@ const styles = StyleSheet.create({
   notesLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 6,
   },
   notesText: {
     fontSize: 14,
-    color: '#6B7280',
     lineHeight: 20,
   },
 });

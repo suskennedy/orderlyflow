@@ -1,46 +1,36 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 
 interface LinkButtonProps {
-  question: string;
-  linkText: string;
+  title: string;
   onPress: () => void;
-  textAlign?: 'left' | 'center' | 'right';
+  disabled?: boolean;
 }
 
-export default function LinkButton({ 
-  question,
-  linkText,
-  onPress,
-  textAlign = 'center'
-}: LinkButtonProps) {
+export default function LinkButton({ title, onPress, disabled = false }: LinkButtonProps) {
+  const { colors } = useTheme();
+
   return (
-    <View style={[styles.container, { justifyContent: 
-      textAlign === 'left' ? 'flex-start' : 
-      textAlign === 'right' ? 'flex-end' : 'center' 
-    }]}>
-      <Text style={styles.questionText}>{question} </Text>
-      <TouchableOpacity onPress={onPress} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-        <Text style={styles.linkText}>{linkText}</Text>
-      </TouchableOpacity>
-    </View>
+    <TouchableOpacity
+      style={[styles.button, { opacity: disabled ? 0.5 : 1 }]}
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.7}
+    >
+      <Text style={[styles.buttonText, { color: colors.primary }]}>{title}</Text>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
+  button: {
     alignItems: 'center',
-    paddingVertical: 4,
+    justifyContent: 'center',
+    paddingVertical: 12,
   },
-  questionText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  linkText: {
-    fontSize: 14,
-    color: '#4F46E5',
+  buttonText: {
+    fontSize: 16,
     fontWeight: '600',
   },
 });

@@ -1,41 +1,55 @@
 import { Ionicons } from '@expo/vector-icons';
-import { RelativePathString, router } from 'expo-router';
+import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 
 interface EmptyStateProps {
   title: string;
   message: string;
-  buttonText: string;
-  iconName: keyof typeof Ionicons.glyphMap;
-  onButtonPress?: () => void;
+  buttonText?: string;
+  iconName?: keyof typeof Ionicons.glyphMap;
   navigateTo?: string;
+  onButtonPress?: () => void;
 }
 
 export default function EmptyState({
   title,
   message,
   buttonText,
-  iconName,
-  onButtonPress,
+  iconName = 'document-outline',
   navigateTo,
+  onButtonPress,
 }: EmptyStateProps) {
-  const handlePress = () => {
+  const { colors } = useTheme();
+
+  const handleButtonPress = () => {
     if (onButtonPress) {
       onButtonPress();
     } else if (navigateTo) {
-      router.push(navigateTo as RelativePathString);
+      router.push(navigateTo as any);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Ionicons name={iconName} size={64} color="#D1D5DB" />
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
-      <TouchableOpacity style={styles.button} onPress={handlePress}>
-        <Text style={styles.buttonText}>{buttonText}</Text>
-      </TouchableOpacity>
+      <View style={[styles.iconContainer, { backgroundColor: colors.surfaceVariant }]}>
+        <Ionicons name={iconName} size={48} color={colors.textTertiary} />
+      </View>
+      
+      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+      <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
+      
+      {buttonText && (
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: colors.primary }]}
+          onPress={handleButtonPress}
+        >
+          <Text style={[styles.buttonText, { color: colors.textInverse }]}>
+            {buttonText}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -43,33 +57,36 @@ export default function EmptyState({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
   },
   title: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111827',
-    marginTop: 16,
+    textAlign: 'center',
     marginBottom: 8,
   },
   message: {
     fontSize: 16,
-    color: '#6B7280',
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 24,
+    marginBottom: 32,
   },
   button: {
-    backgroundColor: '#4F46E5',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   buttonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 
 interface Home {
   id: string;
@@ -25,13 +26,15 @@ interface HomeCardProps {
 }
 
 export default function HomeCard({ home, onDelete }: HomeCardProps) {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.surface }]}>
       <View style={styles.cardHeader}>
         <View style={styles.homeInfo}>
-          <Text style={styles.homeName}>{home.name}</Text>
+          <Text style={[styles.homeName, { color: colors.text }]}>{home.name}</Text>
           {home.address && (
-            <Text style={styles.homeAddress}>
+            <Text style={[styles.homeAddress, { color: colors.textSecondary }]}>
               {home.address}
               {home.city && `, ${home.city}`}
               {home.state && `, ${home.state}`}
@@ -40,11 +43,11 @@ export default function HomeCard({ home, onDelete }: HomeCardProps) {
           )}
         </View>
         <TouchableOpacity
-          style={styles.deleteButton}
+          style={[styles.deleteButton, { backgroundColor: colors.error + '15' }]}
           onPress={() => onDelete(home)}
           accessibilityLabel={`Delete ${home.name}`}
         >
-          <Ionicons name="trash-outline" size={20} color="#EF4444" />
+          <Ionicons name="trash-outline" size={20} color={colors.error} />
         </TouchableOpacity>
       </View>
 
@@ -52,15 +55,15 @@ export default function HomeCard({ home, onDelete }: HomeCardProps) {
         <View style={styles.detailsRow}>
           {home.bedrooms && (
             <View style={styles.detailItem}>
-              <Ionicons name="bed-outline" size={16} color="#6B7280" />
-              <Text style={styles.detailText}>{home.bedrooms} bed</Text>
+              <Ionicons name="bed-outline" size={16} color={colors.textTertiary} />
+              <Text style={[styles.detailText, { color: colors.textSecondary }]}>{home.bedrooms} bed</Text>
             </View>
           )}
           
           {home.bathrooms && (
             <View style={styles.detailItem}>
-              <Ionicons name="water-outline" size={16} color="#6B7280" />
-              <Text style={styles.detailText}>{home.bathrooms} bath</Text>
+              <Ionicons name="water-outline" size={16} color={colors.textTertiary} />
+              <Text style={[styles.detailText, { color: colors.textSecondary }]}>{home.bathrooms} bath</Text>
             </View>
           )}
         </View>
@@ -68,48 +71,48 @@ export default function HomeCard({ home, onDelete }: HomeCardProps) {
         <View style={styles.detailsRow}>
           {home.square_footage && (
             <View style={styles.detailItem}>
-              <Ionicons name="resize-outline" size={16} color="#6B7280" />
-              <Text style={styles.detailText}>{home.square_footage.toLocaleString()} sq ft</Text>
+              <Ionicons name="resize-outline" size={16} color={colors.textTertiary} />
+              <Text style={[styles.detailText, { color: colors.textSecondary }]}>{home.square_footage.toLocaleString()} sq ft</Text>
             </View>
           )}
           
           {home.year_built && (
             <View style={styles.detailItem}>
-              <Ionicons name="calendar-outline" size={16} color="#6B7280" />
-              <Text style={styles.detailText}>Built {home.year_built}</Text>
+              <Ionicons name="calendar-outline" size={16} color={colors.textTertiary} />
+              <Text style={[styles.detailText, { color: colors.textSecondary }]}>Built {home.year_built}</Text>
             </View>
           )}
         </View>
       </View>
 
       {home.purchase_date && (
-        <Text style={styles.purchaseDate}>
+        <Text style={[styles.purchaseDate, { color: colors.textTertiary }]}>
           Purchased: {new Date(home.purchase_date).toLocaleDateString()}
         </Text>
       )}
 
       {home.notes && (
         <View style={styles.notesSection}>
-          <Text style={styles.notesLabel}>Notes</Text>
-          <Text style={styles.notesText}>{home.notes}</Text>
+          <Text style={[styles.notesLabel, { color: colors.text }]}>Notes</Text>
+          <Text style={[styles.notesText, { color: colors.textSecondary }]}>{home.notes}</Text>
         </View>
       )}
 
       <View style={styles.cardActions}>
         <TouchableOpacity 
-          style={styles.viewButton}
+          style={[styles.viewButton, { backgroundColor: colors.primaryLight }]}
           onPress={() => router.push(`/homes/view/${home.id}`)}
         >
-          <Ionicons name="eye-outline" size={16} color="#4F46E5" />
-          <Text style={styles.viewButtonText}>View Details</Text>
+          <Ionicons name="eye-outline" size={16} color={colors.primary} />
+          <Text style={[styles.viewButtonText, { color: colors.primary }]}>View Details</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={styles.editButton}
+          style={[styles.editButton, { backgroundColor: colors.success + '15' }]}
           onPress={() => router.push(`/homes/edit/${home.id}`)}
         >
-          <Ionicons name="create-outline" size={16} color="#10B981" />
-          <Text style={styles.editButtonText}>Edit</Text>
+          <Ionicons name="create-outline" size={16} color={colors.success} />
+          <Text style={[styles.editButtonText, { color: colors.success }]}>Edit</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -118,7 +121,6 @@ export default function HomeCard({ home, onDelete }: HomeCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -139,18 +141,15 @@ const styles = StyleSheet.create({
   homeName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 4,
   },
   homeAddress: {
     fontSize: 14,
-    color: '#6B7280',
     lineHeight: 20,
   },
   deleteButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#FEF2F2',
   },
   homeDetails: {
     marginTop: 8,
@@ -168,12 +167,10 @@ const styles = StyleSheet.create({
   detailText: {
     marginLeft: 6,
     fontSize: 14,
-    color: '#374151',
     fontWeight: '500',
   },
   purchaseDate: {
     fontSize: 14,
-    color: '#6B7280',
     marginBottom: 12,
   },
   notesSection: {
@@ -185,12 +182,10 @@ const styles = StyleSheet.create({
   notesLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 4,
   },
   notesText: {
     fontSize: 14,
-    color: '#6B7280',
     lineHeight: 20,
   },
   cardActions: {
@@ -205,13 +200,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 6,
-    backgroundColor: '#EEF2FF',
     gap: 6,
   },
   viewButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#4F46E5',
   },
   editButton: {
     flexDirection: 'row',
@@ -219,12 +212,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 6,
-    backgroundColor: '#D1FAE5',
     gap: 6,
   },
   editButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#10B981',
   },
 });

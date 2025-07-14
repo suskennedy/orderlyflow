@@ -1,38 +1,37 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 
 interface LoadingSpinnerProps {
+  message?: string;
   size?: 'small' | 'large';
-  color?: string;
-  text?: string;
-  style?: any;
 }
 
 export default function LoadingSpinner({ 
-  size = 'large', 
-  color = '#4F46E5', 
-  text,
-  style 
+  message = 'Loading...', 
+  size = 'large' 
 }: LoadingSpinnerProps) {
+  const { colors } = useTheme();
+
   return (
-    <View style={[styles.container, style]}>
-      <ActivityIndicator size={size} color={color} />
-      {text && <Text style={styles.text}>{text}</Text>}
+    <View style={styles.container}>
+      <ActivityIndicator size={size} color={colors.primary} />
+      {message && (
+        <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
   },
-  text: {
+  message: {
     marginTop: 12,
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '500',
   },
 }); 

@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { signIn } from '../../../lib/auth/actions';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import navigate from '../../../lib/navigation';
 import Button from '../../ui/Button';
 import LoadingScreen from '../../ui/LoadingScreen';
-import AuthCard from '../AuthCard';
 import AuthContainer from '../AuthContainer';
 import AuthHeader from '../AuthHeader';
 import FormInput from '../FormInput';
 import LinkButton from '../LinkButton';
-import PasswordInput from '../PasswordInput';
 
 
 // Validation functions
@@ -28,6 +27,7 @@ const validatePassword = (password: string) => {
 
 export default function SignInForm() {
   const { user, loading: authLoading } = useAuth();
+  const { colors } = useTheme();
   
   // Form state
   const [email, setEmail] = useState('');
@@ -115,63 +115,61 @@ export default function SignInForm() {
   return (
     <AuthContainer>
       <AuthHeader 
-        title="OrderlyFlow" 
-        subtitle="Manage your home with ease" 
-        iconName="home" 
-        showBackButton={false} // No back button on sign in
+        title="Welcome Back" 
+        subtitle="Sign in to your account to continue managing your properties"
       />
-
-      <AuthCard
-        title="Welcome back"
-        subtitle="Sign in to your account"
-      >
+      
+      <View style={styles.form}>
         <FormInput
           label="Email"
-          iconName="mail-outline"
-          placeholder="Enter your email"
           value={email}
           onChangeText={handleEmailChange}
+          placeholder="Enter your email"
           keyboardType="email-address"
           autoCapitalize="none"
-          autoComplete="email"
-          error={touched.email ? errors.email : ''}
+          error={errors.email}
+          icon="mail-outline"
           onBlur={() => handleBlur('email')}
-          testID="email-input"
         />
-
-        <PasswordInput
+        
+        <FormInput
           label="Password"
           value={password}
-          placeholder="Enter your password"
           onChangeText={handlePasswordChange}
-          error={touched.password ? errors.password : ''}
+          placeholder="Enter your password"
+          secureTextEntry={true}
+          error={errors.password}
+          icon="lock-closed-outline"
+          onBlur={() => handleBlur('password')}
         />
-
-        <TouchableOpacity 
-          onPress={() => navigate.toForgotPassword()}
-          style={styles.forgotPassword}
-        >
-          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+        
+        <TouchableOpacity style={styles.forgotPassword}>
+          <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>
+            Forgot password?
+          </Text>
         </TouchableOpacity>
-
+        
         <Button
           title="Sign In"
           onPress={handleSignIn}
           loading={loading}
           style={styles.signInButton}
         />
-
+        
         <LinkButton
-          question="Don't have an account?"
-          linkText="Sign Up"
+          text="Don't have an account? "
+          linkText="Sign up"
           onPress={() => navigate.toSignUp()}
         />
-      </AuthCard>
+      </View>
     </AuthContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  form: {
+    flex: 1,
+  },
   forgotPassword: {
     alignSelf: 'flex-end',
     marginBottom: 24,
@@ -179,7 +177,6 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     fontSize: 14,
-    color: '#4F46E5',
     fontWeight: '600',
   },
   signInButton: {

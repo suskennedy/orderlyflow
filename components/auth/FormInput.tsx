@@ -1,93 +1,144 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+import {
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 
-interface FormInputProps extends TextInputProps {
+interface FormInputProps {
   label: string;
-  iconName: keyof typeof Ionicons.glyphMap;
-  error?: string;
+  value: string;
   onChangeText: (text: string) => void;
+  placeholder?: string;
+  secureTextEntry?: boolean;
+  keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad' | 'url';
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  error?: string;
+  icon?: keyof typeof Ionicons.glyphMap;
+  multiline?: boolean;
+  numberOfLines?: number;
 }
 
 export default function FormInput({
   label,
-  iconName,
-  error,
+  value,
   onChangeText,
-  ...props
+  placeholder,
+  secureTextEntry = false,
+  keyboardType = 'default',
+  autoCapitalize = 'sentences',
+  error,
+  icon,
+  multiline = false,
+  numberOfLines = 1,
 }: FormInputProps) {
-  // Add animation state for focus if needed
+  const { colors } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleTogglePassword = () => {
+    setShowPassword(!showPassword);
+  };
 
   return (
-    <View style={styles.inputGroup}>
-      <Text style={styles.inputLabel}>{label}</Text>
+    <View style={styles.container}>
+      <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+      
       <View style={[
         styles.inputContainer,
-        isFocused && styles.inputFocused,
-        error && styles.inputError
+        {
+          borderColor: error ? colors.error : isFocused ? colors.primary : colors.border,
+          backgroundColor: colors.surface,
+        }
       ]}>
-        <Ionicons 
-          name={iconName} 
-          size={20} 
-          color={error ? "#EF4444" : isFocused ? "#4F46E5" : "#6B7280"} 
-        />
+        {icon && (
+          <Ionicons 
+            name={icon} 
+            size={20} 
+            color={colors.textTertiary} 
+            style={styles.inputIcon}
+          />
+        )}
+        
         <TextInput
-          style={styles.textInput}
+          style={[
+            styles.input,
+            { 
+              color: colors.text,
+              paddingLeft: icon ? 40 : 16,
+            }
+          ]}
+          value={value}
           onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textTertiary}
+          secureTextEntry={secureTextEntry && !showPassword}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          placeholderTextColor="#9CA3AF"
-          {...props}
+          multiline={multiline}
+          numberOfLines={numberOfLines}
         />
+        
+        {secureTextEntry && (
+          <TouchableOpacity
+            style={styles.passwordToggle}
+            onPress={handleTogglePassword}
+          >
+            <Ionicons
+              name={showPassword ? 'eye-off' : 'eye'}
+              size={20}
+              color={colors.textTertiary}
+            />
+          </TouchableOpacity>
+        )}
       </View>
+      
       {error && (
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  inputGroup: {
+  container: {
     marginBottom: 20,
   },
-  inputLabel: {
+  label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
     marginBottom: 8,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    height: 52,
+    position: 'relative',
   },
-  inputFocused: {
-    borderColor: '#4F46E5',
-    backgroundColor: '#F9FAFB',
+  inputIcon: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 1,
   },
-  inputError: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
-  },
-  textInput: {
+  input: {
     flex: 1,
+    paddingVertical: 16,
+    paddingRight: 16,
     fontSize: 16,
-    color: '#1F2937',
-    marginLeft: 12,
-    fontWeight: '500',
+  },
+  passwordToggle: {
+    padding: 8,
+    marginRight: 8,
   },
   errorText: {
     fontSize: 12,
-    color: '#EF4444',
-    marginTop: 6,
-    fontWeight: '500',
+    marginTop: 4,
   },
 });

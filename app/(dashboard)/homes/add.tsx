@@ -2,19 +2,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DatePicker from '../../../components/DatePicker';
 import { useHomes } from '../../../lib/contexts/HomesContext';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { useDashboard } from '../../../lib/hooks/useDashboard';
 import { supabase } from '../../../lib/supabase';
@@ -23,6 +25,8 @@ export default function AddHomeScreen() {
   const { user } = useAuth();
   const { fetchDashboardStats } = useDashboard();
   const { addHome } = useHomes();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -101,89 +105,113 @@ export default function AddHomeScreen() {
 
   return (
     <KeyboardAvoidingView 
-      style={styles.container} 
+      style={[styles.container, { backgroundColor: colors.background }]} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { 
+        backgroundColor: colors.surface,
+        borderBottomColor: colors.border,
+        paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16
+      }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Add New Home</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Add New Home</Text>
         <TouchableOpacity
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+          style={[styles.saveButton, { backgroundColor: colors.primary }, loading && { opacity: 0.6 }]}
           onPress={handleSave}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={colors.textInverse} />
           ) : (
-            <Text style={styles.saveButtonText}>Save</Text>
+            <Text style={[styles.saveButtonText, { color: colors.textInverse }]}>Save</Text>
           )}
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Basic Information</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Basic Information</Text>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Home Name *</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Home Name *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { 
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                color: colors.text
+              }]}
               placeholder="e.g., Main House, Vacation Home"
               value={formData.name}
               onChangeText={(text) => setFormData({ ...formData, name: text })}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
             />
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Address</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Address</Text>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Street Address</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Street Address</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { 
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                color: colors.text
+              }]}
               placeholder="123 Main Street"
               value={formData.address}
               onChangeText={(text) => setFormData({ ...formData, address: text })}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
             />
           </View>
           
           <View style={styles.row}>
             <View style={[styles.inputGroup, { flex: 2 }]}>
-              <Text style={styles.label}>City</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>City</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="City"
                 value={formData.city}
                 onChangeText={(text) => setFormData({ ...formData, city: text })}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
             <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
-              <Text style={styles.label}>State</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>State</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="CA"
                 value={formData.state}
                 onChangeText={(text) => setFormData({ ...formData, state: text })}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
                 maxLength={2}
                 autoCapitalize="characters"
               />
             </View>
             <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
-              <Text style={styles.label}>ZIP Code</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>ZIP Code</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="12345"
                 value={formData.zip}
                 onChangeText={(text) => setFormData({ ...formData, zip: text })}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="numeric"
                 maxLength={5}
               />
@@ -191,28 +219,36 @@ export default function AddHomeScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Property Details</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Property Details</Text>
           <View style={styles.row}>
             <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Bedrooms</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Bedrooms</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="3"
                 value={formData.bedrooms}
                 onChangeText={(text) => setFormData({ ...formData, bedrooms: text })}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="numeric"
               />
             </View>
             <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
-              <Text style={styles.label}>Bathrooms</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Bathrooms</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="2.5"
                 value={formData.bathrooms}
                 onChangeText={(text) => setFormData({ ...formData, bathrooms: text })}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="numeric"
               />
             </View>
@@ -220,24 +256,32 @@ export default function AddHomeScreen() {
           
           <View style={styles.row}>
             <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Square Footage</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Square Footage</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="2000"
                 value={formData.square_footage}
                 onChangeText={(text) => setFormData({ ...formData, square_footage: text })}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="numeric"
               />
             </View>
             <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
-              <Text style={styles.label}>Year Built</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Year Built</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }]}
                 placeholder="1995"
                 value={formData.year_built}
                 onChangeText={(text) => setFormData({ ...formData, year_built: text })}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="numeric"
                 maxLength={4}
               />
@@ -257,15 +301,19 @@ export default function AddHomeScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Additional Notes</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Additional Notes</Text>
           <View style={styles.inputGroup}>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, { 
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                color: colors.text
+              }]}
               placeholder="Any additional information about this home..."
               value={formData.notes}
               onChangeText={(text) => setFormData({ ...formData, notes: text })}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
               multiline
               numberOfLines={4}
             />
@@ -281,7 +329,6 @@ export default function AddHomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   header: {
     flexDirection: 'row',
@@ -289,10 +336,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    paddingTop: Platform.OS === 'ios' ? 60 : 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   backButton: {
     padding: 8,
@@ -301,24 +350,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111827',
     flex: 1,
     textAlign: 'center',
     marginHorizontal: 16,
   },
   saveButton: {
-    backgroundColor: '#4F46E5',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
     minWidth: 70,
     alignItems: 'center',
   },
-  saveButtonDisabled: {
-    opacity: 0.6,
-  },
   saveButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -326,7 +369,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    backgroundColor: '#FFFFFF',
     marginHorizontal: 20,
     marginTop: 20,
     borderRadius: 12,
@@ -340,7 +382,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 16,
   },
   inputGroup: {
@@ -349,17 +390,13 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
     borderRadius: 8,
     padding: 14,
     fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#FFFFFF',
   },
   textArea: {
     height: 100,

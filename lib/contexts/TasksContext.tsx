@@ -2,6 +2,7 @@ import React, { createContext, ReactNode, useCallback, useContext, useEffect, us
 import { useAuth } from '../hooks/useAuth';
 import { useRealTimeSubscription } from '../hooks/useRealTimeSubscription';
 import { supabase } from '../supabase';
+import { useCalendar } from './CalendarContext';
 
 export interface TaskItem {
   id: string;
@@ -52,19 +53,34 @@ interface TasksProviderProps {
 
 export const TasksProvider = ({ children }: TasksProviderProps) => {
   const { user } = useAuth();
+  const { removeEventsByTaskId, refreshEvents } = useCalendar();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Helper function to create calendar events from tasks
   const createCalendarEventFromTask = useCallback(async (task: TaskItem) => {
-    if (!task.due_date || !user?.id) {
-      console.log('Skipping calendar event creation - no due date or user ID');
+    if (!user?.id) {
+      console.log('Skipping calendar event creation - no user ID');
       return;
     }
 
     try {
-      console.log('Creating calendar event for task:', task.title, 'on date:', task.due_date);
+      // Use today's date if no due date is provided
+      const eventDate = task.due_date || new Date().toISOString().split('T')[0];
+      console.log('Creating calendar event for task:', task.title, 'on date:', eventDate);
+      
+      // Check if calendar event already exists for this task
+      const { data: existingEvents } = await supabase
+        .from('calendar_events')
+        .select('id')
+        .eq('task_id', task.id)
+        .eq('user_id', user.id);
+
+      if (existingEvents && existingEvents.length > 0) {
+        console.log('Calendar event already exists for task:', task.id);
+        return;
+      }
       
       // Determine event color based on priority
       const getEventColor = (priority: string | null) => {
@@ -83,13 +99,16 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       const calendarEvent = {
         title: `Task: ${task.title}`,
         description: task.description || `Task: ${task.title}${task.notes ? `\n\nNotes: ${task.notes}` : ''}`,
-        start_time: `${task.due_date}T09:00:00`, // Default to 9 AM
-        end_time: `${task.due_date}T10:00:00`,   // Default to 10 AM
+        start_time: `${eventDate}T09:00:00`, // Default to 9 AM
+        end_time: `${eventDate}T10:00:00`,   // Default to 10 AM
         location: null,
         color: eventColor,
         all_day: false,
         task_id: task.id,
         user_id: user.id,
+        is_recurring: task.is_recurring || false,
+        recurrence_pattern: task.recurrence_pattern || null,
+        recurrence_end_date: task.recurrence_end_date || null,
       };
 
       console.log('Inserting calendar event:', calendarEvent);
@@ -104,24 +123,49 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         console.error('Error creating calendar event for task:', error);
       } else {
         console.log('Successfully created calendar event:', data);
+        // Refresh calendar events to ensure UI is updated
+        setTimeout(() => refreshEvents(), 100);
       }
     } catch (error) {
       console.error('Error creating calendar event from task:', error);
     }
-  }, [user?.id]);
+  }, [user?.id, refreshEvents]);
 
   // Helper function to create recurring calendar events
   const createRecurringCalendarEvents = useCallback(async (task: TaskItem) => {
-    if (!task.due_date || !task.is_recurring || !task.recurrence_pattern || !user?.id) {
-      console.log('Skipping recurring calendar events - missing required fields');
+    if (!task.is_recurring || !task.recurrence_pattern || !user?.id) {
+      console.log('Skipping recurring calendar events - missing required fields:', {
+        is_recurring: task.is_recurring,
+        recurrence_pattern: task.recurrence_pattern,
+        user_id: user?.id
+      });
       return;
     }
 
     try {
-      console.log('Creating recurring calendar events for task:', task.title);
+      console.log('Creating recurring calendar events for task:', task.title, 'pattern:', task.recurrence_pattern);
       
-      const startDate = new Date(task.due_date);
+      // Use today's date if no due date is provided
+      const startDate = new Date(task.due_date || new Date().toISOString().split('T')[0]);
       const endDate = task.recurrence_end_date ? new Date(task.recurrence_end_date) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year default
+      
+      console.log('Recurring task date range:', {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        pattern: task.recurrence_pattern
+      });
+      
+      // Check if recurring events already exist for this task
+      const { data: existingEvents } = await supabase
+        .from('calendar_events')
+        .select('id')
+        .eq('task_id', task.id)
+        .eq('user_id', user.id);
+
+      if (existingEvents && existingEvents.length > 0) {
+        console.log('Recurring calendar events already exist for task:', task.id, 'count:', existingEvents.length);
+        return;
+      }
       
       const getEventColor = (priority: string | null) => {
         switch (priority?.toLowerCase()) {
@@ -137,8 +181,9 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       const events = [];
 
       let currentDate = new Date(startDate);
+      let eventCount = 0;
       
-      while (currentDate <= endDate) {
+      while (currentDate <= endDate && eventCount < 100) { // Limit to 100 events to prevent infinite loops
         const eventDate = currentDate.toISOString().split('T')[0];
         
         const calendarEvent = {
@@ -151,9 +196,13 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
           all_day: false,
           task_id: task.id,
           user_id: user.id,
+          is_recurring: true,
+          recurrence_pattern: task.recurrence_pattern,
+          recurrence_end_date: task.recurrence_end_date,
         };
 
         events.push(calendarEvent);
+        eventCount++;
 
         // Calculate next occurrence based on pattern (case-insensitive)
         const pattern = task.recurrence_pattern.toLowerCase();
@@ -187,7 +236,7 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         }
       }
 
-      console.log(`Creating ${events.length} recurring calendar events`);
+      console.log(`Creating ${events.length} recurring calendar events for task: ${task.title}`);
 
       // Insert all recurring events
       if (events.length > 0) {
@@ -200,12 +249,16 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
           console.error('Error creating recurring calendar events:', error);
         } else {
           console.log('Successfully created recurring calendar events:', data?.length);
+          // Refresh calendar events to ensure UI is updated
+          setTimeout(() => refreshEvents(), 200);
         }
+      } else {
+        console.log('No recurring events to create for task:', task.title);
       }
     } catch (error) {
       console.error('Error creating recurring calendar events:', error);
     }
-  }, [user?.id]);
+  }, [user?.id, refreshEvents]);
 
   // Utility function to sync all tasks to calendar
   const syncTasksToCalendar = useCallback(async () => {
@@ -214,19 +267,18 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
     try {
       console.log('Syncing all tasks to calendar...');
       
-      // Get all tasks with due dates
-      const { data: tasksWithDueDates, error } = await supabase
+      // Get all tasks (including those without due dates)
+      const { data: allTasks, error } = await supabase
         .from('tasks')
         .select('*')
-        .eq('user_id', user.id)
-        .not('due_date', 'is', null);
+        .eq('user_id', user.id);
 
       if (error) {
         console.error('Error fetching tasks for calendar sync:', error);
         return;
       }
 
-      console.log(`Found ${tasksWithDueDates?.length || 0} tasks with due dates`);
+      console.log(`Found ${allTasks?.length || 0} tasks to sync`);
 
       // Delete existing calendar events for tasks
       await supabase
@@ -236,7 +288,7 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         .not('task_id', 'is', null);
 
       // Create calendar events for each task
-      for (const task of tasksWithDueDates || []) {
+      for (const task of allTasks || []) {
         await createCalendarEventFromTask(task);
         
         if (task.is_recurring && task.recurrence_pattern) {
@@ -267,7 +319,7 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
-        
+
       if (error) throw error;
       
       setTasks(data || []);
@@ -292,14 +344,12 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         // For new tasks, we need to fetch to get the homes relationship
         fetchTasks();
         
-        // Create calendar event for new task with due date
-        if (payload.new.due_date) {
-          createCalendarEventFromTask(payload.new);
-          
-          // If it's a recurring task, create recurring events
-          if (payload.new.is_recurring && payload.new.recurrence_pattern) {
-            createRecurringCalendarEvents(payload.new);
-          }
+        // Create calendar event for new task (with or without due date)
+        createCalendarEventFromTask(payload.new);
+        
+        // If it's a recurring task, create recurring events
+        if (payload.new.is_recurring && payload.new.recurrence_pattern) {
+          createRecurringCalendarEvents(payload.new);
         }
       } 
       else if (eventType === 'UPDATE') {
@@ -307,17 +357,24 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         // For updates, we need to fetch to get the homes relationship
         fetchTasks();
         
-        // Update calendar events if due date changed
-        if (payload.new.due_date !== payload.old.due_date) {
-          console.log('Due date changed, updating calendar events');
+        // Update calendar events if due date changed or task became recurring
+        const dueDateChanged = payload.new.due_date !== payload.old.due_date;
+        const becameRecurring = !payload.old.is_recurring && payload.new.is_recurring;
+        const recurrencePatternChanged = payload.old.recurrence_pattern !== payload.new.recurrence_pattern;
+        
+        if (dueDateChanged || becameRecurring || recurrencePatternChanged) {
+          console.log('Task details changed, updating calendar events');
           // Delete old calendar events for this task
           supabase
             .from('calendar_events')
             .delete()
             .eq('task_id', payload.new.id)
-            .then(() => {
-              // Create new calendar events
-              if (payload.new.due_date) {
+            .then(({ error }) => {
+              if (error) {
+                console.error('Error deleting old calendar events:', error);
+              } else {
+                console.log('Successfully deleted old calendar events');
+                // Create new calendar events
                 createCalendarEventFromTask(payload.new);
                 
                 if (payload.new.is_recurring && payload.new.recurrence_pattern) {
@@ -328,28 +385,21 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         }
       } 
       else if (eventType === 'DELETE') {
-        console.log('Task deleted:', payload.old);
+        console.log('Task deleted via real-time subscription:', payload.old);
         setTasks(current => 
           current.filter(task => task.id !== payload.old.id)
         );
         
-        // Delete associated calendar events
+        // Delete associated calendar events immediately using CalendarContext method
         if (payload.old.id) {
-          supabase
-            .from('calendar_events')
-            .delete()
-            .eq('task_id', payload.old.id)
-            .then(({ error }) => {
-              if (error) {
-                console.error('Error deleting calendar events for task:', error);
-              } else {
-                console.log('Successfully deleted calendar events for task');
-              }
-            });
+          console.log('Deleting calendar events for deleted task:', payload.old.id);
+          removeEventsByTaskId(payload.old.id);
+          // Refresh calendar events to ensure UI is properly updated
+          setTimeout(() => refreshEvents(), 100);
         }
       }
     }
-  }, [user?.id, fetchTasks, createCalendarEventFromTask, createRecurringCalendarEvents]);
+  }, [user?.id, fetchTasks, createCalendarEventFromTask, createRecurringCalendarEvents, removeEventsByTaskId, refreshEvents]);
 
   // Set up the real-time subscription
   useRealTimeSubscription(
@@ -383,9 +433,9 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         .from('tasks')
         .update(updates)
         .eq('id', taskId);
-        
+
       if (error) throw error;
-      
+
       // Update locally for immediate UI update
       setTasks(current => 
         current.map(task => 
@@ -401,16 +451,26 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
   // Delete a task
   const deleteTask = async (taskId: string) => {
     try {
-      // Delete from Supabase
+      console.log('Deleting task:', taskId);
+      
+      // First, remove all associated calendar events using the CalendarContext method
+      await removeEventsByTaskId(taskId);
+      
+      // Then delete the task
       const { error } = await supabase
         .from('tasks')
         .delete()
         .eq('id', taskId);
-        
+
       if (error) throw error;
+
+      console.log('Successfully deleted task:', taskId);
       
       // Remove from local state for immediate UI update
       setTasks(current => current.filter(task => task.id !== taskId));
+      
+      // Refresh calendar events to ensure UI is properly updated
+      await refreshEvents();
     } catch (error) {
       console.error('Error deleting task:', error);
       throw error;

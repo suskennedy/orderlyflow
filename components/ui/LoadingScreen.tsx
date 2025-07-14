@@ -1,35 +1,31 @@
 import React from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 
 interface LoadingScreenProps {
   message?: string;
 }
 
 export default function LoadingScreen({ message = 'Loading...' }: LoadingScreenProps) {
+  const { colors } = useTheme();
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <ActivityIndicator size="large" color="#4F46E5" />
-        <Text style={styles.message}>{message}</Text>
-      </View>
-    </SafeAreaView>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEF2FF',
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
     alignItems: 'center',
   },
   message: {
     marginTop: 16,
     fontSize: 16,
-    color: '#4B5563',
     fontWeight: '500',
   },
 });

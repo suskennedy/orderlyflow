@@ -7,11 +7,13 @@ import { CalendarProvider } from '../../lib/contexts/CalendarContext';
 import { HomesProvider } from '../../lib/contexts/HomesContext';
 import { InventoryProvider } from '../../lib/contexts/InventoryContext';
 import { TasksProvider } from '../../lib/contexts/TasksContext';
+import { useTheme } from '../../lib/contexts/ThemeContext';
 import { VendorsProvider } from '../../lib/contexts/VendorsContext';
 import { useAuth } from '../../lib/hooks/useAuth';
 
 export default function DashboardLayout() {
   const { user, loading } = useAuth();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -24,8 +26,8 @@ export default function DashboardLayout() {
   // Show loading while checking authentication
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4F46E5" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -43,15 +45,15 @@ export default function DashboardLayout() {
             <InventoryProvider>
               <Tabs
                 screenOptions={{
-                  tabBarActiveTintColor: '#4F46E5',
-                  tabBarInactiveTintColor: '#9CA3AF',
+                  tabBarActiveTintColor: colors.primary,
+                  tabBarInactiveTintColor: colors.textTertiary,
                   tabBarStyle: {
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: colors.surface,
                     borderTopWidth: 0,
                     paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8,
                     paddingTop: 12,
                     height: Platform.OS === 'ios' ? 85 + insets.bottom : 70,
-                    shadowColor: '#000',
+                    shadowColor: colors.shadow,
                     shadowOffset: { width: 0, height: -4 },
                     shadowOpacity: 0.1,
                     shadowRadius: 12,
@@ -77,7 +79,10 @@ export default function DashboardLayout() {
                   options={{
                     title: 'Dashboard',
                     tabBarIcon: ({ color, size, focused }) => (
-                      <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+                      <View style={[
+                        styles.iconContainer, 
+                        focused && { backgroundColor: colors.primaryLight }
+                      ]}>
                         <Ionicons name={focused ? "grid" : "grid-outline"} size={focused ? 26 : 24} color={color} />
                       </View>
                     ),
@@ -88,7 +93,10 @@ export default function DashboardLayout() {
                   options={{
                     title: 'Homes',
                     tabBarIcon: ({ color, size, focused }) => (
-                      <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+                      <View style={[
+                        styles.iconContainer, 
+                        focused && { backgroundColor: colors.primaryLight }
+                      ]}>
                         <Ionicons name={focused ? "business" : "business-outline"} size={focused ? 26 : 24} color={color} />
                       </View>
                     ),
@@ -99,7 +107,10 @@ export default function DashboardLayout() {
                   options={{
                     title: 'Tasks',
                     tabBarIcon: ({ color, size, focused }) => (
-                      <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+                      <View style={[
+                        styles.iconContainer, 
+                        focused && { backgroundColor: colors.primaryLight }
+                      ]}>
                         <Ionicons name={focused ? "checkbox" : "checkbox-outline"} size={focused ? 26 : 24} color={color} />
                       </View>
                     ),
@@ -110,7 +121,10 @@ export default function DashboardLayout() {
                   options={{
                     title: 'Calendar',
                     tabBarIcon: ({ color, size, focused }) => (
-                      <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+                      <View style={[
+                        styles.iconContainer, 
+                        focused && { backgroundColor: colors.primaryLight }
+                      ]}>
                         <Ionicons name={focused ? "calendar" : "calendar-outline"} size={focused ? 26 : 24} color={color} />
                       </View>
                     ),
@@ -121,7 +135,10 @@ export default function DashboardLayout() {
                   options={{
                     title: 'Vendors',
                     tabBarIcon: ({ color, size, focused }) => (
-                      <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+                      <View style={[
+                        styles.iconContainer, 
+                        focused && { backgroundColor: colors.primaryLight }
+                      ]}>
                         <Ionicons name={focused ? "people" : "people-outline"} size={focused ? 26 : 24} color={color} />
                       </View>
                     ),
@@ -132,7 +149,10 @@ export default function DashboardLayout() {
                   options={{
                     title: 'Inventory',
                     tabBarIcon: ({ color, size, focused }) => (
-                      <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+                      <View style={[
+                        styles.iconContainer, 
+                        focused && { backgroundColor: colors.primaryLight }
+                      ]}>
                         <Ionicons name={focused ? "cube" : "cube-outline"} size={focused ? 26 : 24} color={color} />
                       </View>
                     ),
@@ -143,7 +163,10 @@ export default function DashboardLayout() {
                     options={{
                       title: 'Settings',
                       tabBarIcon: ({ color, size, focused }) => (
-                        <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+                        <View style={[
+                          styles.iconContainer, 
+                          focused && { backgroundColor: colors.primaryLight }
+                        ]}>
                           <Ionicons name={focused ? "settings" : "settings-outline"} size={focused ? 26 : 24} color={color} />
                         </View>
                       ),
@@ -170,7 +193,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
   },
   iconContainer: {
     alignItems: 'center',
@@ -179,9 +201,5 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: 'transparent',
-  },
-  iconContainerFocused: {
-    backgroundColor: 'rgba(79, 70, 229, 0.1)',
-    transform: [{ scale: 1.05 }],
   },
 }); 

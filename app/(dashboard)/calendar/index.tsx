@@ -14,6 +14,7 @@ import DeleteConfirmationModal from '../../../components/ui/DeleteConfirmationMo
 
 // Import hooks and utilities
 import { useCalendar } from '../../../lib/contexts/CalendarContext';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { getCalendarTheme, getColorHex } from '../../../lib/utils/colorHelpers';
 
 // Define MarkingProps interface for TypeScript
@@ -32,6 +33,7 @@ interface MarkingProps {
 
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const { events, loading, refreshing, deleteEvent, onRefresh } = useCalendar();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -45,15 +47,116 @@ export default function CalendarScreen() {
     // Create a map of dates to their respective events
     const eventsByDate: Record<string, any[]> = {};
     
-    events.forEach(event => {
-      // Get date part of the start time
+    console.log('=== CALENDAR MARKING DEBUG ===');
+    console.log('Total events to process:', events.length);
+    
+    // Get current date for generating recurring events
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    
+    // Generate dates for the current month view (plus some buffer)
+    const startDate = new Date(currentYear, currentMonth - 1, 1);
+    const endDate = new Date(currentYear, currentMonth + 2, 0);
+    
+    console.log('Calendar view range:', {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
+    });
+    
+    events.forEach((event, index) => {
+      console.log(`Processing event ${index + 1}:`, {
+        id: event.id,
+        title: event.title,
+        is_recurring: event.is_recurring,
+        recurrence_pattern: event.recurrence_pattern,
+        start_time: event.start_time,
+        task_id: event.task_id
+      });
+      
+      // Handle regular events
       const eventDate = event.start_time.split('T')[0];
       
       if (!eventsByDate[eventDate]) {
         eventsByDate[eventDate] = [];
       }
       eventsByDate[eventDate].push(event);
+      
+      // Handle recurring events - generate occurrences for the calendar view
+      if (event.is_recurring && event.recurrence_pattern) {
+        console.log('🔄 Found recurring event:', event.title, 'Pattern:', event.recurrence_pattern);
+        
+        const recurringStartDate = new Date(event.start_time);
+        const recurringEndDate = event.recurrence_end_date 
+          ? new Date(event.recurrence_end_date) 
+          : new Date(recurringStartDate.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year default
+        
+        console.log('Recurring event date range:', {
+          start: recurringStartDate.toISOString(),
+          end: recurringEndDate.toISOString()
+        });
+        
+        // Generate recurring occurrences
+        let currentOccurrence = new Date(recurringStartDate);
+        let occurrenceCount = 0;
+        
+        while (currentOccurrence <= recurringEndDate && occurrenceCount < 100) {
+          const occurrenceDate = currentOccurrence.toISOString().split('T')[0];
+          
+          // Only add occurrences that fall within our calendar view range
+          if (currentOccurrence >= startDate && currentOccurrence <= endDate) {
+            if (!eventsByDate[occurrenceDate]) {
+              eventsByDate[occurrenceDate] = [];
+            }
+            
+            // Create a copy of the event for this occurrence
+            const occurrenceEvent = {
+              ...event,
+              id: `${event.id}_${occurrenceCount}`,
+              start_time: `${occurrenceDate}T${recurringStartDate.toTimeString().split(' ')[0]}`,
+              end_time: `${occurrenceDate}T${new Date(event.end_time).toTimeString().split(' ')[0]}`,
+            };
+            
+            eventsByDate[occurrenceDate].push(occurrenceEvent);
+            console.log(`✅ Generated recurring occurrence for ${event.title} on ${occurrenceDate}`);
+          }
+          
+          occurrenceCount++;
+          
+          // Calculate next occurrence based on pattern
+          const pattern = event.recurrence_pattern.toLowerCase();
+          switch (pattern) {
+            case 'daily':
+              currentOccurrence.setDate(currentOccurrence.getDate() + 1);
+              break;
+            case 'weekly':
+              currentOccurrence.setDate(currentOccurrence.getDate() + 7);
+              break;
+            case 'bi-weekly':
+            case 'biweekly':
+              currentOccurrence.setDate(currentOccurrence.getDate() + 14);
+              break;
+            case 'monthly':
+              currentOccurrence.setMonth(currentOccurrence.getMonth() + 1);
+              break;
+            case 'quarterly':
+              currentOccurrence.setMonth(currentOccurrence.getMonth() + 3);
+              break;
+            case 'semi-annually':
+              currentOccurrence.setMonth(currentOccurrence.getMonth() + 6);
+              break;
+            case 'annually':
+            case 'yearly':
+              currentOccurrence.setFullYear(currentOccurrence.getFullYear() + 1);
+              break;
+            default:
+              currentOccurrence.setDate(currentOccurrence.getDate() + 1);
+          }
+        }
+      }
     });
+    
+    console.log('Events by date:', Object.keys(eventsByDate).length, 'dates with events');
     
     // Create markers for each date
     Object.keys(eventsByDate).forEach(date => {
@@ -70,43 +173,118 @@ export default function CalendarScreen() {
           color: getColorHex(event.color || 'blue')
         }))
       };
+      
+      console.log(`📅 Marked date ${date} with ${dateEvents.length} events`);
     });
     
-    // Mark selected date with a stronger highlight
-    if (selectedDate) {
-      // If the selected date has events, preserve its dots
-      if (markers[selectedDate]) {
-        markers[selectedDate] = {
-          ...markers[selectedDate],
-          selected: true,
-          selectedColor: '#4F46E5',
-          selectedTextColor: '#FFFFFF',
-        };
-      } else {
-        // If no events on selected date
-        markers[selectedDate] = {
-          selected: true,
-          selectedColor: '#4F46E5',
-          selectedTextColor: '#FFFFFF',
-        };
-      }
-    }
+    console.log('Total calendar markers created:', Object.keys(markers).length);
+    console.log('=== END CALENDAR MARKING DEBUG ===');
     
     return markers;
   }, [events, selectedDate]);
 
   // Filter events for the selected date
   const selectedDateEvents = useMemo(() => {
-    return events
-      .filter(event => {
-        const eventDate = event.start_time.split('T')[0];
-        return eventDate === selectedDate;
-      })
-      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+    const selectedEvents: any[] = [];
+    
+    console.log('=== SELECTED DATE EVENTS DEBUG ===');
+    console.log('Selected date:', selectedDate);
+    console.log('Total events to check:', events.length);
+    
+    events.forEach((event, index) => {
+      console.log(`Checking event ${index + 1}:`, {
+        id: event.id,
+        title: event.title,
+        is_recurring: event.is_recurring,
+        recurrence_pattern: event.recurrence_pattern,
+        start_time: event.start_time
+      });
+      
+      // Handle regular events
+      const eventDate = event.start_time.split('T')[0];
+      if (eventDate === selectedDate) {
+        selectedEvents.push(event);
+        console.log(`✅ Added regular event: ${event.title}`);
+      }
+      
+      // Handle recurring events - generate occurrences for the selected date
+      if (event.is_recurring && event.recurrence_pattern) {
+        console.log('🔄 Processing recurring event for selected date:', event.title);
+        
+        const recurringStartDate = new Date(event.start_time);
+        const recurringEndDate = event.recurrence_end_date 
+          ? new Date(event.recurrence_end_date) 
+          : new Date(recurringStartDate.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year default
+        
+        // Generate recurring occurrences
+        let currentOccurrence = new Date(recurringStartDate);
+        let occurrenceCount = 0;
+        
+        while (currentOccurrence <= recurringEndDate && occurrenceCount < 100) {
+          const occurrenceDate = currentOccurrence.toISOString().split('T')[0];
+          
+          // Check if this occurrence falls on the selected date
+          if (occurrenceDate === selectedDate) {
+            // Create a copy of the event for this occurrence
+            const occurrenceEvent = {
+              ...event,
+              id: `${event.id}_${occurrenceCount}`,
+              start_time: `${occurrenceDate}T${recurringStartDate.toTimeString().split(' ')[0]}`,
+              end_time: `${occurrenceDate}T${new Date(event.end_time).toTimeString().split(' ')[0]}`,
+            };
+            
+            selectedEvents.push(occurrenceEvent);
+            console.log(`✅ Found recurring occurrence for ${event.title} on ${selectedDate}`);
+          }
+          
+          occurrenceCount++;
+          
+          // Calculate next occurrence based on pattern
+          const pattern = event.recurrence_pattern.toLowerCase();
+          switch (pattern) {
+            case 'daily':
+              currentOccurrence.setDate(currentOccurrence.getDate() + 1);
+              break;
+            case 'weekly':
+              currentOccurrence.setDate(currentOccurrence.getDate() + 7);
+              break;
+            case 'bi-weekly':
+            case 'biweekly':
+              currentOccurrence.setDate(currentOccurrence.getDate() + 14);
+              break;
+            case 'monthly':
+              currentOccurrence.setMonth(currentOccurrence.getMonth() + 1);
+              break;
+            case 'quarterly':
+              currentOccurrence.setMonth(currentOccurrence.getMonth() + 3);
+              break;
+            case 'semi-annually':
+              currentOccurrence.setMonth(currentOccurrence.getMonth() + 6);
+              break;
+            case 'annually':
+            case 'yearly':
+              currentOccurrence.setFullYear(currentOccurrence.getFullYear() + 1);
+              break;
+            default:
+              currentOccurrence.setDate(currentOccurrence.getDate() + 1);
+          }
+        }
+      }
+    });
+    
+    const sortedEvents = selectedEvents.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+    
+    console.log('Final selected date events:', sortedEvents.length);
+    sortedEvents.forEach(event => {
+      console.log(`📅 Event on ${selectedDate}:`, event.title, event.is_recurring ? '(Recurring)' : '');
+    });
+    console.log('=== END SELECTED DATE EVENTS DEBUG ===');
+    
+    return sortedEvents;
   }, [events, selectedDate]);
 
   // Calendar theme customization
-  const calendarTheme = getCalendarTheme();
+  const calendarTheme = getCalendarTheme(colors);
 
   const handleDayPress = (day: DateData) => {
     setSelectedDate(day.dateString);
@@ -137,14 +315,14 @@ export default function CalendarScreen() {
   const renderHeader = () => (
     <View style={styles.header}>
       <View style={styles.headerLeft}>
-        <Text style={styles.title}>Calendar</Text>
-        <Text style={styles.subtitle}>Manage your events</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Calendar</Text>
+        <Text style={[styles.subtitle, { color: colors.textTertiary }]}>Manage your events</Text>
       </View>
       <TouchableOpacity 
-        style={styles.addButton}
+        style={[styles.addButton, { backgroundColor: colors.primary }]}
         onPress={() => router.push('/calendar/add')}
       >
-        <Ionicons name="add" size={24} color="#FFFFFF" />
+        <Ionicons name="add" size={24} color={colors.textInverse} />
       </TouchableOpacity>
     </View>
   );
@@ -155,7 +333,11 @@ export default function CalendarScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 80 }]}>
+    <View style={[styles.container, { 
+      backgroundColor: colors.background, 
+      paddingTop: insets.top, 
+      paddingBottom: insets.bottom + 80 
+    }]}>
       {renderHeader()}
       <CalendarViewToggle currentView={calendarView} onViewChange={handleViewChange} />
 
@@ -170,7 +352,6 @@ export default function CalendarScreen() {
         />
       ) : (
         <CalendarAgendaView
-          events={events}
           refreshing={refreshing}
           onRefresh={onRefresh}
           onDeletePress={handleDeletePress}
@@ -191,7 +372,6 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
@@ -206,21 +386,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#111827',
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
   },
   addButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#4F46E5',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#4F46E5',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

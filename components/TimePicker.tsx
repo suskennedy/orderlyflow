@@ -10,6 +10,7 @@ import {
     TouchableWithoutFeedback,
     View,
 } from 'react-native';
+import { useTheme } from '../lib/contexts/ThemeContext';
 
 interface TimePickerProps {
   label: string;
@@ -30,6 +31,7 @@ export default function TimePicker({
   isOptional = false,
   testID,
 }: TimePickerProps) {
+  const { colors } = useTheme();
   const [showTimePicker, setShowTimePicker] = useState(false);
   
   // Parse the time string into a Date object, default to now if not valid
@@ -89,13 +91,13 @@ export default function TimePicker({
           <TouchableWithoutFeedback onPress={() => setShowTimePicker(false)}>
             <View style={styles.modalOverlay}>
               <TouchableWithoutFeedback>
-                <View style={styles.modalContent}>
-                  <View style={styles.modalHeader}>
+                <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                  <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
                     <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                      <Text style={styles.modalCancel}>Cancel</Text>
+                      <Text style={[styles.modalCancel, { color: colors.primary }]}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                      <Text style={styles.modalDone}>Done</Text>
+                      <Text style={[styles.modalDone, { color: colors.primary }]}>Done</Text>
                     </TouchableOpacity>
                   </View>
                   <DateTimePicker
@@ -104,7 +106,7 @@ export default function TimePicker({
                     mode="time"
                     display="spinner"
                     onChange={handleChange}
-                    style={styles.timePicker}
+                    style={[styles.timePicker, { backgroundColor: colors.surface }]}
                   />
                 </View>
               </TouchableWithoutFeedback>
@@ -127,17 +129,23 @@ export default function TimePicker({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>
+      <Text style={[styles.label, { color: colors.textSecondary }]}>
         {label}
-        {isOptional && <Text style={styles.optional}> (Optional)</Text>}
+        {isOptional && <Text style={[styles.optional, { color: colors.textTertiary }]}> (Optional)</Text>}
       </Text>
       
       <TouchableOpacity
-        style={styles.timeButton}
+        style={[styles.timeButton, { 
+          backgroundColor: colors.surface,
+          borderColor: colors.border 
+        }]}
         onPress={() => setShowTimePicker(true)}
         testID={testID}
       >
-        <Text style={value ? styles.timeText : styles.placeholder}>
+        <Text style={[
+          value ? styles.timeText : styles.placeholder,
+          { color: value ? colors.text : colors.textTertiary }
+        ]}>
           {value ? formatDisplayTime(value) : placeholder}
         </Text>
         <View style={styles.iconContainer}>
@@ -147,14 +155,14 @@ export default function TimePicker({
               onPress={handleClear}
               hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
             >
-              <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+              <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
             </TouchableOpacity>
           )}
-          <Ionicons name="time-outline" size={20} color="#6B7280" />
+          <Ionicons name="time-outline" size={20} color={colors.textTertiary} />
         </View>
       </TouchableOpacity>
       
-      {helperText && <Text style={styles.helperText}>{helperText}</Text>}
+      {helperText && <Text style={[styles.helperText, { color: colors.textTertiary }]}>{helperText}</Text>}
       
       {renderTimePicker()}
     </View>
@@ -168,30 +176,24 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
     marginBottom: 8,
   },
   optional: {
     fontWeight: '400',
-    color: '#6B7280',
   },
   timeButton: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
     borderRadius: 8,
     padding: 14,
-    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   timeText: {
     fontSize: 16,
-    color: '#111827',
   },
   placeholder: {
     fontSize: 16,
-    color: '#9CA3AF',
   },
   iconContainer: {
     flexDirection: 'row',
@@ -202,7 +204,6 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 12,
-    color: '#6B7280',
     marginTop: 4,
   },
   modalOverlay: {
@@ -211,7 +212,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     paddingBottom: Platform.OS === 'ios' ? 40 : 20,
@@ -221,20 +221,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   modalCancel: {
     fontSize: 16,
-    color: '#4F46E5',
     fontWeight: '500',
   },
   modalDone: {
     fontSize: 16,
-    color: '#4F46E5',
     fontWeight: '600',
   },
   timePicker: {
-    backgroundColor: '#FFFFFF',
     height: 200,
   },
 });
