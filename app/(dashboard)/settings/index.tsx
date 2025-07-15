@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ThemeSwitcher from '../../../components/ui/ThemeSwitcher';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
@@ -11,8 +12,14 @@ export default function SettingsScreen() {
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+      >
+        <Ionicons name="arrow-back" size={24} color={colors.text} />
+      </TouchableOpacity>
       <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
-      <Text style={[styles.subtitle, { color: colors.textTertiary }]}>Customize your app</Text>
+      <View style={{ width: 40 }} />
     </View>
   );
 
@@ -94,6 +101,126 @@ export default function SettingsScreen() {
     </View>
   );
 
+  const renderNotificationsSection = () => (
+    <View style={[styles.section, { backgroundColor: colors.surface }]}>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Notifications</Text>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="notifications-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>Push Notifications</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="mail-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>Email Notifications</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="calendar-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>Calendar Reminders</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="warning-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>Task Due Date Alerts</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderBillingSection = () => (
+    <View style={[styles.section, { backgroundColor: colors.surface }]}>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Billing & Subscription</Text>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="card-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>Payment Methods</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="receipt-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>Billing History</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="star-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>Upgrade Plan</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="business-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>Tax Information</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderSecuritySection = () => (
+    <View style={[styles.section, { backgroundColor: colors.surface }]}>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Security</Text>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="lock-closed-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>Change Password</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="shield-checkmark-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>Two-Factor Authentication</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="key-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>API Keys</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="shield-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>Privacy Settings</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderUsersSection = () => (
+    <View style={[styles.section, { backgroundColor: colors.surface }]}>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Users & Team</Text>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="people-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>Team Members</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="person-add-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>Invite Users</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="settings-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>User Permissions</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.menuItem}>
+        <Ionicons name="log-out-outline" size={20} color={colors.text} />
+        <Text style={[styles.menuItemText, { color: colors.text }]}>Manage Sessions</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+    </View>
+  );
+
   const renderInfoSection = () => (
     <View style={[styles.section, { backgroundColor: colors.surface }]}>
       <Text style={[styles.sectionTitle, { color: colors.text }]}>App Information</Text>
@@ -119,14 +246,20 @@ export default function SettingsScreen() {
     <View style={[styles.container, { 
       backgroundColor: colors.background,
       paddingTop: insets.top,
-      paddingBottom: insets.bottom + 80
+      paddingBottom: insets.bottom
     }]}>
       {renderHeader()}
       
-      <View style={styles.content}>
-        {renderThemeSection()}
-        {renderInfoSection()}
-      </View>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
+          {renderThemeSection()}
+          {renderNotificationsSection()}
+          {renderBillingSection()}
+          {renderSecuritySection()}
+          {renderUsersSection()}
+          {renderInfoSection()}
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -136,20 +269,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 4,
+  backButton: {
+    padding: 8,
   },
-  subtitle: {
-    fontSize: 16,
+  title: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
-    flex: 1,
     padding: 20,
     gap: 20,
   },
@@ -201,6 +338,19 @@ const styles = StyleSheet.create({
   themeOptionText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+    flex: 1,
+    marginLeft: 12,
   },
   infoItem: {
     flexDirection: 'row',

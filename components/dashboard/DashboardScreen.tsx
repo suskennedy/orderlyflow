@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalendar } from '../../lib/contexts/CalendarContext';
@@ -21,7 +21,6 @@ import { useVendors } from '../../lib/contexts/VendorsContext';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import { CalendarEvent } from '../../types/database';
-import ThemeSwitcher from '../ui/ThemeSwitcher';
 
 interface Task {
   id: string;
@@ -326,6 +325,41 @@ export default function DashboardScreen() {
     </View>
   );
 
+  const renderHeader = () => (
+    <View style={[styles.header, { 
+      backgroundColor: colors.surface,
+      borderBottomColor: colors.border 
+    }]}>
+      <View style={styles.headerLeft}>
+        <Text style={[styles.appTitle, { color: colors.text }]}>OrderlyFlow</Text>
+        <Text style={[styles.appSubtitle, { color: colors.textTertiary }]}>Property Management</Text>
+      </View>
+      
+      <View style={styles.headerRight}>
+        <TouchableOpacity
+          style={[styles.headerButton, { backgroundColor: colors.surfaceVariant }]}
+          onPress={() => router.push('/(dashboard)/notifications')}
+        >
+          <Ionicons name="notifications-outline" size={20} color={colors.text} />
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.headerButton, { backgroundColor: colors.surfaceVariant }]}
+          onPress={() => router.push('/(dashboard)/profile')}
+        >
+          <Ionicons name="person-outline" size={20} color={colors.text} />
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.headerButton, { backgroundColor: colors.surfaceVariant }]}
+          onPress={() => router.push('/(dashboard)/settings')}
+        >
+          <Ionicons name="settings-outline" size={20} color={colors.text} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   // Check if any context is still loading
   const isLoading = homesLoading || tasksLoading || eventsLoading || vendorsLoading || inventoryLoading;
 
@@ -339,41 +373,29 @@ export default function DashboardScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingBottom: insets.bottom + 90 }]}>
-      <View style={[styles.header, { 
-        paddingTop: insets.top + 20,
-        backgroundColor: colors.surface,
-        borderBottomColor: colors.border
-      }]}>
-        <View>
-          <Text style={[styles.greeting, { color: colors.textTertiary }]}>
-            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}
-          </Text>
-          <Text style={[styles.username, { color: colors.text }]}>{user?.email?.split('@')[0] || 'User'}</Text>
-        </View>
-        <View style={styles.headerRight}>
-          <ThemeSwitcher size="small" showLabel={false} />
-          <TouchableOpacity style={styles.profileButton}>
-            <Ionicons name="person-circle-outline" size={32} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
+    <View style={[styles.container, { 
+      backgroundColor: colors.background,
+      paddingTop: insets.top,
+      paddingBottom: insets.bottom + 80
+    }]}>
+      {renderHeader()}
+      
       <ScrollView
-        style={styles.content}
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
+          <RefreshControl
+            refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.primary}
             colors={[colors.primary]}
           />
         }
-        showsVerticalScrollIndicator={false}
       >
-        {renderStatistics()}
-        {renderQuickActions()}
-        {renderRecentActivity()}
+        <View style={styles.content}>
+          {renderStatistics()}
+          {renderQuickActions()}
+          {renderRecentActivity()}
+        </View>
       </ScrollView>
     </View>
   );
@@ -406,26 +428,35 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+  headerLeft: {
+    flex: 1,
   },
-  greeting: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  username: {
+  appTitle: {
     fontSize: 24,
     fontWeight: '700',
-    marginTop: 4,
-    textTransform: 'capitalize',
+    marginBottom: 2,
   },
-  profileButton: {
-    padding: 4,
+  appSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
-    flex: 1,
+    padding: 20,
+    gap: 20,
   },
   sectionTitle: {
     fontSize: 20,

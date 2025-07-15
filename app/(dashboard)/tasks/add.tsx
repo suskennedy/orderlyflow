@@ -3,20 +3,21 @@ import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import DatePicker from '../../../components/DatePicker';
 import { useTasks } from '../../../lib/contexts/TasksContext';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { supabase } from '../../../lib/supabase';
 
@@ -41,6 +42,7 @@ interface Home {
 export default function AddTaskScreen() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const { addTask } = useTasks();
+  const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
   const [homes, setHomes] = useState<Home[]>([]);
   
@@ -377,64 +379,78 @@ export default function AddTaskScreen() {
 
   return (
     <KeyboardAvoidingView 
-      style={styles.container} 
+      style={[styles.container, { backgroundColor: colors.background }]} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { 
+        backgroundColor: colors.surface,
+        borderBottomColor: colors.border 
+      }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Add New Task</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Add New Task</Text>
         <TouchableOpacity
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+          style={[styles.saveButton, { backgroundColor: colors.primary }, loading && { opacity: 0.6 }]}
           onPress={handleSave}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={colors.textInverse} />
           ) : (
-            <Text style={styles.saveButtonText}>Save</Text>
+            <Text style={[styles.saveButtonText, { color: colors.textInverse }]}>Save</Text>
           )}
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Task Details</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Task Details</Text>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Task Title *</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Task Title *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { 
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                color: colors.text
+              }]}
               placeholder="e.g., Fix leaky faucet in kitchen"
               value={formData.title}
               onChangeText={(text) => setFormData({ ...formData, title: text })}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
             />
           </View>
           
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Description</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Description</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, { 
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                color: colors.text
+              }]}
               placeholder="Detailed description of the task..."
               value={formData.description}
               onChangeText={(text) => setFormData({ ...formData, description: text })}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
               multiline
               numberOfLines={3}
             />
           </View>
           
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Category</Text>
-            <View style={styles.pickerContainer}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Category</Text>
+            <View style={[styles.pickerContainer, { 
+              backgroundColor: colors.surface,
+              borderColor: colors.border 
+            }]}>
               <Picker
                 selectedValue={formData.category}
                 onValueChange={(itemValue) => setFormData({ ...formData, category: itemValue })}
-                style={styles.picker}
+                style={[styles.picker, { color: colors.text }]}
               >
                 <Picker.Item label="Select a category..." value="" />
                 {TASK_CATEGORIES.map((category) => (
@@ -445,16 +461,19 @@ export default function AddTaskScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Task Settings</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Task Settings</Text>
           <View style={styles.row}>
             <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Priority</Text>
-              <View style={styles.pickerContainer}>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Priority</Text>
+              <View style={[styles.pickerContainer, { 
+                backgroundColor: colors.surface,
+                borderColor: colors.border 
+              }]}>
                 <Picker
                   selectedValue={formData.priority}
                   onValueChange={(itemValue) => setFormData({ ...formData, priority: itemValue })}
-                  style={styles.picker}
+                  style={[styles.picker, { color: colors.text }]}
                 >
                   {TASK_PRIORITIES.map((priority) => (
                     <Picker.Item key={priority} label={priority} value={priority} />
@@ -463,12 +482,15 @@ export default function AddTaskScreen() {
               </View>
             </View>
             <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
-              <Text style={styles.label}>Status</Text>
-              <View style={styles.pickerContainer}>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Status</Text>
+              <View style={[styles.pickerContainer, { 
+                backgroundColor: colors.surface,
+                borderColor: colors.border 
+              }]}>
                 <Picker
                   selectedValue={formData.status}
                   onValueChange={(itemValue) => setFormData({ ...formData, status: itemValue })}
-                  style={styles.picker}
+                  style={[styles.picker, { color: colors.text }]}
                 >
                   {TASK_STATUSES.map((status) => (
                     <Picker.Item key={status} label={status} value={status} />
@@ -490,12 +512,15 @@ export default function AddTaskScreen() {
           </View>
           
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Assign to Home</Text>
-            <View style={styles.pickerContainer}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Assign to Home</Text>
+            <View style={[styles.pickerContainer, { 
+              backgroundColor: colors.surface,
+              borderColor: colors.border 
+            }]}>
               <Picker
                 selectedValue={formData.home_id}
                 onValueChange={(itemValue) => setFormData({ ...formData, home_id: itemValue })}
-                style={styles.picker}
+                style={[styles.picker, { color: colors.text }]}
               >
                 <Picker.Item label="Select a home..." value="" />
                 {homes.map((home) => (
@@ -506,27 +531,30 @@ export default function AddTaskScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recurring Task</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recurring Task</Text>
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Make this a recurring task</Text>
+            <Text style={[styles.switchLabel, { color: colors.textSecondary }]}>Make this a recurring task</Text>
             <Switch
               value={formData.is_recurring}
               onValueChange={(value) => setFormData({ ...formData, is_recurring: value })}
-              trackColor={{ false: '#D1D5DB', true: '#4F46E5' }}
-              thumbColor={formData.is_recurring ? '#FFFFFF' : '#F3F4F6'}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={formData.is_recurring ? colors.textInverse : colors.surface}
             />
           </View>
           
           {formData.is_recurring && (
             <>
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Recurrence Pattern</Text>
-                <View style={styles.pickerContainer}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Recurrence Pattern</Text>
+                <View style={[styles.pickerContainer, { 
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border 
+                }]}>
                   <Picker
                     selectedValue={formData.recurrence_pattern}
                     onValueChange={(itemValue) => setFormData({ ...formData, recurrence_pattern: itemValue })}
-                    style={styles.picker}
+                    style={[styles.picker, { color: colors.text }]}
                   >
                     <Picker.Item label="Select a recurrence pattern..." value="" />
                     <Picker.Item label="Daily" value="Daily" />
@@ -554,15 +582,19 @@ export default function AddTaskScreen() {
           )}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Additional Notes</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Additional Notes</Text>
           <View style={styles.inputGroup}>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, { 
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                color: colors.text
+              }]}
               placeholder="Any additional notes, instructions, or reminders..."
               value={formData.notes}
               onChangeText={(text) => setFormData({ ...formData, notes: text })}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
               multiline
               numberOfLines={4}
             />
@@ -578,7 +610,6 @@ export default function AddTaskScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   header: {
     flexDirection: 'row',
@@ -586,10 +617,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
     paddingTop: Platform.OS === 'ios' ? 60 : 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   backButton: {
     padding: 8,
@@ -598,24 +632,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111827',
     flex: 1,
     textAlign: 'center',
     marginHorizontal: 16,
   },
   saveButton: {
-    backgroundColor: '#4F46E5',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
     minWidth: 70,
     alignItems: 'center',
   },
-  saveButtonDisabled: {
-    opacity: 0.6,
-  },
   saveButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -623,7 +651,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    backgroundColor: '#FFFFFF',
     marginHorizontal: 20,
     marginTop: 20,
     borderRadius: 12,
@@ -637,7 +664,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 16,
   },
   inputGroup: {
@@ -646,17 +672,13 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
     borderRadius: 8,
     padding: 14,
     fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#FFFFFF',
   },
   textArea: {
     height: 80,
@@ -664,12 +686,13 @@ const styles = StyleSheet.create({
   },
   pickerContainer: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
   },
   picker: {
     height: 50,
+    backgroundColor: 'transparent',
+    color: '#000000', // Fallback color for better visibility
   },
   row: {
     flexDirection: 'row',
@@ -684,7 +707,6 @@ const styles = StyleSheet.create({
   switchLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#374151',
     flex: 1,
   },
   bottomSpacing: {
