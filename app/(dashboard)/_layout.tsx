@@ -182,6 +182,7 @@ export default function DashboardLayout() {
                 
                 {/* Hide profile and notifications from tab bar */}
                 <Tabs.Screen name="profile/index" options={{ href: null }} />
+                <Tabs.Screen name="profile/edit" options={{ href: null }} />
                 <Tabs.Screen name="notifications/index" options={{ href: null }} />
               </Tabs>
             </InventoryProvider>

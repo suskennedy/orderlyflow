@@ -1,15 +1,77 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
+import { supabase } from '../../../lib/supabase';
+
+interface ProfileData {
+  full_name: string | null;
+  display_name: string | null;
+  bio: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+}
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
   const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadProfileData = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      setLoading(true);
+      console.log('Loading profile data for user:', user.id);
+
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading profile:', error);
+        return;
+      }
+
+      if (data) {
+        console.log('Profile data loaded:', data);
+        setProfileData({
+          full_name: data.full_name,
+          display_name: data.display_name,
+          bio: data.bio,
+          phone: data.phone,
+          avatar_url: data.avatar_url,
+        });
+      } else {
+        console.log('No profile data found, using defaults');
+        setProfileData({
+          full_name: null,
+          display_name: null,
+          bio: null,
+          phone: null,
+          avatar_url: null,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
+
+  // Refresh profile data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadProfileData();
+    }, [loadProfileData])
+  );
 
   const renderHeader = () => (
     <View style={[styles.header, { 
@@ -32,9 +94,16 @@ export default function ProfileScreen() {
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Contact Information</Text>
       
       <View style={styles.infoItem}>
-        <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Name</Text>
+        <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Full Name</Text>
         <Text style={[styles.infoValue, { color: colors.text }]}>
-          {user?.user_metadata?.full_name || 'Not set'}
+          {profileData?.full_name || 'Not set'}
+        </Text>
+      </View>
+      
+      <View style={styles.infoItem}>
+        <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Display Name</Text>
+        <Text style={[styles.infoValue, { color: colors.text }]}>
+          {profileData?.display_name || 'Not set'}
         </Text>
       </View>
       
@@ -44,13 +113,22 @@ export default function ProfileScreen() {
       </View>
       
       <View style={styles.infoItem}>
-        <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Username</Text>
+        <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Phone</Text>
         <Text style={[styles.infoValue, { color: colors.text }]}>
-          {user?.user_metadata?.username || user?.email?.split('@')[0] || 'Not set'}
+          {profileData?.phone || 'Not set'}
         </Text>
       </View>
       
-      <TouchableOpacity style={styles.editButton}>
+      {profileData?.bio && (
+        <View style={styles.infoItem}>
+          <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Bio</Text>
+          <Text style={[styles.infoValue, { color: colors.text }]}>
+            {profileData.bio}
+          </Text>
+        </View>
+      )}
+      
+      <TouchableOpacity style={styles.editButton} onPress={() => router.push('/(dashboard)/profile/edit')}>
         <Ionicons name="create-outline" size={16} color={colors.primary} />
         <Text style={[styles.editButtonText, { color: colors.primary }]}>Edit Profile</Text>
       </TouchableOpacity>
@@ -140,17 +218,26 @@ export default function ProfileScreen() {
     <View style={[styles.container, { 
       backgroundColor: colors.background,
       paddingTop: insets.top,
-      paddingBottom: insets.bottom
+      paddingBottom: insets.bottom + 80 // Add extra padding for tab bar
     }]}>
       {renderHeader()}
       
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
-          {renderProfileInfo()}
-          {renderBillingSection()}
-          {renderSecuritySection()}
-          {renderAccountSection()}
-          {renderSignOutButton()}
+          {loading ? (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={{ marginTop: 10, color: colors.textSecondary }}>Loading profile...</Text>
+            </View>
+          ) : (
+            <>
+              {renderProfileInfo()}
+              {renderBillingSection()}
+              {renderSecuritySection()}
+              {renderAccountSection()}
+              {renderSignOutButton()}
+            </>
+          )}
         </View>
       </ScrollView>
     </View>

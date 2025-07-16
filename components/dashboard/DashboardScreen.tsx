@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalendar } from '../../lib/contexts/CalendarContext';
@@ -510,7 +510,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   quickActionsContainer: {
-    paddingHorizontal: 20,
     paddingBottom: 20,
   },
   quickActionsGrid: {
@@ -545,7 +544,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   recentActivityContainer: {
-    paddingHorizontal: 20,
     paddingBottom: 20,
   },
   activitySection: {
