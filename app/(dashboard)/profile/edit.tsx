@@ -155,42 +155,25 @@ export default function EditProfileScreen() {
 
     try {
       setUploadingAvatar(true);
+      console.log('Uploading avatar:', uri);
 
-      // Convert URI to blob
-      const response = await fetch(uri);
-      const blob = await response.blob();
-
-      // Upload to Supabase storage in the avatars folder
       const fileName = `avatar-${user.id}-${Date.now()}.jpg`;
       const filePath = `avatars/${fileName}`;
       
-      console.log('Attempting to upload avatar:', filePath);
+      // Simple fetch and upload
+      const response = await fetch(uri);
+      const blob = await response.blob();
       
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('profiles')
         .upload(filePath, blob, {
           contentType: 'image/jpeg',
-          upsert: true, // Add upsert to overwrite existing files
+          upsert: true,
         });
 
       if (uploadError) {
         console.error('Upload error:', uploadError);
-        
-        // If storage fails, show option to continue without avatar
-        Alert.alert(
-          'Storage Error', 
-          'Unable to upload avatar. Storage bucket may not be configured. Would you like to continue without avatar?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { 
-              text: 'Continue', 
-              onPress: () => {
-                console.log('Continuing without avatar upload');
-                setUploadingAvatar(false);
-              }
-            }
-          ]
-        );
+        Alert.alert('Upload Failed', uploadError.message);
         return;
       }
 
@@ -201,10 +184,9 @@ export default function EditProfileScreen() {
         .from('profiles')
         .getPublicUrl(filePath);
 
-      console.log('Public URL:', urlData.publicUrl);
       setAvatarUrl(urlData.publicUrl);
 
-      // Update profile with new avatar URL
+      // Update profile
       const { error: profileError } = await supabase
         .from('user_profiles')
         .upsert({
@@ -215,38 +197,15 @@ export default function EditProfileScreen() {
 
       if (profileError) {
         console.error('Profile update error:', profileError);
-        throw profileError;
+        Alert.alert('Error', 'Failed to save avatar URL to profile');
+        return;
       }
 
-      console.log('Avatar URL saved to profile');
       Alert.alert('Success', 'Avatar uploaded successfully!');
 
     } catch (error) {
       console.error('Error uploading avatar:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      // Provide more specific error messages
-      if (errorMessage.includes('Network request failed')) {
-        Alert.alert(
-          'Network Error', 
-          'Unable to connect to Supabase storage. Please check:\n\n1. Your internet connection\n2. Supabase project URL and API key\n3. Storage bucket permissions',
-          [{ text: 'OK' }]
-        );
-      } else if (errorMessage.includes('Forbidden') || errorMessage.includes('Unauthorized')) {
-        Alert.alert(
-          'Permission Error', 
-          'You do not have permission to upload to this storage bucket. Please check:\n\n1. RLS policies are configured correctly\n2. User is properly authenticated\n3. Storage bucket permissions',
-          [{ text: 'OK' }]
-        );
-      } else if (errorMessage.includes('Bucket not found')) {
-        Alert.alert(
-          'Bucket Not Found', 
-          'The "profiles" bucket does not exist. Please create it in your Supabase dashboard under Storage.',
-          [{ text: 'OK' }]
-        );
-      } else {
-        Alert.alert('Error', `Failed to upload avatar: ${errorMessage}`);
-      }
+      Alert.alert('Error', 'Failed to upload avatar. Please try again.');
     } finally {
       setUploadingAvatar(false);
     }
@@ -332,7 +291,7 @@ export default function EditProfileScreen() {
         <View style={[styles.avatar, { backgroundColor: colors.surfaceVariant }]}>
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-          ) : (
+          ) : ( 
             <Ionicons name="person" size={40} color={colors.textTertiary} />
           )}
           {uploadingAvatar && (
