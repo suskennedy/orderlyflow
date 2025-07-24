@@ -1,21 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { AppState, Platform } from 'react-native'
+import 'react-native-url-polyfill/auto'
 import { Database } from '../supabase'
 
-// `react-native-url-polyfill/auto` is required at the top-level to make
-// Node.js URL APIs available in React Native environments.
-import 'react-native-url-polyfill/auto'
 
-// IMPORTANT: the extra trailing space at the end of the URL was breaking
-// requests made by the Supabase client.  Removing it prevents subtle
-// "Invalid URL" or networking errors at runtime.
-
-const supabaseUrl = 'https://ejgifuogadturszndnfo.supabase.co'
+const supabaseUrl =  'https://bdseoponzbedfpkpacqd.supabase.co'
 const supabaseAnonKey =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqZ2lmdW9nYWR0dXJzem5kbmZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc1MDUzMjIsImV4cCI6MjA2MzA4MTMyMn0.tYMDIK2DpQq21o6Wlic7tFp4ODPg7JdP7_ikjUs4sOE'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkc2VvcG9uemJlZGZwa3BhY3FkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NTMzNDEsImV4cCI6MjA2NTIyOTM0MX0.LWHvhHhq6zxqGOiUDoSAmSq1BocHFrJV0lqVCGUekC8'
 
-// Create web-compatible storage that handles SSR
+console.log('🔗 Supabase URL:', supabaseUrl)
+console.log('🏠 Environment:', supabaseUrl.includes('127.0.0.1') ? 'LOCAL' : 'PRODUCTION')
+
 const createWebStorage = () => {
   return {
     getItem: async (key: string): Promise<string | null> => {
@@ -37,7 +33,6 @@ const createWebStorage = () => {
   }
 }
 
-// Use appropriate storage based on platform and environment
 const getStorage = () => {
   if (Platform.OS === 'web') {
     return createWebStorage()

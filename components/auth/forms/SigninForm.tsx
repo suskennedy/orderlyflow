@@ -157,7 +157,7 @@ export default function SignInForm() {
         />
         
         <LinkButton
-          text="Don't have an account? "
+          title="Don't have an account?"
           linkText="Sign up"
           onPress={() => navigate.toSignUp()}
         />

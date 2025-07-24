@@ -27,7 +27,6 @@ export async function signUp(email: string, password: string, fullName: string) 
   if (data.user) {
     await createUserProfile(data.user.id, {
       full_name: fullName,
-      email: data.user.email || '',
       display_name: userName,
       notification_email: true,
       notification_push: false,

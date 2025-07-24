@@ -4,7 +4,7 @@ import { useRealTimeSubscription } from '../hooks/useRealTimeSubscription';
 import { supabase } from '../supabase';
 
 // Define the Home interface
-interface Home {
+export interface Home {
   id: string;
   name: string;
   address?: string | null;
@@ -18,16 +18,18 @@ interface Home {
   purchase_date?: string | null;
   notes?: string | null;
   user_id?: string | null;
+  image_url?: string | null;
 }
 
 interface HomesContextType {
   homes: Home[];
   loading: boolean;
   refreshing: boolean;
-  addHome: (home: Home) => void;
+  createHome: (homeData: Omit<Home, 'id' | 'user_id'>) => Promise<void>;
   updateHome: (homeId: string, updates: Partial<Home>) => Promise<void>;
   deleteHome: (homeId: string) => Promise<void>;
   onRefresh: () => Promise<void>;
+  getHomeById: (homeId?: string) => Home | undefined;
 }
 
 const HomesContext = createContext<HomesContextType | undefined>(undefined);
@@ -116,10 +118,28 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
     }
   }, [user, fetchHomes]);
 
-  // Add a new home
-  const addHome = (home: Home) => {
-    // Add locally for immediate UI update (the subscription will sync with server)
-    setHomes(current => [...current, home]);
+  const getHomeById = (homeId?: string) => {
+    if (!homeId) return undefined;
+    return homes.find(home => home.id === homeId);
+  };
+
+  // Create a new home
+  const createHome = async (homeData: Omit<Home, 'id' | 'user_id'>) => {
+    if (!user) throw new Error('User is not authenticated');
+    try {
+      const { data, error } = await supabase
+        .from('homes')
+        .insert([{ ...homeData, user_id: user.id }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setHomes(current => [...current, data]);
+    } catch (error) {
+      console.error('Error creating home:', error);
+      throw error;
+    }
   };
 
   // Update an existing home
@@ -174,10 +194,11 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
     homes,
     loading,
     refreshing,
-    addHome,
+    createHome,
     updateHome,
     deleteHome,
     onRefresh,
+    getHomeById,
   };
 
   return (

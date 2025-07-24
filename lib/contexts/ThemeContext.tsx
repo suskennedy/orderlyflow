@@ -65,11 +65,11 @@ const lightColors: ThemeColors = {
   border: '#E5E7EB',
   borderLight: '#F3F4F6',
   
-  // Interactive colors
-  primary: '#4F46E5',
-  primaryLight: '#DBEAFE',
-  secondary: '#059669',
-  accent: '#DC2626',
+  // Interactive colors - Updated to match the new color scheme
+  primary: '#7fbbdd', // Medium blue for primary elements
+  primaryLight: '#c4e9f2', // Light blue for backgrounds and highlights
+  secondary: '#f58b05', // Orange for category headers and accents
+  accent: '#ffc22f', // Yellow for additional accents
   
   // Status colors
   success: '#10B981',

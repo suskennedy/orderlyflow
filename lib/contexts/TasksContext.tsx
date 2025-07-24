@@ -21,6 +21,16 @@ export interface TaskItem {
   created_at: string | null;
   updated_at?: string | null;
   user_id: string | null;
+  // New fields for the redesign
+  frequency?: string | null;
+  attach_user?: boolean | null;
+  attach_vendor?: boolean | null;
+  suggested_replace?: string | null;
+  start_date?: string | null;
+  vendor_id?: string | null;
+  assigned_user_id?: string | null;
+  estimated_duration?: number | null;
+  is_project?: boolean | null;
   homes?: {
     name: string;
   } | null;

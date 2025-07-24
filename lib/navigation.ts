@@ -3,23 +3,23 @@ import { router } from 'expo-router';
 // Type-safe navigation helper with only current functionality
 export const navigate = {
   // Auth routes
-  toSignIn: () => router.push('/(auth)/signin' as any),
-  toSignUp: () => router.push('/(auth)/signup' as any),
-  toForgotPassword: () => router.push('/(auth)/forgot-password' as any),
+  toSignIn: () => router.push('/(auth)/signin'),
+  toSignUp: () => router.push('/(auth)/signup'),
+  toForgotPassword: () => router.push('/(auth)/forgot-password'),
   
   // Dashboard routes - using the correct route group structure
-  toDashboard: () => router.replace('/(dashboard)' as any),
-  toHomes: () => router.replace('/(dashboard)/homes' as any),
-  toVendors: () => router.replace('/(dashboard)/vendors' as any),
-  toTasks: () => router.push('/(dashboard)/tasks' as any),
-  toInventory: () => router.push('/(dashboard)/inventory' as any),
-  toCalendar: () => router.push('/(dashboard)/calendar' as any),
-  toSettings: () => router.push('/(dashboard)/settings' as any),
+  toDashboard: () => router.replace('/(dashboard)'),
+  toHomes: () => router.replace('/(dashboard)/homes'),
+  toVendors: () => router.replace('/(dashboard)/vendors'),
+  toTasks: () => router.push('/(dashboard)/tasks'),
+  toInventory: () => router.push('/(dashboard)/inventory'),
+  toCalendar: () => router.push('/(dashboard)/calendar'),
+  toSettings: () => router.push('/(dashboard)/settings'),
   
   // Generic navigation
   back: () => router.back(),
   canGoBack: () => router.canGoBack(),
-  replace: (route: string) => router.replace(route as any),
+  replace: (route: string) => router.replace(route),
 };
 
 export default navigate; 
