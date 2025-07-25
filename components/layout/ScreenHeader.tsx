@@ -12,6 +12,8 @@ interface ScreenHeaderProps {
   onAddPress?: () => void;
   showBackButton?: boolean;
   onBackPress?: () => void;
+  showHomeButton?: boolean;
+  showDecorativeIcons?: boolean;
 }
 
 export default function ScreenHeader({
@@ -21,6 +23,8 @@ export default function ScreenHeader({
   onAddPress,
   showBackButton = false,
   onBackPress,
+  showHomeButton = false,
+  showDecorativeIcons = false,
 }: ScreenHeaderProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -33,11 +37,15 @@ export default function ScreenHeader({
     }
   };
 
+  const handleHomePress = () => {
+    router.push('/(home)');
+  };
+
   return (
     <View style={[
       styles.header,
       {
-        paddingTop: paddingTop || insets.top + 20,
+        paddingTop: paddingTop || insets.top + 16,
         backgroundColor: colors.surface,
         borderBottomColor: colors.border,
       }
@@ -45,16 +53,24 @@ export default function ScreenHeader({
       <View style={styles.leftSection}>
         {showBackButton && (
           <TouchableOpacity
-            style={styles.backButton}
+            style={[styles.iconButton, { backgroundColor: colors.background }]}
             onPress={handleBackPress}
           >
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
+            <Ionicons name="arrow-back" size={20} color={colors.text} />
           </TouchableOpacity>
         )}
+        
       </View>
 
       <View style={styles.centerSection}>
-        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+        <View style={styles.titleContainer}>
+          {showDecorativeIcons && (
+            <View style={[styles.titleIcon, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="home" size={20} color={colors.primary} />
+            </View>
+          )}
+          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+        </View>
         {subtitle && (
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             {subtitle}
@@ -68,7 +84,7 @@ export default function ScreenHeader({
             style={[styles.addButton, { backgroundColor: colors.primary }]}
             onPress={onAddPress}
           >
-            <Ionicons name="add" size={24} color={colors.textInverse} />
+            <Ionicons name="add" size={20} color={colors.textInverse} />
           </TouchableOpacity>
         )}
       </View>
@@ -82,13 +98,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 20,
     borderBottomWidth: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 8,
+    position: 'relative',
+    overflow: 'hidden',
   },
   leftSection: {
     flex: 1,
@@ -102,25 +120,53 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'flex-end',
   },
-  backButton: {
-    padding: 8,
-    borderRadius: 8,
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
     textAlign: 'center',
-    marginTop: 2,
+    marginTop: 4,
+    fontWeight: '400',
   },
   addButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
 });

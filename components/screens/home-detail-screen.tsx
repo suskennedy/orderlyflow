@@ -5,10 +5,19 @@ import { ActivityIndicator, Animated, ScrollView, StyleSheet, Text, TouchableOpa
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { getHomeImageUrl } from '../../lib/utils/imageUtils';
 
 const HEADER_HEIGHT = 250;
 
-export default function   HomeDetailScreen() {
+interface MenuItem {
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  route: string;
+  description: string;
+  count?: number;
+}
+
+export default function HomeDetailScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
   const { getHomeById } = useHomes();
   const home = getHomeById(homeId);
@@ -19,18 +28,48 @@ export default function   HomeDetailScreen() {
   if (!home) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
-  const menuItems = [
-    { title: 'Home Info', icon: 'information-circle-outline' as const, route: `/(home)/${homeId}/info` },
-    { title: 'Paint Colors', icon: 'color-palette-outline' as const, route: `/(home)/${homeId}/paints` },
-    { title: 'Appliances', icon: 'hardware-chip-outline' as const, route: `/(home)/${homeId}/appliances` },
-    { title: 'Warranties', icon: 'shield-checkmark-outline' as const, route: `/(home)/${homeId}/warranties` },
-    { title: 'Materials', icon: 'build-outline' as const, route: `/(home)/${homeId}/materials` },
-    { title: 'Filters', icon: 'funnel-outline' as const, route: `/(home)/${homeId}/filters` },
+  const menuItems: MenuItem[] = [
+    { 
+      title: 'Home Info', 
+      icon: 'information-circle-outline', 
+      route: `/(home)/${homeId}/info`,
+      description: 'View and edit home details'
+    },
+    { 
+      title: 'Paint Colors', 
+      icon: 'color-palette-outline', 
+      route: `/(home)/${homeId}/paints`,
+      description: 'Manage paint colors for each room'
+    },
+    { 
+      title: 'Appliances', 
+      icon: 'hardware-chip-outline', 
+      route: `/(home)/${homeId}/appliances`,
+      description: 'Track appliances and maintenance'
+    },
+    { 
+      title: 'Warranties', 
+      icon: 'shield-checkmark-outline', 
+      route: `/(home)/${homeId}/warranties`,
+      description: 'Manage warranty information'
+    },
+    { 
+      title: 'Materials', 
+      icon: 'build-outline', 
+      route: `/(home)/${homeId}/materials`,
+      description: 'Track materials and finishes'
+    },
+    { 
+      title: 'Filters', 
+      icon: 'funnel-outline', 
+      route: `/(home)/${homeId}/filters`,
+      description: 'Manage air and water filters'
+    },
   ];
 
   const headerTranslateY = scrollY.interpolate({
@@ -51,11 +90,30 @@ export default function   HomeDetailScreen() {
     extrapolate: 'clamp',
   });
 
+  const handleScroll = (event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    scrollY.setValue(offsetY);
+  };
+
+  const handleMenuPress = (route: string) => {
+    router.push(route as any);
+  };
+
+  const handleEditHome = () => {
+    // Navigate to edit home screen (you'll need to create this)
+    router.push(`/(home)/${homeId}/edit` as any);
+  };
+
+  const handleAddUsers = () => {
+    // Navigate to add users screen (you'll need to create this)
+    router.push(`/(home)/${homeId}/users` as any);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslateY }] }]}>
         <Animated.Image 
-          source={{ uri: home.image_url || `https://media.istockphoto.com/id/2170456340/photo/neighborhood-new-homes-sunset-north-carolina-wide-angle.jpg?s=2048x2048&w=is&k=20&c=ULLZi8OEtYh13pF3MO2s3svs1m12IVoaPWTyt7dXVoQ=` }} 
+          source={{ uri: getHomeImageUrl(home.id, home.image_url, 'large') }} 
           style={[styles.image, { opacity: imageOpacity }]} 
         />
       </Animated.View>
@@ -68,27 +126,83 @@ export default function   HomeDetailScreen() {
       </Animated.View>
 
       <ScrollView
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
+        onScroll={handleScroll}
         scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        style={{ flex: 1 }}
       >
         <View style={{ marginTop: HEADER_HEIGHT }}>
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.primary }]}>
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: colors.primary }]}
+              onPress={handleEditHome}
+            >
+              <Ionicons name="create-outline" size={20} color={colors.textInverse} />
               <Text style={[styles.actionButtonText, { color: colors.textInverse }]}>Edit Home</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.actionButtonText, { color: colors.textInverse }]}>+ Add Users</Text>
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: colors.secondary }]}
+              onPress={handleAddUsers}
+            >
+              <Ionicons name="person-add-outline" size={20} color={colors.textInverse} />
+              <Text style={[styles.actionButtonText, { color: colors.textInverse }]}>Add Users</Text>
             </TouchableOpacity>
           </View>
 
+          <View style={styles.infoSection}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Home Information</Text>
+            <View style={[styles.infoCard, { backgroundColor: colors.surface }]}>
+              <View style={styles.infoRow}>
+                <Ionicons name="location-outline" size={16} color={colors.primary} />
+                <Text style={[styles.infoText, { color: colors.text }]} numberOfLines={2}>
+                  {home.address || 'Address not set'}
+                </Text>
+              </View>
+              {home.bedrooms && home.bathrooms && (
+                <View style={styles.infoRow}>
+                  <Ionicons name="bed-outline" size={16} color={colors.primary} />
+                  <Text style={[styles.infoText, { color: colors.text }]}>
+                    {home.bedrooms} bed, {home.bathrooms} bath
+                  </Text>
+                </View>
+              )}
+              {home.square_footage && (
+                <View style={styles.infoRow}>
+                  <Ionicons name="resize-outline" size={16} color={colors.primary} />
+                  <Text style={[styles.infoText, { color: colors.text }]}>
+                    {home.square_footage} sq ft
+                  </Text>
+                </View>
+              )}
+              {home.year_built && (
+                <View style={styles.infoRow}>
+                  <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                  <Text style={[styles.infoText, { color: colors.text }]}>
+                    Built in {home.year_built}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
           <View style={styles.menuContainer}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Manage Your Home</Text>
             {menuItems.map((item, index) => (
-              <TouchableOpacity key={index} style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => router.push(item.route as any)}>
-                <Ionicons name={item.icon} size={24} color={colors.primary} />
-                <Text style={[styles.menuItemText, { color: colors.text }]}>{item.title}</Text>
+              <TouchableOpacity 
+                key={index} 
+                style={[styles.menuItem, { borderBottomColor: colors.border }]} 
+                onPress={() => handleMenuPress(item.route)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIcon, { backgroundColor: colors.primaryLight }]}>
+                  <Ionicons name={item.icon} size={24} color={colors.primary} />
+                </View>
+                <View style={styles.menuContent}>
+                  <Text style={[styles.menuItemText, { color: colors.text }]}>{item.title}</Text>
+                  <Text style={[styles.menuItemDescription, { color: colors.textSecondary }]}>
+                    {item.description}
+                  </Text>
+                </View>
                 <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             ))}
@@ -137,15 +251,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     padding: 20,
+    gap: 12,
   },
   actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     borderRadius: 25,
+    flex: 1,
+    gap: 8,
   },
   actionButtonText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
+  },
+  infoSection: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  infoCard: {
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  infoText: {
+    marginLeft: 8,
+    fontSize: 14,
+    flex: 1,
   },
   menuContainer: {
     paddingHorizontal: 20,
@@ -153,12 +301,26 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
   },
-  menuItemText: {
+  menuIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  menuContent: {
     flex: 1,
-    fontSize: 18,
-    marginLeft: 16,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  menuItemDescription: {
+    fontSize: 14,
   },
 }); 

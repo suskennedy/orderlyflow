@@ -15,17 +15,19 @@ export default function HomesScreen() {
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="home-outline" size={100} color={colors.primary} />
+      <View style={[styles.emptyIconContainer, { backgroundColor: colors.primary + '15' }]}>
+        <Ionicons name="home-outline" size={80} color={colors.primary} />
+      </View>
       <Text style={[styles.emptyText, { color: colors.text }]}>No Homes Yet</Text>
       <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-        Add your first home to get started.
+        Add your first home to get started managing your properties.
       </Text>
       <TouchableOpacity
         style={[styles.addButton, { backgroundColor: colors.primary }]}
         onPress={() => router.push('/(home)/add')}
       >
         <Ionicons name="add" size={24} color={colors.textInverse} />
-        <Text style={[styles.addButtonText, { color: colors.textInverse }]}>Add a Home</Text>
+        <Text style={[styles.addButtonText, { color: colors.textInverse }]}>Add Your First Home</Text>
       </TouchableOpacity>
     </View>
   );
@@ -36,21 +38,29 @@ export default function HomesScreen() {
       onPress={() => router.push('/(home)/add')}
     >
       <Ionicons name="add" size={24} color={colors.textInverse} />
-      <Text style={[styles.addButtonText, { color: colors.textInverse }]}>Add Home</Text>
+      <Text style={[styles.addButtonText, { color: colors.textInverse }]}>Add Another Home</Text>
     </TouchableOpacity>
   );
 
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ScreenHeader title="Homes" showBackButton />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      <ScreenHeader title="Homes" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScreenHeader 
+        title="My Homes" 
+        subtitle={`${homes.length} ${homes.length === 1 ? 'property' : 'properties'}`}
+        showBackButton 
+        showDecorativeIcons={true}
+      />
       {homes.length === 0 ? (
         renderEmptyState()
       ) : (
@@ -60,6 +70,7 @@ export default function HomesScreen() {
           keyExtractor={item => item.id}
           contentContainerStyle={[styles.listContainer, { paddingBottom: 100 }]}
           ListFooterComponent={renderFooter}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </View>
@@ -70,6 +81,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   listContainer: {
     padding: 20,
   },
@@ -77,36 +93,45 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 40,
+  },
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   emptyText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 20,
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 12,
+    textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 16,
-    marginTop: 8,
     textAlign: 'center',
-    maxWidth: '80%',
+    maxWidth: '85%',
+    lineHeight: 24,
+    marginBottom: 40,
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 25,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    marginTop: 30,
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
   addButtonText: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginLeft: 8,
   },
 }); 
