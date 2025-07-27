@@ -698,46 +698,46 @@ export type Database = {
       }
       vendors: {
         Row: {
-          address: string | null
+          id: string
+          user_id: string | null
+          name: string
           category: string | null
           contact_name: string | null
-          created_at: string | null
-          email: string | null
-          id: string
-          name: string
-          notes: string | null
           phone: string | null
-          updated_at: string | null
-          user_id: string | null
+          email: string | null
           website: string | null
+          address: string | null
+          notes: string | null
+          created_at: string | null
+          updated_at: string | null
         }
         Insert: {
-          address?: string | null
+          id?: string
+          user_id?: string | null
+          name: string
           category?: string | null
           contact_name?: string | null
-          created_at?: string | null
-          email?: string | null
-          id?: string
-          name: string
-          notes?: string | null
           phone?: string | null
-          updated_at?: string | null
-          user_id?: string | null
+          email?: string | null
           website?: string | null
+          address?: string | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
         }
         Update: {
-          address?: string | null
+          id?: string
+          user_id?: string | null
+          name?: string
           category?: string | null
           contact_name?: string | null
-          created_at?: string | null
-          email?: string | null
-          id?: string
-          name?: string
-          notes?: string | null
           phone?: string | null
-          updated_at?: string | null
-          user_id?: string | null
+          email?: string | null
           website?: string | null
+          address?: string | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }

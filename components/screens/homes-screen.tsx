@@ -60,6 +60,7 @@ export default function HomesScreen() {
         subtitle={`${homes.length} ${homes.length === 1 ? 'property' : 'properties'}`}
         showBackButton 
         showDecorativeIcons={true}
+        onBackPress={() => router.push('/(dashboard)')}
       />
       {homes.length === 0 ? (
         renderEmptyState()

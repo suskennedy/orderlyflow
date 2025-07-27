@@ -112,7 +112,7 @@ export default function CalendarScreen() {
             // Create a copy of the event for this occurrence
             const occurrenceEvent = {
               ...event,
-              id: `${event.id}_${occurrenceCount}`,
+              id: `${event.id}_occurrence_${occurrenceCount}`,
               start_time: `${occurrenceDate}T${recurringStartDate.toTimeString().split(' ')[0]}`,
               end_time: `${occurrenceDate}T${new Date(event.end_time).toTimeString().split(' ')[0]}`,
             };
@@ -168,8 +168,8 @@ export default function CalendarScreen() {
         selectedColor: getColorHex(primaryColor) + '40',
         dotColor: getColorHex(primaryColor),
         // Add dots for multi-dot representation
-        dots: dateEvents.map(event => ({
-          key: event.id,
+        dots: dateEvents.map((event, dotIndex) => ({
+          key: `${event.id}_dot_${dotIndex}`,
           color: getColorHex(event.color || 'blue')
         }))
       };
@@ -228,7 +228,7 @@ export default function CalendarScreen() {
             // Create a copy of the event for this occurrence
             const occurrenceEvent = {
               ...event,
-              id: `${event.id}_${occurrenceCount}`,
+              id: `${event.id}_occurrence_${occurrenceCount}`,
               start_time: `${occurrenceDate}T${recurringStartDate.toTimeString().split(' ')[0]}`,
               end_time: `${occurrenceDate}T${new Date(event.end_time).toTimeString().split(' ')[0]}`,
             };

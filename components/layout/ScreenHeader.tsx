@@ -38,7 +38,7 @@ export default function ScreenHeader({
   };
 
   const handleHomePress = () => {
-    router.push('/(home)');
+    router.back();
   };
 
   return (

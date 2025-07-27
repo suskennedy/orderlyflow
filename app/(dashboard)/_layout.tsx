@@ -83,8 +83,7 @@ export default function DashboardLayout() {
       <Tabs.Screen
         name="home"
         options={{
-          href: '/(home)',
-          title: 'Home',
+          title: 'Homes',
           tabBarIcon: ({ color, focused }) => (
             <View style={[
               styles.iconContainer, 
@@ -157,9 +156,47 @@ export default function DashboardLayout() {
         }}
       />
       
-      {/* Hide settings and info from bottom tabs */}
-      <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[
+              styles.iconContainer, 
+              focused && { backgroundColor: colors.primaryLight }
+            ]}>
+              <Ionicons 
+                name={focused ? "person" : "person-outline"} 
+                size={focused ? 26 : 24} 
+                color={color} 
+              />
+            </View>
+          ),
+          href: '/(profile)',
+        }}
+      />
+      
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[
+              styles.iconContainer, 
+              focused && { backgroundColor: colors.primaryLight }
+            ]}>
+              <Ionicons 
+                name={focused ? "settings" : "settings-outline"} 
+                size={focused ? 26 : 24} 
+                color={color} 
+              />
+            </View>
+          ),
+          href: '/(settings)',
+        }}
+      />
       <Tabs.Screen name="info" options={{ href: null }} />
+      <Tabs.Screen name="tasks/add" options={{ href: null }} />
     </Tabs>
   );
 }

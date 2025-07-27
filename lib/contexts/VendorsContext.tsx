@@ -5,17 +5,17 @@ import { supabase } from '../supabase';
 
 export interface VendorItem {
   id: string;
-  name: string;
-  category?: string | null;
-  contact_name?: string | null;
-  phone?: string | null;
-  email?: string | null;
-  address?: string | null;
-  website?: string | null;
-  notes?: string | null;
-  created_at: string | null;
-  updated_at?: string | null;
   user_id: string | null;
+  name: string;
+  category: string | null;
+  contact_name: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  address: string | null;
+  notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 interface VendorsContextType {

@@ -66,7 +66,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.headerIcon, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push('/(dashboard)/profile' as any)}
+          onPress={() => router.push('/(profile)' as any)}
         >
           <Ionicons name="person" size={20} color={colors.text} />
         </TouchableOpacity>
@@ -79,7 +79,7 @@ export default function HomeScreen() {
       <View style={styles.headerRight}>
         <TouchableOpacity
           style={[styles.headerIcon, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push('/(dashboard)/settings' as any)}
+          onPress={() => router.push('/(settings)' as any)}
         >
           <Ionicons name="settings" size={20} color={colors.text} />
         </TouchableOpacity>

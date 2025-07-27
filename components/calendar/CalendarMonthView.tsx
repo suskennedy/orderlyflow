@@ -94,8 +94,8 @@ const CalendarMonthView = ({
         </View>
       ) : (
         <View style={styles.eventsList}>
-          {selectedDateEvents.map((event) => (
-            <View key={event.id} style={{ marginBottom: 8 }}>
+          {selectedDateEvents.map((event, index) => (
+            <View key={`${event.id}_${index}`} style={{ marginBottom: 8 }}>
               <CalendarEventCard event={event} onDelete={onDeletePress} />
             </View>
           ))}

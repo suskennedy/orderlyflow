@@ -1,6 +1,7 @@
+import { Redirect } from 'expo-router';
 import React from 'react';
-import VendorsScreen from '../../components/screens/VendorsScreen';
 
-export default function Vendors() {
-  return <VendorsScreen />;
+// This screen redirects to the vendors route group when the "Vendors" tab is tapped
+export default function VendorsScreen() {
+  return <Redirect href="/(vendors)" />;
 } 

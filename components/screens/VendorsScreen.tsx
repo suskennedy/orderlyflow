@@ -2,17 +2,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { RelativePathString, router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
-  FlatList,
-  RefreshControl,
-  StyleSheet,
+    Alert,
+    FlatList,
+    Linking,
+    RefreshControl,
+    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-  View
+    View
 } from 'react-native';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
-
 
 interface Vendor {
   id: string;
@@ -37,17 +38,23 @@ export default function VendorsScreen() {
   const { vendors, loading, refreshing, onRefresh } = useVendors();
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchByCategory, setSearchByCategory] = useState(false);
 
   // Filter vendors based on search query
   const filteredVendors = useMemo(() => {
     if (!searchQuery.trim()) return vendors;
     
-    return vendors.filter(vendor => 
-      vendor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vendor.contact_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vendor.category?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [vendors, searchQuery]);
+    if (searchByCategory) {
+      return vendors.filter(vendor => 
+        vendor.category?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    } else {
+      return vendors.filter(vendor => 
+        vendor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        vendor.contact_name?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+  }, [vendors, searchQuery, searchByCategory]);
 
   // Group vendors alphabetically
   const groupedVendors = useMemo(() => {
@@ -66,24 +73,112 @@ export default function VendorsScreen() {
 
   // Get alphabet for index
   const alphabet = useMemo(() => {
-    return Object.keys(groupedVendors).sort();
-  }, [groupedVendors]);
+    // Return complete alphabet instead of just the letters that have vendors
+    return 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  }, []);
+
+  const handleCall = (vendor: Vendor) => {
+    if (!vendor.phone) {
+      Alert.alert('No Phone Number', 'This vendor does not have a phone number.');
+      return;
+    }
+    
+    Alert.alert(
+      'Call Vendor',
+      `Call ${vendor.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Call', 
+          onPress: () => Linking.openURL(`tel:${vendor.phone}`)
+        }
+      ]
+    );
+  };
+
+  const handleEmail = (vendor: Vendor) => {
+    if (!vendor.email) {
+      Alert.alert('No Email', 'This vendor does not have an email address.');
+      return;
+    }
+    
+    Alert.alert(
+      'Email Vendor',
+      `Send email to ${vendor.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Email', 
+          onPress: () => Linking.openURL(`mailto:${vendor.email}`)
+        }
+      ]
+    );
+  };
+
+  const handleSchedule = (vendor: Vendor) => {
+    if (!vendor.website) {
+      Alert.alert('No Website', 'This vendor does not have a website for online scheduling.');
+      return;
+    }
+    
+    Alert.alert(
+      'Schedule Appointment',
+      `Open ${vendor.name}'s website for scheduling?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Open Website', 
+          onPress: () => Linking.openURL(vendor.website!)
+        }
+      ]
+    );
+  };
 
   const renderVendorItem = ({ item }: { item: Vendor }) => (
-    <TouchableOpacity
-      style={[styles.vendorItem, { backgroundColor: colors.surface }]}
-      onPress={() => router.push(`/(dashboard)/vendors/${item.id}`)}
-    >
-      <View style={styles.vendorInfo}>
-        <Text style={[styles.vendorName, { color: colors.text }]}>{item.name}</Text>
+    <View style={[styles.vendorItem, { backgroundColor: colors.surface }]}>
+      <TouchableOpacity
+        style={styles.vendorInfo}
+        onPress={() => router.push(`/(vendors)/${item.id}`)}
+      >
+        <View style={styles.vendorHeader}>
+          <Text style={[styles.vendorName, { color: colors.text }]}>{item.name}</Text>
+        </View>
         {item.contact_name && (
           <Text style={[styles.contactName, { color: colors.textSecondary }]}>
             {item.contact_name}
           </Text>
         )}
+        {item.category && (
+          <Text style={[styles.categoryText, { color: colors.textTertiary }]}>
+            {item.category}
+          </Text>
+        )}
+      </TouchableOpacity>
+      
+      {/* Action Buttons */}
+      <View style={styles.actionButtons}>
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: colors.primaryLight }]}
+          onPress={() => handleCall(item)}
+        >
+          <Ionicons name="call" size={16} color={colors.primary} />
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: colors.primaryLight }]}
+          onPress={() => handleSchedule(item)}
+        >
+          <Ionicons name="calendar" size={16} color={colors.primary} />
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: colors.primaryLight }]}
+          onPress={() => handleEmail(item)}
+        >
+          <Ionicons name="mail" size={16} color={colors.primary} />
+        </TouchableOpacity>
       </View>
-      <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-    </TouchableOpacity>
+    </View>
   );
 
   const renderSectionHeader = ({ section }: { section: { title: string } }) => (
@@ -140,7 +235,7 @@ export default function VendorsScreen() {
           
           <TouchableOpacity
             style={[styles.addButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.push('/(dashboard)/vendors/add')}
+            onPress={() => router.push('/(vendors)/add')}
           >
             <Ionicons name="add" size={20} color={colors.textInverse} />
           </TouchableOpacity>
@@ -152,11 +247,19 @@ export default function VendorsScreen() {
         <Ionicons name="search" size={20} color={colors.textTertiary} />
         <TextInput
           style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Q Search"
+          placeholder={searchByCategory ? "Search by category..." : "Search vendors..."}
           placeholderTextColor={colors.textTertiary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
+        <TouchableOpacity
+          style={[styles.searchToggle, { backgroundColor: searchByCategory ? colors.primary : colors.background }]}
+          onPress={() => setSearchByCategory(!searchByCategory)}
+        >
+          <Text style={[styles.searchToggleText, { color: searchByCategory ? colors.background : colors.text }]}>
+            {searchByCategory ? 'Cat' : 'Name'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Vendor List */}
@@ -171,7 +274,7 @@ export default function VendorsScreen() {
             {!searchQuery && (
               <TouchableOpacity
                 style={[styles.addFirstButton, { backgroundColor: colors.primary }]}
-                onPress={() => router.push('/(dashboard)/vendors/add')}
+                onPress={() => router.push('/(vendors)/add')}
               >
                 <Text style={[styles.addFirstButtonText, { color: colors.textInverse }]}>
                   Add Your First Vendor
@@ -185,13 +288,17 @@ export default function VendorsScreen() {
               title: letter,
               data: vendors
             }))}
-            renderItem={({ item }) => (
-              <View>
+            renderItem={({ item, index }) => (
+              <View key={`section_${item.title}_${index}`}>
                 {renderSectionHeader({ section: { title: item.title } })}
-                {item.data.map(vendor => renderVendorItem({ item: vendor }))}
+                {item.data.map((vendor, vendorIndex) => (
+                  <View key={`vendor_${vendor.id}_${vendorIndex}`}>
+                    {renderVendorItem({ item: vendor })}
+                  </View>
+                ))}
               </View>
             )}
-            keyExtractor={(item) => item.title}
+            keyExtractor={(item, index) => `section_${item.title}_${index}`}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -217,7 +324,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingTop: 20,
-    paddingBottom: 10,
+    paddingBottom: 16,
     paddingHorizontal: 16,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
@@ -226,6 +333,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    marginBottom: 16,
   },
   headerContent: {
     flexDirection: 'row',
@@ -261,21 +369,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
     marginHorizontal: 16,
-    marginBottom: 10,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
     paddingVertical: 0,
     marginLeft: 10,
+  },
+  searchToggle: {
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 15,
+    marginLeft: 10,
+  },
+  searchToggleText: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   content: {
     flex: 1,
@@ -284,29 +402,62 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   vendorItem: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
+    alignItems: 'flex-start',
+    paddingVertical: 16,
     paddingHorizontal: 16,
-    borderRadius: 10,
-    marginBottom: 8,
+    borderRadius: 12,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   vendorInfo: {
     flex: 1,
+    width: '100%',
+  },
+  vendorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   vendorName: {
     fontSize: 16,
     fontWeight: 'bold',
+    flex: 1,
   },
   contactName: {
     fontSize: 14,
     marginTop: 2,
+  },
+  categoryText: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  actionButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   sectionHeader: {
     paddingVertical: 8,
@@ -320,20 +471,30 @@ const styles = StyleSheet.create({
   },
   alphabetIndex: {
     position: 'absolute',
-    right: 10,
+    right: 8,
     top: '50%',
     transform: [{ translateY: -50 }],
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 15,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   alphabetItem: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 15,
-    marginBottom: 5,
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    marginBottom: 2,
+    minWidth: 20,
+    alignItems: 'center',
   },
   alphabetText: {
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 11,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,

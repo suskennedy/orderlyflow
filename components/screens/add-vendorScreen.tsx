@@ -3,16 +3,16 @@ import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useVendors } from '../../lib/contexts/VendorsContext';
 import { useAuth } from '../../lib/hooks/useAuth';
@@ -35,6 +35,7 @@ const VENDOR_CATEGORIES = [
   'Pest Control',
   'Security',
   'Pool Service',
+  'Organizer',
   'Other',
 ];
 
@@ -45,13 +46,13 @@ export default function AddVendorScreen() {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    category: 'Contractor',
+    category: '',
     contact_name: '',
     phone: '',
     email: '',
-    address: '',
     website: '',
-    notes: '',
+    address: '',
+    notes: ''
   });
 
   const handleSave = async () => {
@@ -325,26 +326,79 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
+    fontSize: 16,
+    fontWeight: '600',
     marginBottom: 8,
+    color: '#374151',
   },
   input: {
     borderWidth: 1,
     borderColor: '#D1D5DB',
     borderRadius: 8,
-    padding: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     fontSize: 16,
-    color: '#111827',
+    backgroundColor: '#FFFFFF',
+  },
+  inputFocused: {
+    borderColor: '#F59E0B',
     backgroundColor: '#FFFFFF',
   },
   textArea: {
-    height: 80,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#FFFFFF',
+    minHeight: 100,
     textAlignVertical: 'top',
+  },
+  textAreaFocused: {
+    borderColor: '#F59E0B',
+    backgroundColor: '#FFFFFF',
+  },
+  dropdownButton: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dropdownButtonText: {
+    fontSize: 16,
+    color: '#374151',
+  },
+  dropdownButtonTextPlaceholder: {
+    fontSize: 16,
+    color: '#9CA3AF',
+  },
+  submitButton: {
+    backgroundColor: '#F59E0B',
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#D1D5DB',
+  },
+  submitButtonTextDisabled: {
+    color: '#9CA3AF',
   },
   pickerContainer: {
     borderWidth: 1,

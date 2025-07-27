@@ -171,6 +171,28 @@ export function useAuth() {
     }
   };
 
+  const refreshUser = async () => {
+    if (!user) return;
+    
+    try {
+      // Refresh the session to get updated user metadata
+      const { data: { session }, error } = await supabase.auth.refreshSession();
+      
+      if (error) {
+        console.error('Error refreshing session:', error);
+        return;
+      }
+
+      if (session) {
+        setSession(session);
+        setUser(session.user);
+        await ensureProfileExists(session.user);
+      }
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+    }
+  };
+
   return {
     session,
     user,
@@ -181,6 +203,7 @@ export function useAuth() {
     signOut,
     resetPassword,
     updateProfile,
+    refreshUser,
     isAuthenticated: !!session,
   };
 } 

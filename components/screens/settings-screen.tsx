@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import ThemeSwitcher from '../ui/ThemeSwitcher';    
+import ThemeSwitcher from '../ui/ThemeSwitcher';
 
 export default function SettingsScreen() {
   const { colors, theme, themeMode, setThemeMode } = useTheme();
@@ -243,14 +243,20 @@ export default function SettingsScreen() {
   );
 
   return (
-    <View style={[styles.container, { 
-      backgroundColor: colors.background,
-      paddingTop: insets.top,
-      paddingBottom: insets.bottom
-    }]}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={[styles.container, { 
+        backgroundColor: colors.background,
+        paddingTop: insets.top,
+      }]}
+    >
       {renderHeader()}
       
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.content}>
           {renderThemeSection()}
           {renderNotificationsSection()}
@@ -260,7 +266,7 @@ export default function SettingsScreen() {
           {renderInfoSection()}
         </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -285,6 +291,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   content: {
     padding: 20,
