@@ -29,7 +29,7 @@ interface Vendor {
 export default function VendorDetailScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { vendors } = useVendors();
+  const { vendors, deleteVendor } = useVendors();
   const params = useLocalSearchParams();
   const vendorId = params.id as string;
   
@@ -92,6 +92,30 @@ export default function VendorDetailScreen() {
         { 
           text: 'Open Website', 
           onPress: () => Linking.openURL(vendor.website!)
+        }
+      ]
+    );
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Vendor',
+      `Are you sure you want to delete ${vendor.name}? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteVendor(vendorId);
+              Alert.alert('Success', 'Vendor deleted successfully!');
+              router.back();
+            } catch (error) {
+              console.error('Error deleting vendor:', error);
+              Alert.alert('Error', 'Failed to delete vendor');
+            }
+          }
         }
       ]
     );
@@ -223,6 +247,14 @@ export default function VendorDetailScreen() {
         >
           <Ionicons name="mail" size={20} color={colors.background} />
           <Text style={[styles.actionButtonText, { color: colors.background }]}>Email</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
+          onPress={handleDelete}
+        >
+          <Ionicons name="trash" size={20} color={colors.background} />
+          <Text style={[styles.actionButtonText, { color: colors.background }]}>Delete</Text>
         </TouchableOpacity>
       </View>
     </View>

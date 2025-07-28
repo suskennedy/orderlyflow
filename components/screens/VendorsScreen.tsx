@@ -35,7 +35,7 @@ interface GroupedVendors {
 }
 
 export default function VendorsScreen() {
-  const { vendors, loading, refreshing, onRefresh } = useVendors();
+  const { vendors, loading, refreshing, onRefresh, deleteVendor } = useVendors();
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchByCategory, setSearchByCategory] = useState(false);
@@ -134,6 +134,21 @@ export default function VendorsScreen() {
     );
   };
 
+  const handleDelete = (vendor: Vendor) => {
+    Alert.alert(
+      'Delete Vendor',
+      `Are you sure you want to delete ${vendor.name}? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          onPress: () => deleteVendor(vendor.id),
+          style: 'destructive'
+        }
+      ]
+    );
+  };
+
   const renderVendorItem = ({ item }: { item: Vendor }) => (
     <View style={[styles.vendorItem, { backgroundColor: colors.surface }]}>
       <TouchableOpacity
@@ -176,6 +191,13 @@ export default function VendorsScreen() {
           onPress={() => handleEmail(item)}
         >
           <Ionicons name="mail" size={16} color={colors.primary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
+          onPress={() => handleDelete(item)}
+        >
+          <Ionicons name="trash" size={16} color="#EF4444" />
         </TouchableOpacity>
       </View>
     </View>

@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTasks } from '../../lib/contexts/TasksContext';
@@ -134,7 +134,7 @@ const FREQUENCY_SUGGESTIONS: { [key: string]: string } = {
 
 export default function TasksScreen() {
   const insets = useSafeAreaInsets();
-  const { tasks, loading, refreshing, onRefresh, toggleTaskActive, updateTask, completeTask } = useTasks();
+  const { tasks, loading, refreshing, onRefresh, toggleTaskActive, updateTask, completeTask, deleteTask } = useTasks();
   const { colors } = useTheme();
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [expandedTasks, setExpandedTasks] = useState<string[]>([]);
@@ -266,6 +266,29 @@ export default function TasksScreen() {
     }
   };
 
+  const handleDeleteTask = async (taskId: string, taskTitle: string) => {
+    Alert.alert(
+      'Delete Task',
+      `Are you sure you want to delete "${taskTitle}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteTask(taskId);
+              Alert.alert('Success', 'Task deleted successfully!');
+            } catch (error) {
+              console.error('Error deleting task:', error);
+              Alert.alert('Error', 'Failed to delete task');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleTaskPress = (task: any) => {
     // Navigate to task detail page (404 for now as requested)
     Alert.alert('Task Detail', 'Task detail page coming soon!');
@@ -317,8 +340,8 @@ export default function TasksScreen() {
             )}
           </View>
         ))
-      )}
-    </View>
+          )}
+        </View>
   );
 
   const renderTaskCard = (task: any) => {
@@ -453,9 +476,9 @@ export default function TasksScreen() {
                       {task.assigned_vendor || 'Select vendor'}
                     </Text>
                     <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
+          </TouchableOpacity>
+        </View>
+      </View>
             </View>
 
             {/* Instructions */}
@@ -511,10 +534,23 @@ export default function TasksScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {/* Delete Task Button */}
+            <View style={styles.detailSection}>
+              <TouchableOpacity
+                style={[styles.deleteTaskButton, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
+                onPress={() => handleDeleteTask(task.id, task.title)}
+              >
+                <Ionicons name="trash" size={20} color={colors.error} />
+                <Text style={[styles.deleteTaskText, { color: colors.error }]}>
+                  Delete Task
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
-      </View>
-    );
+    </View>
+  );
   };
 
   const renderCategorySection = (category: any) => {
@@ -524,10 +560,10 @@ export default function TasksScreen() {
     return (
       <View key={category.name} style={styles.categorySection}>
         <View style={[styles.categoryHeader, { backgroundColor: colors.surface }]}>
-          <TouchableOpacity
+        <TouchableOpacity
             style={styles.categoryInfo}
             onPress={() => toggleCategory(category.name)}
-          >
+        >
             <Text style={[styles.categoryTitle, { color: colors.text }]}>{category.name}</Text>
             <Text style={[styles.categorySubtitle, { color: colors.textSecondary }]}>
               {categoryTasks.length} tasks
@@ -547,11 +583,11 @@ export default function TasksScreen() {
               style={styles.expandButton}
               onPress={() => toggleCategory(category.name)}
             >
-              <Ionicons 
-                name={isExpanded ? "chevron-up" : "chevron-down"} 
-                size={20} 
+            <Ionicons 
+              name={isExpanded ? "chevron-up" : "chevron-down"} 
+              size={20} 
                 color={colors.textSecondary} 
-              />
+            />
             </TouchableOpacity>
           </View>
         </View>
@@ -580,23 +616,23 @@ export default function TasksScreen() {
         backgroundColor: colors.background,
         paddingTop: insets.top + 20 
       }]}>
-        <TouchableOpacity
+            <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
           <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Tasks</Text>
+            </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Tasks</Text>
         <View style={styles.headerRight} />
       </View>
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
             colors={[colors.primary]}
           />
         }
@@ -913,5 +949,18 @@ const styles = StyleSheet.create({
   quickAddButton: {
     padding: 8,
     borderRadius: 8,
+  },
+  deleteTaskButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 16,
+    gap: 8,
+  },
+  deleteTaskText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
