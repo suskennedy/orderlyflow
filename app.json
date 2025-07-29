@@ -13,7 +13,8 @@
       "bundleIdentifier": "com.ahmadali507.orderlyflow",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "companyName": "Ahmad Ali"
     },
     "android": {
       "adaptiveIcon": {
