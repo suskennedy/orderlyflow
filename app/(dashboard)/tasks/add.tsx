@@ -175,7 +175,7 @@ export default function AddTaskScreen() {
         estimated_cost: estimatedCost ? parseFloat(estimatedCost) : null,
         priority: priority,
         priority_level: priority.toLowerCase(),
-        task_type: 'maintenance',
+        task_type: 'custom',
         is_active: true,
         status: 'pending',
         frequency_type: customFrequency ? 'custom' : 'suggested'

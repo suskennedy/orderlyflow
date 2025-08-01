@@ -137,86 +137,113 @@ export default function HomeScreen() {
     </View>
   );
 
-  const renderTasks = () => (
-    <View style={styles.tasksContainer}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Tasks</Text>
-      <View style={styles.tasksColumns}>
-        {/* This Week Column */}
-        <View style={styles.taskColumn}>
-          <Text style={[styles.columnTitle, { color: colors.text }]}>This Week</Text>
-          
-          <View style={[styles.taskCategory, { backgroundColor: colors.secondary }]}>
-            <Text style={[styles.categoryTitle, { color: colors.textInverse }]}>Home Maintenance</Text>
-          </View>
-          <View style={styles.taskItems}>
-            <View style={styles.taskItem}>
-              <Ionicons name="square-outline" size={16} color={colors.textSecondary} />
-              <Text style={[styles.taskText, { color: colors.text }]}>Replace air filter</Text>
-            </View>
-            <View style={styles.taskItem}>
-              <Ionicons name="square-outline" size={16} color={colors.textSecondary} />
-              <Text style={[styles.taskText, { color: colors.text }]}>Call plumber</Text>
-            </View>
-          </View>
+  const renderTasks = () => {
+    // Filter user tasks (custom and preset)
+    const userTasks = allTasks.filter(task => 
+      task.task_type === 'custom' || 
+      task.task_type === 'preset' || 
+      !task.task_type
+    );
 
-          <View style={[styles.taskCategory, { backgroundColor: colors.secondary }]}>
-            <Text style={[styles.categoryTitle, { color: colors.textInverse }]}>Deep Cleaning</Text>
-          </View>
-          <View style={styles.taskItems}>
-            <View style={styles.taskItem}>
-              <Ionicons name="square-outline" size={16} color={colors.textSecondary} />
-              <Text style={[styles.taskText, { color: colors.text }]}>Check smoke alarms</Text>
-            </View>
-          </View>
+    // Group tasks by time period
+    const now = new Date();
+    const thisWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const thisMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
+    const thisWeekTasks = userTasks.filter(task => {
+      if (!task.next_due) return false;
+      const dueDate = new Date(task.next_due);
+      return dueDate <= thisWeek && dueDate >= now;
+    });
+
+    const thisMonthTasks = userTasks.filter(task => {
+      if (!task.next_due) return false;
+      const dueDate = new Date(task.next_due);
+      return dueDate <= thisMonth && dueDate > thisWeek;
+    });
+
+    // Group tasks by category
+    const groupTasksByCategory = (taskList: any[]) => {
+      const grouped: { [key: string]: any[] } = {};
+      taskList.forEach(task => {
+        const category = task.category || 'Other';
+        if (!grouped[category]) {
+          grouped[category] = [];
+        }
+        grouped[category].push(task);
+      });
+      return grouped;
+    };
+
+    const thisWeekGrouped = groupTasksByCategory(thisWeekTasks);
+    const thisMonthGrouped = groupTasksByCategory(thisMonthTasks);
+
+    const renderTaskList = (groupedTasks: { [key: string]: any[] }) => {
+      return Object.entries(groupedTasks).map(([category, tasks]) => (
+        <View key={category}>
           <View style={[styles.taskCategory, { backgroundColor: colors.secondary }]}>
-            <Text style={[styles.categoryTitle, { color: colors.textInverse }]}>Repair List</Text>
+            <Text style={[styles.categoryTitle, { color: colors.textInverse }]}>{category}</Text>
           </View>
           <View style={styles.taskItems}>
-            <View style={styles.taskItem}>
-              <Ionicons name="square-outline" size={16} color={colors.textSecondary} />
-              <Text style={[styles.taskText, { color: colors.text }]}>Clean gutters</Text>
-            </View>
+            {tasks.slice(0, 3).map((task, index) => (
+              <View key={task.id || index} style={styles.taskItem}>
+                <Ionicons 
+                  name={task.is_active ? "square-outline" : "checkmark-square"} 
+                  size={16} 
+                  color={task.is_active ? colors.textSecondary : colors.primary} 
+                />
+                <Text style={[
+                  styles.taskText, 
+                  { 
+                    color: task.is_active ? colors.text : colors.textSecondary,
+                    textDecorationLine: task.is_active ? 'none' : 'line-through'
+                  }
+                ]}>
+                  {task.title}
+                </Text>
+              </View>
+            ))}
+            {tasks.length === 0 && (
+              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
+                No tasks due
+              </Text>
+            )}
           </View>
         </View>
+      ));
+    };
 
-        {/* This Month Column */}
-        <View style={styles.taskColumn}>
-          <Text style={[styles.columnTitle, { color: colors.text }]}>This Month</Text>
-          
-          <View style={[styles.taskCategory, { backgroundColor: colors.secondary }]}>
-            <Text style={[styles.categoryTitle, { color: colors.textInverse }]}>Home Maintenance</Text>
-          </View>
-          <View style={styles.taskItems}>
-            <View style={styles.taskItem}>
-              <Ionicons name="square-outline" size={16} color={colors.textSecondary} />
-              <Text style={[styles.taskText, { color: colors.text }]}>Flush water heater</Text>
-            </View>
-          </View>
-
-          <View style={[styles.taskCategory, { backgroundColor: colors.secondary }]}>
-            <Text style={[styles.categoryTitle, { color: colors.textInverse }]}>Deep Cleaning</Text>
-          </View>
-          <View style={styles.taskItems}>
-            <View style={styles.taskItem}>
-              <Ionicons name="square-outline" size={16} color={colors.textSecondary} />
-              <Text style={[styles.taskText, { color: colors.text }]}>Clean baseboards</Text>
-            </View>
+    return (
+      <View style={styles.tasksContainer}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Tasks</Text>
+        <View style={styles.tasksColumns}>
+          {/* This Week Column */}
+          <View style={styles.taskColumn}>
+            <Text style={[styles.columnTitle, { color: colors.text }]}>This Week</Text>
+            {Object.keys(thisWeekGrouped).length > 0 ? (
+              renderTaskList(thisWeekGrouped)
+            ) : (
+              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
+                No tasks due this week
+              </Text>
+            )}
           </View>
 
-          <View style={[styles.taskCategory, { backgroundColor: colors.secondary }]}>
-            <Text style={[styles.categoryTitle, { color: colors.textInverse }]}>Repair List</Text>
-          </View>
-          <View style={styles.taskItems}>
-            <View style={styles.taskItem}>
-              <Ionicons name="square-outline" size={16} color={colors.textSecondary} />
-              <Text style={[styles.taskText, { color: colors.text }]}>Touch up paint</Text>
-            </View>
+          {/* This Month Column */}
+          <View style={styles.taskColumn}>
+            <Text style={[styles.columnTitle, { color: colors.text }]}>This Month</Text>
+            {Object.keys(thisMonthGrouped).length > 0 ? (
+              renderTaskList(thisMonthGrouped)
+            ) : (
+              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
+                No tasks due this month
+              </Text>
+            )}
           </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -343,5 +370,10 @@ const styles = StyleSheet.create({
   taskText: {
     marginLeft: 8,
     fontSize: 14,
+  },
+  noTasksText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 10,
   },
 }); 

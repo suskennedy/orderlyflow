@@ -161,6 +161,7 @@ export default function DashboardLayout() {
       
       <Tabs.Screen name="info" options={{ href: null }} />
       <Tabs.Screen name="tasks/add" options={{ href: null }} />
+      <Tabs.Screen name="tasks/settings" options={{ href: null }} />
     </Tabs>
   );
 }
