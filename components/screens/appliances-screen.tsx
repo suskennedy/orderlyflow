@@ -9,9 +9,13 @@ import ScreenHeader from '../layout/ScreenHeader';
 
 export default function AppliancesScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { appliances, loading } = useAppliances(homeId);
+  const { appliances, loading } = useAppliances();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+
+  const handleAppliancePress = (applianceId: string) => {
+    router.push(`/(home)/${homeId}/appliances/${applianceId}`);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -25,7 +29,12 @@ export default function AppliancesScreen() {
       ) : (
         <FlatList
           data={appliances}
-          renderItem={({ item }) => <ApplianceCard appliance={item} />}
+          renderItem={({ item }) => (
+            <ApplianceCard 
+              appliance={item} 
+              onPress={() => handleAppliancePress(item.id)}
+            />
+          )}
           keyExtractor={item => item.id}
           contentContainerStyle={[styles.list, { paddingBottom: 100 }]}
           ListEmptyComponent={

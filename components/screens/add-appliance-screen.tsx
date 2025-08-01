@@ -11,7 +11,7 @@ import ScreenHeader from '../layout/ScreenHeader';
 
 export default function AddApplianceScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { createAppliance } = useAppliances(homeId);
+  const { createAppliance } = useAppliances();
   const { colors } = useTheme();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
@@ -21,9 +21,11 @@ export default function AddApplianceScreen() {
     name: '',
     brand: '',
     model: '',
+    room: '',
     purchase_date: '' as string | null,
     warranty_expiration: '' as string | null,
     manual_url: '',
+    purchased_store: '',
     notes: '',
   });
 
@@ -31,7 +33,9 @@ export default function AddApplianceScreen() {
   const nameRef = useRef<TextInput>(null);
   const brandRef = useRef<TextInput>(null);
   const modelRef = useRef<TextInput>(null);
+  const roomRef = useRef<TextInput>(null);
   const manualUrlRef = useRef<TextInput>(null);
+  const purchasedStoreRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
   const handleSave = async () => {
@@ -51,6 +55,8 @@ export default function AddApplianceScreen() {
         warranty_expiration: formData.warranty_expiration || null,
         manual_url: formData.manual_url.trim() || null,
         notes: formData.notes.trim() || null,
+        room: formData.room.trim() || null,
+        purchased_store: formData.purchased_store.trim() || null,
       });
       
       showToast(`${formData.name} added successfully!`, 'success');
@@ -153,10 +159,24 @@ export default function AddApplianceScreen() {
                 onFocus={() => handleFocus('model')}
                 onBlur={handleBlur}
                 returnKeyType="next"
-                onSubmitEditing={() => manualUrlRef.current?.focus()}
+                onSubmitEditing={() => roomRef.current?.focus()}
               />
             </View>
           </View>
+
+          <Text style={[styles.label, { color: colors.text }]}>Room</Text>
+          <TextInput
+            ref={roomRef}
+            style={getInputStyle('room')}
+            value={formData.room}
+            onChangeText={text => setFormData({ ...formData, room: text })}
+            placeholder="e.g., Kitchen, Living Room, Basement"
+            placeholderTextColor={colors.textSecondary}
+            onFocus={() => handleFocus('room')}
+            onBlur={handleBlur}
+            returnKeyType="next"
+            onSubmitEditing={() => manualUrlRef.current?.focus()}
+          />
 
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Purchase Information</Text>
 
@@ -188,6 +208,20 @@ export default function AddApplianceScreen() {
             placeholderTextColor={colors.textSecondary}
             keyboardType="url"
             onFocus={() => handleFocus('manual_url')}
+            onBlur={handleBlur}
+            returnKeyType="next"
+            onSubmitEditing={() => notesRef.current?.focus()}
+          />
+
+          <Text style={[styles.label, { color: colors.text }]}>Purchased Store</Text>
+          <TextInput
+            ref={purchasedStoreRef}
+            style={getInputStyle('purchased_store')}
+            value={formData.purchased_store}
+            onChangeText={text => setFormData({ ...formData, purchased_store: text })}
+            placeholder="e.g., Home Depot, Best Buy, Local Store"
+            placeholderTextColor={colors.textSecondary}
+            onFocus={() => handleFocus('purchased_store')}
             onBlur={handleBlur}
             returnKeyType="next"
             onSubmitEditing={() => notesRef.current?.focus()}

@@ -12,6 +12,8 @@ interface Appliance {
   warranty_expiration: string | null;
   manual_url: string | null;
   notes: string | null;
+  room: string | null;
+  purchased_store: string | null;
   home_id: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -159,7 +161,7 @@ export function AppliancesProvider({ homeId, children }: { homeId: string; child
   );
 }
 
-export function useAppliances(homeId: string) {
+export function useAppliances() {
   const context = useContext(AppliancesContext);
   if (context === undefined) {
     throw new Error('useAppliances must be used within a AppliancesProvider');

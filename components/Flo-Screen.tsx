@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../lib/contexts/ThemeContext';
 
 export default function FloScreen() {
@@ -9,8 +10,17 @@ export default function FloScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.surface }]}>
-        <Text style={[styles.title, { color: colors.text }]}>Flo</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Your AI Assistant</Text>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <Text style={[styles.title, { color: colors.text }]}>Flo</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Your AI Assistant</Text>
+        </View>
+        <View style={styles.headerRight} />
       </View>
       
       <View style={[styles.chatContainer, { backgroundColor: colors.surface }]}>
@@ -40,10 +50,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingTop: 60,
     paddingBottom: 20,
     paddingHorizontal: 20,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerContent: {
+    flex: 1,
     alignItems: 'center',
+  },
+  headerRight: {
+    width: 40,
   },
   title: {
     fontSize: 28,

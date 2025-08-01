@@ -146,13 +146,18 @@ export default function ProfileScreen() {
 
   const renderActions = () => (
     <View style={[styles.section, { backgroundColor: colors.surface }]}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions</Text>
+      <View style={styles.sectionHeader}>
+        <Ionicons name="settings-outline" size={24} color={colors.primary} />
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions</Text>
+      </View>
       
       <TouchableOpacity 
         style={styles.actionItem}
         onPress={() => router.push('/(profile)/edit')}
       >
-        <Ionicons name="create-outline" size={20} color={colors.primary} />
+        <View style={[styles.actionIcon, { backgroundColor: colors.primaryLight }]}>
+          <Ionicons name="create-outline" size={16} color={colors.primary} />
+        </View>
         <Text style={[styles.actionText, { color: colors.text }]}>Edit Profile</Text>
         <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
       </TouchableOpacity>
@@ -161,7 +166,9 @@ export default function ProfileScreen() {
         style={styles.actionItem}
         onPress={() => router.push('/(settings)')}
       >
-        <Ionicons name="settings-outline" size={20} color={colors.primary} />
+        <View style={[styles.actionIcon, { backgroundColor: colors.primaryLight }]}>
+          <Ionicons name="settings-outline" size={16} color={colors.primary} />
+        </View>
         <Text style={[styles.actionText, { color: colors.text }]}>Settings</Text>
         <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
       </TouchableOpacity>
@@ -170,8 +177,51 @@ export default function ProfileScreen() {
         style={styles.actionItem}
         onPress={handleSignOut}
       >
-        <Ionicons name="log-out-outline" size={20} color={colors.error} />
+        <View style={[styles.actionIcon, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
+          <Ionicons name="log-out-outline" size={16} color={colors.error} />
+        </View>
         <Text style={[styles.actionText, { color: colors.error }]}>Sign Out</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderUsersSection = () => (
+    <View style={[styles.section, { backgroundColor: colors.surface }]}>
+      <View style={styles.sectionHeader}>
+        <Ionicons name="people-outline" size={24} color={colors.primary} />
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Users & Team</Text>
+      </View>
+      
+      <TouchableOpacity style={styles.actionItem}>
+        <View style={[styles.actionIcon, { backgroundColor: colors.primaryLight }]}>
+          <Ionicons name="people-outline" size={16} color={colors.primary} />
+        </View>
+        <Text style={[styles.actionText, { color: colors.text }]}>Team Members</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.actionItem}>
+        <View style={[styles.actionIcon, { backgroundColor: colors.primaryLight }]}>
+          <Ionicons name="person-add-outline" size={16} color={colors.primary} />
+        </View>
+        <Text style={[styles.actionText, { color: colors.text }]}>Invite Users</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.actionItem}>
+        <View style={[styles.actionIcon, { backgroundColor: colors.primaryLight }]}>
+          <Ionicons name="settings-outline" size={16} color={colors.primary} />
+        </View>
+        <Text style={[styles.actionText, { color: colors.text }]}>User Permissions</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.actionItem}>
+        <View style={[styles.actionIcon, { backgroundColor: colors.primaryLight }]}>
+          <Ionicons name="log-out-outline" size={16} color={colors.primary} />
+        </View>
+        <Text style={[styles.actionText, { color: colors.text }]}>Manage Sessions</Text>
         <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
       </TouchableOpacity>
     </View>
@@ -194,6 +244,7 @@ export default function ProfileScreen() {
           {renderPersonalInfo()}
           {renderAccountInfo()}
           {renderActions()}
+          {renderUsersSection()}
         </View>
       </ScrollView>
     </View>
@@ -300,5 +351,18 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
     marginLeft: 12,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    gap: 10
+  },
+  actionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
 }); 

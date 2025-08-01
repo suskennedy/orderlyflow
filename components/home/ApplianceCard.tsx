@@ -6,31 +6,62 @@ import { Appliance } from '../../types/database';
 
 interface ApplianceCardProps {
   appliance: Appliance;
+  onPress?: () => void;
 }
 
-export default function ApplianceCard({ appliance }: ApplianceCardProps) {
+export default function ApplianceCard({ appliance, onPress }: ApplianceCardProps) {
   const { colors } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
 
+  const handleCardPress = () => {
+    if (onPress) {
+      onPress();
+    } else {
+      setIsExpanded(!isExpanded);
+    }
+  };
+
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface }]}>
-      <TouchableOpacity style={styles.header} onPress={() => setIsExpanded(!isExpanded)}>
+    <TouchableOpacity 
+      style={[styles.card, { backgroundColor: colors.surface }]}
+      onPress={handleCardPress}
+      activeOpacity={0.7}
+    >
+      <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.name, { color: colors.text }]}>{appliance.name}</Text>
           <Text style={[styles.brand, { color: colors.textSecondary }]}>{appliance.brand}</Text>
+          {appliance.room && (
+            <Text style={[styles.room, { color: colors.textSecondary }]}>Room: {appliance.room}</Text>
+          )}
         </View>
-        <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={24} color={colors.textSecondary} />
-      </TouchableOpacity>
-      {isExpanded && (
+        {!onPress && (
+          <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={24} color={colors.textSecondary} />
+        )}
+        {onPress && (
+          <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+        )}
+      </View>
+      {!onPress && isExpanded && (
         <View style={styles.details}>
-          <Text style={[styles.detailText, { color: colors.text }]}>Model: {appliance.model}</Text>
-          <Text style={[styles.detailText, { color: colors.text }]}>Purchased: {appliance.purchase_date}</Text>
-          <Text style={[styles.detailText, { color: colors.text }]}>Store: {appliance.purchased_store}</Text>
-          <Text style={[styles.detailText, { color: colors.text }]}>Warranty Length: {appliance.warranty_length}</Text>
-          <Text style={[styles.detailText, { color: colors.text }]}>Notes: {appliance.notes}</Text>
+          {appliance.model && (
+            <Text style={[styles.detailText, { color: colors.text }]}>Model: {appliance.model}</Text>
+          )}
+          {appliance.purchase_date && (
+            <Text style={[styles.detailText, { color: colors.text }]}>Purchased: {appliance.purchase_date}</Text>
+          )}
+          {appliance.purchased_store && (
+            <Text style={[styles.detailText, { color: colors.text }]}>Store: {appliance.purchased_store}</Text>
+          )}
+          {appliance.warranty_expiration && (
+            <Text style={[styles.detailText, { color: colors.text }]}>Warranty: {appliance.warranty_expiration}</Text>
+          )}
+          {appliance.notes && (
+            <Text style={[styles.detailText, { color: colors.text }]}>Notes: {appliance.notes}</Text>
+          )}
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -49,6 +80,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   brand: {
+    fontSize: 14,
+    marginTop: 4,
+  },
+  room: {
     fontSize: 14,
     marginTop: 4,
   },

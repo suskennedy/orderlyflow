@@ -89,12 +89,7 @@ export default function HomeScreen() {
         >
           <Ionicons name="information-circle" size={20} color={colors.text} />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.headerIcon, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push('/(home)/flo' as any)}
-        >
-          <Ionicons name="chatbubble" size={20} color={colors.text} />
-        </TouchableOpacity>
+        
       </View>
     </View>
   );
@@ -109,7 +104,7 @@ export default function HomeScreen() {
       >
         <TouchableOpacity
           style={[styles.quickLinkButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push('/(dashboard)/vendors/add' as any)}
+          onPress={() => router.push('/(vendors)/add' as any)}
         >
           <Ionicons name="person-add" size={24} color={colors.text} />
           <Text style={[styles.quickLinkText, { color: colors.text }]}>Add Contact</Text>
@@ -125,7 +120,7 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={[styles.quickLinkButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push('/(home)/flo' as any)}
+          onPress={() => router.push('/(dashboard)/info' as any)}
         >
           <Ionicons name="chatbubble" size={24} color={colors.text} />
           <Text style={[styles.quickLinkText, { color: colors.text }]}>Ask Flo</Text>
@@ -133,7 +128,7 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={[styles.quickLinkButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push('/(dashboard)/homes/inventory/add/appliance' as any)}
+          onPress={() => router.push('/(home)/add' as any)}
         >
           <Ionicons name="construct" size={24} color={colors.text} />
           <Text style={[styles.quickLinkText, { color: colors.text }]}>Add Appliance</Text>

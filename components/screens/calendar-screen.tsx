@@ -26,8 +26,8 @@ interface MarkingProps {
   dotColor?: string;
   activeOpacity?: number;
   disableTouchEvent?: boolean;
-  dots?: Array<{key: string; color: string}>;
-  periods?: Array<{startingDay: boolean; endingDay: boolean; color: string}>;
+  dots?: {key: string; color: string}[];
+  periods?: {startingDay: boolean; endingDay: boolean; color: string}[];
   disabled?: boolean;
 }
 
@@ -314,6 +314,12 @@ export default function CalendarScreen() {
   // Render the header section
   const renderHeader = () => (
     <View style={styles.header}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+      >
+        <Ionicons name="arrow-back" size={24} color={colors.text} />
+      </TouchableOpacity>
       <View style={styles.headerLeft}>
         <Text style={[styles.title, { color: colors.text }]}>Calendar</Text>
         <Text style={[styles.subtitle, { color: colors.textTertiary }]}>Manage your events</Text>
@@ -402,5 +408,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
   },
 });

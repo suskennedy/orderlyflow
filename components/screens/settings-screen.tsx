@@ -188,37 +188,7 @@ export default function SettingsScreen() {
         <Text style={[styles.menuItemText, { color: colors.text }]}>Privacy Settings</Text>
         <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
       </TouchableOpacity>
-          </View>
-  );
-
-  const renderUsersSection = () => (
-    <View style={[styles.section, { backgroundColor: colors.surface }]}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Users & Team</Text>
-      
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="people-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>Team Members</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="person-add-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>Invite Users</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="settings-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>User Permissions</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="log-out-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>Manage Sessions</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-            </View>
+    </View>
   );
 
   const renderInfoSection = () => (
@@ -228,18 +198,18 @@ export default function SettingsScreen() {
       <View style={styles.infoItem}>
         <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Current Theme</Text>
         <Text style={[styles.infoValue, { color: colors.text }]}>{theme}</Text>
-        </View>
+      </View>
 
       <View style={styles.infoItem}>
         <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Theme Mode</Text>
         <Text style={[styles.infoValue, { color: colors.text }]}>{themeMode}</Text>
-          </View>
+      </View>
 
       <View style={styles.infoItem}>
         <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Version</Text>
         <Text style={[styles.infoValue, { color: colors.text }]}>1.0.0</Text>
-          </View>
-        </View>
+      </View>
+    </View>
   );
 
   return (
@@ -262,7 +232,6 @@ export default function SettingsScreen() {
           {renderNotificationsSection()}
           {renderBillingSection()}
           {renderSecuritySection()}
-          {renderUsersSection()}
           {renderInfoSection()}
         </View>
       </ScrollView>

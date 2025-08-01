@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useAuth } from '../../lib/hooks/useAuth';
 
+
+
 export default function DashboardLayout() {
   const { user, loading } = useAuth();
   const { colors } = useTheme();
@@ -64,7 +66,7 @@ export default function DashboardLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Hubs',
+          title: 'Dash',
           tabBarIcon: ({ color, focused }) => (
             <View style={[
               styles.iconContainer, 
@@ -134,6 +136,7 @@ export default function DashboardLayout() {
               />
             </View>
           ),
+          href: '/(vendors)',
         }}
       />
       
@@ -156,45 +159,6 @@ export default function DashboardLayout() {
         }}
       />
       
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[
-              styles.iconContainer, 
-              focused && { backgroundColor: colors.primaryLight }
-            ]}>
-              <Ionicons 
-                name={focused ? "person" : "person-outline"} 
-                size={focused ? 26 : 24} 
-                color={color} 
-              />
-            </View>
-          ),
-          href: '/(profile)',
-        }}
-      />
-      
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[
-              styles.iconContainer, 
-              focused && { backgroundColor: colors.primaryLight }
-            ]}>
-              <Ionicons 
-                name={focused ? "settings" : "settings-outline"} 
-                size={focused ? 26 : 24} 
-                color={color} 
-              />
-            </View>
-          ),
-          href: '/(settings)',
-        }}
-      />
       <Tabs.Screen name="info" options={{ href: null }} />
       <Tabs.Screen name="tasks/add" options={{ href: null }} />
     </Tabs>
