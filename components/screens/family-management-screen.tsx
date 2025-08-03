@@ -2,13 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFamily } from '../../lib/contexts/FamilyContext';
@@ -166,7 +166,7 @@ export default function FamilyManagementScreen() {
           <Ionicons name="people-outline" size={64} color={colors.textSecondary} />
           <Text style={[styles.emptyStateTitle, { color: colors.text }]}>No Family Account</Text>
           <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
-            You haven't created or joined a family account yet.
+            You have not created or joined a family account yet.
           </Text>
         </View>
       </View>
@@ -266,7 +266,7 @@ export default function FamilyManagementScreen() {
                   </View>
                   {canManageFamily && (
                     <TouchableOpacity
-                      style={[styles.declineButton, { backgroundColor: colors.errorLight }]}
+                      style={[styles.declineButton, { backgroundColor: colors.surfaceVariant }]}
                       onPress={() => handleDeclineInvitation(invitation.id, invitation.email)}
                     >
                       <Ionicons name="close" size={16} color={colors.error} />
@@ -291,10 +291,10 @@ export default function FamilyManagementScreen() {
                   </View>
                   <View style={styles.memberDetails}>
                     <Text style={[styles.memberName, { color: colors.text }]}>
-                      {member.user?.display_name || member.user?.email || 'Unknown User'}
+                      {member.user?.display_name || member.user?.full_name || 'Unknown User'}
                     </Text>
                     <Text style={[styles.memberEmail, { color: colors.textSecondary }]}>
-                      {member.user?.email}
+                      {member.user?.full_name || 'No name available'}
                     </Text>
                   </View>
                 </View>
@@ -312,14 +312,14 @@ export default function FamilyManagementScreen() {
                   {canManageFamily && member.role !== 'owner' && (
                     <View style={styles.actionButtons}>
                       <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: colors.secondaryLight }]}
+                        style={[styles.actionButton, { backgroundColor: colors.surfaceVariant }]}
                         onPress={() => handleUpdateRole(member.user_id, member.role, member.user?.display_name || 'this member')}
                       >
                         <Ionicons name="swap-horizontal" size={16} color={colors.secondary} />
                       </TouchableOpacity>
                       
                       <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: colors.errorLight }]}
+                        style={[styles.actionButton, { backgroundColor: colors.surfaceVariant }]}
                         onPress={() => handleRemoveMember(member.user_id, member.user?.display_name || 'this member')}
                       >
                         <Ionicons name="trash" size={16} color={colors.error} />

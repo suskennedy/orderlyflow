@@ -1,6 +1,7 @@
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { FamilyAccount, FamilyInvitation, FamilyMember } from '../../types/family';
 import { useAuth } from '../hooks/useAuth';
+import { EmailService } from '../services/emailService';
 import { supabase } from '../supabase';
 
 interface FamilyContextType {
@@ -61,6 +62,7 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
   // Fetch family account data
   const fetchFamilyAccount = useCallback(async () => {
     if (!user?.id) {
+      console.log('No user ID, clearing family account data');
       setFamilyAccount(null);
       setUserRole(null);
       setLoading(false);
@@ -68,31 +70,70 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
     }
 
     try {
+      console.log('Fetching family account for user:', user.id);
       setLoading(true);
       
-      // Get user's role and family account
-      const { data: userRoleData, error: roleError } = await supabase
-        .from('family_members')
-        .select(`
-          *,
-          family_accounts (*)
-        `)
-        .eq('user_id', user.id)
+      // First check if user has a family_account_id in user_profiles
+      const { data: userProfile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('family_account_id')
+        .eq('id', user.id)
         .single();
 
-      if (roleError && roleError.code !== 'PGRST116') {
-        console.error('Error fetching user role:', roleError);
+      console.log('User profile data:', userProfile);
+      console.log('Profile error:', profileError);
+
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
       }
 
-      if (userRoleData) {
-        setUserRole(userRoleData);
-        setFamilyAccount(userRoleData.family_accounts);
+      if (userProfile?.family_account_id) {
+        console.log('User has family account ID:', userProfile.family_account_id);
+        
+        // User has a family account, get the details
+        const { data: familyData, error: familyError } = await supabase
+          .from('family_accounts')
+          .select('*')
+          .eq('id', userProfile.family_account_id)
+          .single();
+
+        console.log('Family account data:', familyData);
+        console.log('Family error:', familyError);
+
+        if (familyError) {
+          console.error('Error fetching family account:', familyError);
+        } else if (familyData) {
+          console.log('Setting family account:', familyData);
+          setFamilyAccount(familyData);
+          
+          // Get user's role in the family
+          const { data: memberData, error: memberError } = await supabase
+            .from('family_members')
+            .select('*')
+            .eq('family_account_id', userProfile.family_account_id)
+            .eq('user_id', user.id)
+            .single();
+
+          console.log('Member data:', memberData);
+          console.log('Member error:', memberError);
+
+          if (memberError) {
+            console.error('Error fetching family member:', memberError);
+          } else if (memberData) {
+            console.log('Setting user role:', memberData);
+            setUserRole(memberData);
+          }
+        }
       } else {
+        console.log('No family account found for user');
+        // No family account found
         setUserRole(null);
         setFamilyAccount(null);
       }
     } catch (error) {
       console.error('Error fetching family account:', error);
+      setUserRole(null);
+      setFamilyAccount(null);
     } finally {
       setLoading(false);
     }
@@ -108,24 +149,35 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
     try {
       setLoadingMembers(true);
       
-      const { data, error } = await supabase
+      // First get family members
+      const { data: membersData, error: membersError } = await supabase
         .from('family_members')
-        .select(`
-          *,
-          user_profiles (
-            display_name,
-            email,
-            avatar_url
-          )
-        `)
+        .select('*')
         .eq('family_account_id', familyAccount.id)
         .order('joined_at', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching family members:', error);
-      } else {
-        setFamilyMembers(data || []);
+      if (membersError) {
+        console.error('Error fetching family members:', membersError);
+        return;
       }
+
+      // Then get user profiles for each member
+      const membersWithProfiles = await Promise.all(
+        (membersData || []).map(async (member) => {
+          const { data: profileData } = await supabase
+            .from('user_profiles')
+            .select('display_name, full_name, avatar_url')
+            .eq('id', member.user_id)
+            .single();
+
+          return {
+            ...member,
+            user: profileData || null
+          };
+        })
+      );
+
+      setFamilyMembers(membersWithProfiles as FamilyMember[]);
     } catch (error) {
       console.error('Error fetching family members:', error);
     } finally {
@@ -143,27 +195,36 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
     try {
       setLoadingInvitations(true);
       
-      const { data, error } = await supabase
+      // First get invitations
+      const { data: invitationsData, error: invitationsError } = await supabase
         .from('family_invitations')
-        .select(`
-          *,
-          user_profiles!invited_by (
-            display_name,
-            email
-          ),
-          family_accounts (
-            name
-          )
-        `)
+        .select('*')
         .eq('family_account_id', familyAccount.id)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching invitations:', error);
-      } else {
-        setInvitations(data || []);
+      if (invitationsError) {
+        console.error('Error fetching invitations:', invitationsError);
+        return;
       }
+
+      // Then get user profiles for invited_by
+      const invitationsWithProfiles = await Promise.all(
+        (invitationsData || []).map(async (invitation) => {
+          const { data: profileData } = await supabase
+            .from('user_profiles')
+            .select('display_name, full_name')
+            .eq('id', invitation.invited_by)
+            .single();
+
+          return {
+            ...invitation,
+            user_profiles: profileData || null
+          };
+        })
+      );
+
+      setInvitations(invitationsWithProfiles as FamilyInvitation[]);
     } catch (error) {
       console.error('Error fetching invitations:', error);
     } finally {
@@ -173,15 +234,28 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
 
   // Create family account
   const createFamilyAccount = async (name: string) => {
+    if (!user?.id) {
+      throw new Error('User not authenticated');
+    }
+
     try {
+      console.log('Creating family account:', name);
+      
       const { data, error } = await supabase.rpc('create_family_account', {
         account_name: name
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error creating family account:', error);
+        throw new Error(error.message || 'Failed to create family account');
+      }
+
+      console.log('Family account created successfully:', data);
 
       // Refresh family account data
       await fetchFamilyAccount();
+      
+      console.log('Family account data refreshed');
     } catch (error) {
       console.error('Error creating family account:', error);
       throw error;
@@ -210,12 +284,62 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
 
   // Invite member
   const inviteMember = async (email: string) => {
+    if (!familyAccount?.id || !user?.id) {
+      throw new Error('Family account or user not found');
+    }
+
     try {
-      const { data, error } = await supabase.rpc('invite_family_member', {
+      // First create the invitation in the database
+      const { data: invitationToken, error: invitationError } = await supabase.rpc('invite_family_member', {
         invitee_email: email
       });
 
-      if (error) throw error;
+      if (invitationError) {
+        console.error('Error creating invitation:', invitationError);
+        throw new Error(invitationError.message || 'Failed to create invitation');
+      }
+
+      console.log('Invitation created with token:', invitationToken);
+
+      // Get invitation details for email
+      const { data: invitationDetails } = await supabase
+        .from('family_invitations')
+        .select('*')
+        .eq('invitation_token', invitationToken)
+        .single();
+
+      if (!invitationDetails) {
+        throw new Error('Failed to retrieve invitation details');
+      }
+
+      // Get inviter's profile information
+      const { data: inviterProfile } = await supabase
+        .from('user_profiles')
+        .select('display_name, full_name')
+        .eq('id', user.id)
+        .single();
+
+      const inviterName = inviterProfile?.display_name || inviterProfile?.full_name || 'A family member';
+
+      // Create invitation URL
+      const invitationUrl = `${process.env.EXPO_PUBLIC_APP_URL || 'https://your-app-url.com'}/invite?token=${invitationToken}`;
+
+      // Send invitation email
+      try {
+        await EmailService.sendFamilyInvitation({
+          to: email,
+          familyName: familyAccount.name,
+          inviterName: inviterName,
+          invitationUrl: invitationUrl,
+          expiresAt: invitationDetails.expires_at
+        });
+
+        console.log('Invitation email sent successfully to:', email);
+      } catch (emailError) {
+        console.error('Error sending invitation email:', emailError);
+        // Don't throw here - the invitation was created successfully
+        // Just log the error for debugging
+      }
 
       // Refresh invitations
       await fetchInvitations();

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFamily } from '../../lib/contexts/FamilyContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
@@ -9,10 +9,41 @@ import ThemeSwitcher from '../ui/ThemeSwitcher';
 
 export default function SettingsScreen() {
   const { colors, theme, themeMode, setThemeMode } = useTheme();
-  const { familyAccount, userRole } = useFamily();
+  const { familyAccount, userRole, createFamilyAccount, loading } = useFamily();
   const insets = useSafeAreaInsets();
+  const [isCreatingFamily, setIsCreatingFamily] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [familyName, setFamilyName] = useState('');
 
   const canManageFamily = userRole?.role === 'owner' || userRole?.role === 'admin';
+
+  const handleCreateFamilyAccount = async () => {
+    if (!familyName || familyName.trim() === '') {
+      Alert.alert('Error', 'Please enter a family name');
+      return;
+    }
+
+    try {
+      setIsCreatingFamily(true);
+      await createFamilyAccount(familyName.trim());
+      setFamilyName('');
+      setShowCreateModal(false);
+      Alert.alert('Success', 'Family account created successfully!');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to create family account');
+    } finally {
+      setIsCreatingFamily(false);
+    }
+  };
+
+  const openCreateModal = () => {
+    setShowCreateModal(true);
+  };
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+    setFamilyName('');
+  };
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -144,6 +175,30 @@ export default function SettingsScreen() {
           <Text style={[styles.noFamilyText, { color: colors.textSecondary }]}>
             No family account found
           </Text>
+          <Text style={[styles.noFamilySubtext, { color: colors.textTertiary }]}>
+            Create a family account to share your home management with family members
+          </Text>
+          
+          <TouchableOpacity
+            style={[
+              styles.createFamilyButton,
+              { 
+                backgroundColor: isCreatingFamily ? colors.textSecondary : colors.primary,
+                opacity: isCreatingFamily ? 0.6 : 1
+              }
+            ]}
+            onPress={openCreateModal}
+            disabled={isCreatingFamily || loading}
+          >
+            <Ionicons 
+              name="add-circle-outline" 
+              size={20} 
+              color={colors.background} 
+            />
+            <Text style={[styles.createFamilyButtonText, { color: colors.background }]}>
+              {isCreatingFamily ? 'Creating...' : 'Create Family Account'}
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -284,6 +339,64 @@ export default function SettingsScreen() {
           {renderInfoSection()}
         </View>
       </ScrollView>
+
+      {/* Create Family Account Modal */}
+      <Modal
+        visible={showCreateModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeCreateModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Create Family Account</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+              Enter a name for your family account
+            </Text>
+            
+            <TextInput
+              style={[styles.modalInput, { 
+                backgroundColor: colors.background,
+                color: colors.text,
+                borderColor: colors.border 
+              }]}
+              value={familyName}
+              onChangeText={setFamilyName}
+              placeholder="e.g., Smith Family"
+              placeholderTextColor={colors.textTertiary}
+              autoFocus={true}
+              autoCapitalize="words"
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { borderColor: colors.border }]}
+                onPress={closeCreateModal}
+                disabled={isCreatingFamily}
+              >
+                <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.modalButton, 
+                  styles.createButton, 
+                  { 
+                    backgroundColor: isCreatingFamily ? colors.textSecondary : colors.primary,
+                    opacity: isCreatingFamily ? 0.6 : 1
+                  }
+                ]}
+                onPress={handleCreateFamilyAccount}
+                disabled={isCreatingFamily}
+              >
+                <Text style={[styles.createButtonText, { color: colors.background }]}>
+                  {isCreatingFamily ? 'Creating...' : 'Create'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -350,6 +463,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 8,
   },
+  noFamilySubtext: {
+    fontSize: 14,
+    marginTop: 4,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  createFamilyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    gap: 8,
+    marginTop: 20,
+  },
+  createFamilyButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
   themeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -412,5 +545,67 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    borderWidth: 1,
+  },
+  createButton: {
+    // backgroundColor is set dynamically
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  createButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 

@@ -15,8 +15,8 @@ export interface FamilyMember {
   role: 'owner' | 'admin' | 'member';
   joined_at: string;
   user?: {
-    display_name: string;
-    email: string;
+    display_name: string | null;
+    full_name: string | null;
     avatar_url: string | null;
   };
 }
@@ -31,9 +31,9 @@ export interface FamilyInvitation {
   expires_at: string;
   created_at: string;
   accepted_at: string | null;
-  invited_by_user?: {
-    display_name: string;
-    email: string;
+  user_profiles?: {
+    display_name: string | null;
+    full_name: string | null;
   };
   family_account?: {
     name: string;

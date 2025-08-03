@@ -25,19 +25,29 @@ export async function signUp(email: string, password: string, fullName: string) 
   
   // Create user profile if signup successful
   if (data.user) {
-    await createUserProfile(data.user.id, {
-      full_name: fullName,
-      display_name: userName,
-      notification_email: true,
-      notification_push: false,
-      notification_sms: false,
-      theme: 'system',
-      calendar_sync_google: false,
-      calendar_sync_apple: false,
-    });
+    console.log('User created successfully, ID:', data.user.id);
+    
+    // Add a small delay to ensure user is fully created in auth system
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    try {
+      await createUserProfile(data.user.id, {
+        full_name: fullName,
+        display_name: userName,
+        notification_email: true,
+        notification_push: false,
+        notification_sms: false,
+        theme: 'system',
+        calendar_sync_google: false,
+        calendar_sync_apple: false,
+      });
 
-    // Create family account for the new user
-    await createFamilyAccountForUser(data.user.id, fullName);
+      // Family account will be created manually by user from settings
+      console.log('User profile created. Family account can be created from settings.');
+    } catch (profileError) {
+      console.error('Error creating profile:', profileError);
+      // Don't throw here, let the signup complete even if profile creation fails
+    }
   }
   
   return data;
@@ -46,9 +56,24 @@ export async function signUp(email: string, password: string, fullName: string) 
 // Helper function to create a user profile
 async function createUserProfile(userId: string, profileData: any) {
   try {
+    console.log('Creating user profile for user:', userId);
+    
+    // First check if user profile already exists
+    const { data: existingProfile } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('id', userId)
+      .single();
+    
+    if (existingProfile) {
+      console.log('User profile already exists for user:', userId);
+      return;
+    }
+    
+    // Use insert instead of upsert to avoid foreign key issues
     const { error } = await supabase
       .from('user_profiles')
-      .upsert({
+      .insert({
         id: userId,
         ...profileData,
         created_at: new Date().toISOString(),
@@ -57,9 +82,14 @@ async function createUserProfile(userId: string, profileData: any) {
       
     if (error) {
       console.error('Error creating user profile:', error.message);
+      console.error('Error details:', error);
+      throw error;
+    } else {
+      console.log('User profile created successfully for user:', userId);
     }
   } catch (error) {
     console.error('Error in createUserProfile:', error);
+    throw error;
   }
 }
 
