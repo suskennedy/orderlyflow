@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import TaskDueDateModal from '../TaskDueDateModal';
 
 // Pre-set task templates
 const PRESET_TASKS = [
@@ -196,6 +197,8 @@ export default function TaskSettingsScreen() {
   const { tasks, addTask, deleteTask } = useTasks();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [expandedTasks, setExpandedTasks] = useState<string[]>([]);
+  const [showDueDateModal, setShowDueDateModal] = useState(false);
+  const [selectedPresetTask, setSelectedPresetTask] = useState<any>(null);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -253,35 +256,50 @@ export default function TaskSettingsScreen() {
         Alert.alert('Error', 'Failed to remove task. Please try again.');
       }
     } else {
-      // Add the task if it's not already added
-      try {
-        await addTask({
-          title: presetTask.title,
-          category: presetTask.category,
-          subcategory: presetTask.subcategory,
-          suggested_frequency: presetTask.suggested_frequency,
-          description: presetTask.description,
-          priority: presetTask.priority,
-          estimated_duration_minutes: presetTask.estimated_duration_minutes,
-          instructions: presetTask.instructions,
-          is_active: true,
-          task_type: 'preset',
-          priority_level: presetTask.priority,
-          room_location: 'General',
-          is_recurring_task: true,
-          recurrence_interval: 1,
-          recurrence_unit: 'months'
-        });
-        
-        Alert.alert(
-          'Task Added!',
-          `${presetTask.title} has been added to your task list.`,
-          [{ text: 'OK' }]
-        );
-      } catch (error) {
-        console.error('Error adding preset task:', error);
-        Alert.alert('Error', 'Failed to add task. Please try again.');
-      }
+      // Show due date modal for predefined tasks
+      setSelectedPresetTask(presetTask);
+      setShowDueDateModal(true);
+    }
+  };
+
+  const handleDueDateConfirm = async (dueDate: string, recurrencePattern: string | null, isRecurring: boolean) => {
+    if (!selectedPresetTask) return;
+    
+    try {
+      await addTask({
+        title: selectedPresetTask.title,
+        category: selectedPresetTask.category,
+        subcategory: selectedPresetTask.subcategory,
+        suggested_frequency: selectedPresetTask.suggested_frequency,
+        description: selectedPresetTask.description,
+        priority: selectedPresetTask.priority,
+        estimated_duration_minutes: selectedPresetTask.estimated_duration_minutes,
+        instructions: selectedPresetTask.instructions,
+        is_active: true,
+        task_type: 'preset',
+        priority_level: selectedPresetTask.priority,
+        room_location: 'General',
+        due_date: dueDate,
+        is_recurring: isRecurring,
+        recurrence_pattern: recurrencePattern,
+        is_recurring_task: isRecurring,
+        recurrence_interval: 1,
+        recurrence_unit: 'months'
+      });
+      
+      const recurrenceText = isRecurring && recurrencePattern ? 
+        ` with ${recurrencePattern} recurrence` : '';
+      
+      Alert.alert(
+        'Task Added!',
+        `${selectedPresetTask.title} has been added to your task list with due date ${new Date(dueDate).toLocaleDateString()}${recurrenceText}.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error adding preset task:', error);
+      Alert.alert('Error', 'Failed to add task. Please try again.');
+    } finally {
+      setSelectedPresetTask(null);
     }
   };
 
@@ -538,6 +556,17 @@ export default function TaskSettingsScreen() {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         bounces={true}
         alwaysBounceVertical={false}
+      />
+      
+      <TaskDueDateModal
+        visible={showDueDateModal}
+        onClose={() => {
+          setShowDueDateModal(false);
+          setSelectedPresetTask(null);
+        }}
+        onConfirm={handleDueDateConfirm}
+        taskTitle={selectedPresetTask?.title || ''}
+        suggestedFrequency={selectedPresetTask?.suggested_frequency || ''}
       />
     </View>
   );

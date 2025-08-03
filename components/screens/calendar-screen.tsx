@@ -14,6 +14,7 @@ import DeleteConfirmationModal from '../../components/ui/DeleteConfirmationModal
 
 // Import hooks and utilities
 import { useCalendar } from '../../lib/contexts/CalendarContext';
+import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { getCalendarTheme, getColorHex } from '../../lib/utils/colorHelpers';
 
@@ -34,11 +35,72 @@ interface MarkingProps {
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { events, loading, refreshing, deleteEvent, onRefresh } = useCalendar();
+  const { events, loading: calendarLoading, refreshing, deleteEvent, onRefresh } = useCalendar();
+  const { tasks, loading: tasksLoading } = useTasks();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [calendarView, setCalendarView] = useState<'month' | 'agenda'>('month');
+
+  // Convert tasks to calendar events
+  const taskEvents = useMemo(() => {
+    const taskCalendarEvents: any[] = [];
+    
+    // Get all task IDs that already have calendar events
+    const tasksWithCalendarEvents = new Set(events.map(event => event.task_id).filter(Boolean));
+    
+    tasks.forEach((task) => {
+      if (!task.is_active || task.status === 'completed') return;
+      
+      // Skip tasks that already have calendar events
+      if (tasksWithCalendarEvents.has(task.id)) {
+        console.log('Skipping task with existing calendar events:', task.title);
+        return;
+      }
+      
+      // Get task due date or use created date as fallback
+      const taskDate = task.due_date || task.created_at?.split('T')[0];
+      if (!taskDate) return;
+      
+      // Determine event color based on priority
+      const getTaskColor = (priority: string | null) => {
+        switch (priority?.toLowerCase()) {
+          case 'urgent': return 'red';
+          case 'high': return 'orange';
+          case 'medium': return 'blue';
+          case 'low': return 'green';
+          default: return 'gray';
+        }
+      };
+
+      const eventColor = getTaskColor(task.priority as string);
+      
+      // Create base task event
+      const taskEvent = {
+        id: `task_${task.id}`,
+        title: `Task: ${task.title}`,
+        description: task.description || `Task: ${task.title}`,
+        start_time: `${taskDate}T09:00:00`,
+        end_time: `${taskDate}T10:00:00`,
+        color: eventColor,
+        all_day: false,
+        task_id: task.id,
+        is_recurring: task.is_recurring || false,
+        recurrence_pattern: task.recurrence_pattern,
+        recurrence_end_date: task.recurrence_end_date,
+        type: 'task'
+      };
+      
+      taskCalendarEvents.push(taskEvent);
+    });
+    
+    return taskCalendarEvents;
+  }, [tasks, events]);
+
+  // Combine calendar events and task events
+  const allEvents = useMemo(() => {
+    return [...events, ...taskEvents];
+  }, [events, taskEvents]);
 
   // Enhanced format events for calendar markers - with filled color highlights for event dates
   const markedDates = useMemo(() => {
@@ -48,7 +110,9 @@ export default function CalendarScreen() {
     const eventsByDate: Record<string, any[]> = {};
     
     console.log('=== CALENDAR MARKING DEBUG ===');
-    console.log('Total events to process:', events.length);
+    console.log('Total events to process:', allEvents.length);
+    console.log('Calendar events:', events.length);
+    console.log('Task events:', taskEvents.length);
     
     // Get current date for generating recurring events
     const now = new Date();
@@ -64,14 +128,15 @@ export default function CalendarScreen() {
       endDate: endDate.toISOString()
     });
     
-    events.forEach((event, index) => {
+    allEvents.forEach((event, index) => {
       console.log(`Processing event ${index + 1}:`, {
         id: event.id,
         title: event.title,
         is_recurring: event.is_recurring,
         recurrence_pattern: event.recurrence_pattern,
         start_time: event.start_time,
-        task_id: event.task_id
+        task_id: event.task_id,
+        type: event.type
       });
       
       // Handle regular events
@@ -80,10 +145,22 @@ export default function CalendarScreen() {
       if (!eventsByDate[eventDate]) {
         eventsByDate[eventDate] = [];
       }
-      eventsByDate[eventDate].push(event);
+      
+      // Check if this event is already added to avoid duplicates
+      const isDuplicate = eventsByDate[eventDate].some(existingEvent => 
+        existingEvent.id === event.id || 
+        (existingEvent.task_id && existingEvent.task_id === event.task_id && 
+         existingEvent.start_time === event.start_time)
+      );
+      
+      if (!isDuplicate) {
+        eventsByDate[eventDate].push(event);
+      } else {
+        console.log('Skipping duplicate event:', event.title, event.start_time);
+      }
       
       // Handle recurring events - generate occurrences for the calendar view
-      if (event.is_recurring && event.recurrence_pattern) {
+      if (event.is_recurring && event.recurrence_pattern && !event.id.includes('_occurrence_')) {
         console.log('🔄 Found recurring event:', event.title, 'Pattern:', event.recurrence_pattern);
         
         const recurringStartDate = new Date(event.start_time);
@@ -109,16 +186,26 @@ export default function CalendarScreen() {
               eventsByDate[occurrenceDate] = [];
             }
             
-            // Create a copy of the event for this occurrence
-            const occurrenceEvent = {
-              ...event,
-              id: `${event.id}_occurrence_${occurrenceCount}`,
-              start_time: `${occurrenceDate}T${recurringStartDate.toTimeString().split(' ')[0]}`,
-              end_time: `${occurrenceDate}T${new Date(event.end_time).toTimeString().split(' ')[0]}`,
-            };
+            // Check if this occurrence already exists to avoid duplicates
+            const isOccurrenceDuplicate = eventsByDate[occurrenceDate].some(existingEvent => 
+              existingEvent.task_id === event.task_id && 
+              existingEvent.start_time.startsWith(occurrenceDate)
+            );
             
-            eventsByDate[occurrenceDate].push(occurrenceEvent);
-            console.log(`✅ Generated recurring occurrence for ${event.title} on ${occurrenceDate}`);
+            if (!isOccurrenceDuplicate) {
+              // Create a copy of the event for this occurrence
+              const occurrenceEvent = {
+                ...event,
+                id: `${event.id}_occurrence_${occurrenceCount}`,
+                start_time: `${occurrenceDate}T${recurringStartDate.toTimeString().split(' ')[0]}`,
+                end_time: `${occurrenceDate}T${new Date(event.end_time).toTimeString().split(' ')[0]}`,
+              };
+              
+              eventsByDate[occurrenceDate].push(occurrenceEvent);
+              console.log(`✅ Generated recurring occurrence for ${event.title} on ${occurrenceDate}`);
+            } else {
+              console.log(`⏭️ Skipping duplicate occurrence for ${event.title} on ${occurrenceDate}`);
+            }
           }
           
           occurrenceCount++;
@@ -181,34 +268,45 @@ export default function CalendarScreen() {
     console.log('=== END CALENDAR MARKING DEBUG ===');
     
     return markers;
-  }, [events, selectedDate]);
+  }, [allEvents, selectedDate]);
 
   // Filter events for the selected date
   const selectedDateEvents = useMemo(() => {
     const selectedEvents: any[] = [];
+    const processedTaskIds = new Set(); // Track processed task IDs to avoid duplicates
     
     console.log('=== SELECTED DATE EVENTS DEBUG ===');
     console.log('Selected date:', selectedDate);
-    console.log('Total events to check:', events.length);
+    console.log('Total events to check:', allEvents.length);
     
-    events.forEach((event, index) => {
+    allEvents.forEach((event, index) => {
       console.log(`Checking event ${index + 1}:`, {
         id: event.id,
         title: event.title,
         is_recurring: event.is_recurring,
         recurrence_pattern: event.recurrence_pattern,
-        start_time: event.start_time
+        start_time: event.start_time,
+        type: event.type
       });
       
       // Handle regular events
-        const eventDate = event.start_time.split('T')[0];
+      const eventDate = event.start_time.split('T')[0];
       if (eventDate === selectedDate) {
+        // Check if we already have an event for this task on this date
+        if (event.task_id && processedTaskIds.has(`${event.task_id}_${eventDate}`)) {
+          console.log(`⏭️ Skipping duplicate task event: ${event.title}`);
+          return;
+        }
+        
         selectedEvents.push(event);
+        if (event.task_id) {
+          processedTaskIds.add(`${event.task_id}_${eventDate}`);
+        }
         console.log(`✅ Added regular event: ${event.title}`);
       }
       
       // Handle recurring events - generate occurrences for the selected date
-      if (event.is_recurring && event.recurrence_pattern) {
+      if (event.is_recurring && event.recurrence_pattern && !event.id.includes('_occurrence_')) {
         console.log('🔄 Processing recurring event for selected date:', event.title);
         
         const recurringStartDate = new Date(event.start_time);
@@ -225,6 +323,12 @@ export default function CalendarScreen() {
           
           // Check if this occurrence falls on the selected date
           if (occurrenceDate === selectedDate) {
+            // Check if we already have an event for this task on this date
+            if (event.task_id && processedTaskIds.has(`${event.task_id}_${occurrenceDate}`)) {
+              console.log(`⏭️ Skipping duplicate recurring occurrence: ${event.title}`);
+              break; // Skip this entire recurring event if we already have it
+            }
+            
             // Create a copy of the event for this occurrence
             const occurrenceEvent = {
               ...event,
@@ -234,7 +338,11 @@ export default function CalendarScreen() {
             };
             
             selectedEvents.push(occurrenceEvent);
+            if (event.task_id) {
+              processedTaskIds.add(`${event.task_id}_${occurrenceDate}`);
+            }
             console.log(`✅ Found recurring occurrence for ${event.title} on ${selectedDate}`);
+            break; // Only add one occurrence per recurring event
           }
           
           occurrenceCount++;
@@ -276,12 +384,12 @@ export default function CalendarScreen() {
     
     console.log('Final selected date events:', sortedEvents.length);
     sortedEvents.forEach(event => {
-      console.log(`📅 Event on ${selectedDate}:`, event.title, event.is_recurring ? '(Recurring)' : '');
+      console.log(`📅 Event on ${selectedDate}:`, event.title, event.is_recurring ? '(Recurring)' : '', event.type === 'task' ? '(Task)' : '');
     });
     console.log('=== END SELECTED DATE EVENTS DEBUG ===');
     
     return sortedEvents;
-  }, [events, selectedDate]);
+  }, [allEvents, selectedDate]);
 
   // Calendar theme customization
   const calendarTheme = getCalendarTheme(colors);
@@ -303,6 +411,14 @@ export default function CalendarScreen() {
     if (!selectedEvent) return;
     
     try {
+      // If it's a task event, navigate to tasks instead of deleting
+      if (selectedEvent.type === 'task') {
+        setShowDeleteModal(false);
+        setSelectedEvent(null);
+        router.push('/(dashboard)/tasks');
+        return;
+      }
+      
       await deleteEvent(selectedEvent.id);
       setShowDeleteModal(false);
       setSelectedEvent(null);
@@ -322,7 +438,9 @@ export default function CalendarScreen() {
       </TouchableOpacity>
       <View style={styles.headerLeft}>
         <Text style={[styles.title, { color: colors.text }]}>Calendar</Text>
-        <Text style={[styles.subtitle, { color: colors.textTertiary }]}>Manage your events</Text>
+        <Text style={[styles.subtitle, { color: colors.textTertiary }]}>
+          {calendarLoading || tasksLoading ? 'Loading...' : `${allEvents.length} events`}
+        </Text>
       </View>
       <TouchableOpacity 
         style={[styles.addButton, { backgroundColor: colors.primary }]}
@@ -334,7 +452,7 @@ export default function CalendarScreen() {
   );
 
   // Show loading state while fetching data
-  if (loading && !refreshing) {
+  if ((calendarLoading || tasksLoading) && !refreshing) {
     return <LoadingState message="Loading calendar..." />;
   }
 
@@ -368,8 +486,11 @@ export default function CalendarScreen() {
         visible={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}
-        title="Delete Event"
-        message={`Are you sure you want to delete "${selectedEvent?.title}"? This action cannot be undone.`}
+        title={selectedEvent?.type === 'task' ? 'Task Event' : 'Delete Event'}
+        message={selectedEvent?.type === 'task' 
+          ? `This is a task event. To manage this task, go to the Tasks section.` 
+          : `Are you sure you want to delete "${selectedEvent?.title}"? This action cannot be undone.`
+        }
       />
     </View>
   );

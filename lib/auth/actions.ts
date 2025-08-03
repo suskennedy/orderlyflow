@@ -35,6 +35,9 @@ export async function signUp(email: string, password: string, fullName: string) 
       calendar_sync_google: false,
       calendar_sync_apple: false,
     });
+
+    // Create family account for the new user
+    await createFamilyAccountForUser(data.user.id, fullName);
   }
   
   return data;
@@ -57,6 +60,26 @@ async function createUserProfile(userId: string, profileData: any) {
     }
   } catch (error) {
     console.error('Error in createUserProfile:', error);
+  }
+}
+
+// Helper function to create a family account for new user
+async function createFamilyAccountForUser(userId: string, fullName: string) {
+  try {
+    // Create family account with user's name
+    const familyName = `${fullName}'s Family`;
+    
+    const { data, error } = await supabase.rpc('create_family_account', {
+      account_name: familyName
+    });
+    
+    if (error) {
+      console.error('Error creating family account:', error.message);
+    } else {
+      console.log('Family account created successfully for user:', userId);
+    }
+  } catch (error) {
+    console.error('Error in createFamilyAccountForUser:', error);
   }
 }
 

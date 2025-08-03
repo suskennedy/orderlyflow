@@ -83,8 +83,7 @@ interface TasksContextType {
   updateTask: (taskId: string, updates: Partial<TaskItem>) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   toggleTaskActive: (taskId: string, isActive: boolean) => Promise<void>;
-  completeTask: (taskId: string, completionData: Partial<TaskHistory>) => Promise<void>;
-  getTaskHistory: (taskId: string) => Promise<TaskHistory[]>;
+  completeTask: (taskId: string, completionData: any) => Promise<void>;
   onRefresh: () => Promise<void>;
   syncTasksToCalendar: () => Promise<void>;
 }
@@ -118,8 +117,13 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
     }
 
     try {
-      // Use today's date if no due date is provided
-      const eventDate = task.due_date || new Date().toISOString().split('T')[0];
+      // Use due_date if available, otherwise use created_at as fallback
+      const eventDate = task.due_date || task.created_at?.split('T')[0];
+      if (!eventDate) {
+        console.log('Skipping calendar event creation - no due date or created date');
+        return;
+      }
+      
       console.log('Creating calendar event for task:', task.title, 'on date:', eventDate);
       
       // Check if calendar event already exists for this task
@@ -145,7 +149,7 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         }
       };
 
-      const eventColor = getEventColor(task.priority);
+      const eventColor = getEventColor(task.priority as string);
 
       // Create the base calendar event
       const calendarEvent = {
@@ -229,7 +233,7 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         }
       };
 
-      const eventColor = getEventColor(task.priority);
+      const eventColor = getEventColor(task?.priority  as string);
       const events = [];
 
       let currentDate = new Date(startDate);
@@ -275,7 +279,6 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
           case 'quarterly':
             currentDate.setMonth(currentDate.getMonth() + 3);
             break;
-          case 'semi-annually':
           case 'semi-annually':
             currentDate.setMonth(currentDate.getMonth() + 6);
             break;
@@ -359,73 +362,90 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
     try {
       setLoading(true);
       
+      if (!user?.id) {
+        setTasks([]);
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('tasks')
-        .select(`
-          *,
-          homes (
-            name
-          ),
-          assigned_vendor:vendors!assigned_vendor_id (
-            name
-          ),
-          assigned_user:user_profiles!assigned_user_id (
-            display_name
-          )
-        `)
+        .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
       
-      // Fetch task history for each task
-      const tasksWithHistory = await Promise.all(
-        (data || []).map(async (task) => {
-          const { data: historyData } = await supabase
-            .from('task_history')
-            .select('*')
-            .eq('task_id', task.id)
-            .order('completed_at', { ascending: false });
-          
-          return {
-            ...task,
-            task_history: historyData || []
-          };
-        })
-      );
+      // Set tasks in state with empty history for each task
+      const tasksWithHistory = (data || []).map(task => ({
+        ...task,
+        task_history: []
+      })) as unknown as TaskItem[];
       
       setTasks(tasksWithHistory);
+      
     } catch (error) {
       console.error('Error fetching tasks:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user?.id]);
 
   // Add a new task
   const addTask = async (taskData: Partial<TaskItem>) => {
     try {
+      // Ensure required fields are present
+      if (!taskData.title) {
+        throw new Error('Task title is required');
+      }
+
       const newTask = {
-        ...taskData,
+        title: taskData.title,
+        description: taskData.description || null,
+        category: taskData.category || null,
+        subcategory: taskData.subcategory || null,
+        priority: taskData.priority || null,
+        status: taskData.status || 'pending',
+        due_date: taskData.due_date || null,
+        is_recurring: taskData.is_recurring || false,
+        recurrence_pattern: taskData.recurrence_pattern || null,
+        recurrence_end_date: taskData.recurrence_end_date || null,
+        home_id: taskData.home_id || null,
+        notes: taskData.notes || null,
+        is_active: taskData.is_active !== undefined ? taskData.is_active : true,
+        suggested_frequency: taskData.suggested_frequency || null,
+        custom_frequency: taskData.custom_frequency || null,
+        assigned_vendor_id: taskData.assigned_vendor_id || null,
+        assigned_user_id: taskData.assigned_user_id || null,
+        instructions: taskData.instructions || null,
+        estimated_cost: taskData.estimated_cost || null,
+        image_url: taskData.image_url || null,
+        frequency_type: taskData.frequency_type || null,
+        task_type: taskData.task_type || null,
+        priority_level: taskData.priority_level || null,
+        completion_notes: taskData.completion_notes || null,
+        vendor_notes: taskData.vendor_notes || null,
+        room_location: taskData.room_location || null,
+        equipment_required: taskData.equipment_required || null,
+        safety_notes: taskData.safety_notes || null,
+        estimated_duration_minutes: taskData.estimated_duration_minutes || null,
+        is_recurring_task: taskData.is_recurring_task || false,
+        recurrence_interval: taskData.recurrence_interval || null,
+        recurrence_unit: taskData.recurrence_unit || null,
+        last_modified_by: taskData.last_modified_by || null,
+        created_by: taskData.created_by || null,
+        user_id: user?.id,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
 
       const { data, error } = await supabase
         .from('tasks')
-        .insert([newTask])
-        .select(`
-          *,
-          homes (
-            name
-          ),
-          assigned_vendor:vendors!assigned_vendor_id (
-            name
-          ),
-          assigned_user:user_profiles!assigned_user_id (
-            display_name
-          )
-        `)
+        .insert(newTask)
+        .select('*')
         .single();
 
       if (error) throw error;
@@ -434,14 +454,18 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       const taskWithHistory = {
         ...data,
         task_history: []
-      };
+      } as unknown as TaskItem;
       
       setTasks(current => [taskWithHistory, ...current]);
       
-      // Create calendar event for new task
-      createCalendarEventFromTask(taskWithHistory);
-      
-      return data;
+      // Create calendar event for new task - only create one type based on recurrence
+      if (taskWithHistory.is_recurring && taskWithHistory.recurrence_pattern) {
+        // For recurring tasks, only create recurring calendar events
+        createRecurringCalendarEvents(taskWithHistory);
+      } else {
+        // For non-recurring tasks, only create single calendar event
+        createCalendarEventFromTask(taskWithHistory);
+      }
     } catch (error) {
       console.error('Error adding task:', error);
       throw error;
@@ -486,50 +510,34 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
   };
 
   // Complete a task
-  const completeTask = async (taskId: string, completionData: Partial<TaskHistory>) => {
+  const completeTask = async (taskId: string, completionData: any) => {
     try {
-      // Create task history entry
-      const historyEntry = {
-        task_id: taskId,
-        completed_at: new Date().toISOString(),
-        notes: completionData.notes,
-        completion_rating: completionData.completion_rating,
-        photos: completionData.photos,
-        cost_actual: completionData.cost_actual,
-        time_spent_minutes: completionData.time_spent_minutes
-      };
-
-      const { data: historyData, error: historyError } = await supabase
-        .from('task_history')
-        .insert([historyEntry])
-        .select()
-        .single();
-
-      if (historyError) throw historyError;
-
-      // Update task with completion info
+      // Update task with completion info using the new schema fields
       const taskUpdates = {
-        last_completed: new Date().toISOString(),
         status: 'completed',
+        completed_by_type: completionData.completed_by_type || 'user',
+        completed_by_vendor_id: completionData.completed_by_vendor_id || null,
+        completed_by_external_name: completionData.completed_by_external_name || null,
+        completed_at: completionData.completed_at || new Date().toISOString(),
+        completion_verification_status: completionData.completion_verification_status || 'verified',
+        completion_notes: completionData.completion_notes || completionData.notes || null,
+        last_completed: new Date().toISOString(),
         completion_date: new Date().toISOString()
       };
 
       await updateTask(taskId, taskUpdates);
 
-      // Update local state to include new history
+      // Update local state for immediate UI update
       setTasks(current => 
         current.map(task => 
           task.id === taskId 
             ? { 
                 ...task, 
-                ...taskUpdates,
-                task_history: [historyData, ...(task.task_history || [])]
+                ...taskUpdates
               }
             : task
         )
       );
-
-      return historyData;
     } catch (error) {
       console.error('Error completing task:', error);
       throw error;
@@ -537,43 +545,27 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
   };
 
   // Get task history
-  const getTaskHistory = async (taskId: string): Promise<TaskHistory[]> => {
-    try {
-      const { data, error } = await supabase
-        .from('task_history')
-        .select('*')
-        .eq('task_id', taskId)
-        .order('completed_at', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching task history:', error);
-      throw error;
-    }
-  };
-
+  
   // Set up real-time subscription for tasks table
   const handleTaskChange = useCallback((payload: any) => {
-    console.log('Task change detected:', payload.eventType, payload.new?.title);
+    console.log('TasksContext: Real-time update received:', payload.eventType, payload.new?.title);
     
     const eventType = payload.eventType;
 
     if (eventType === 'INSERT') {
-      console.log('New task inserted:', payload.new);
       // For new tasks, we need to fetch to get the homes relationship
       fetchTasks();
       
-      // Create calendar event for new task (with or without due date)
-      createCalendarEventFromTask(payload.new);
-      
-      // If it's a recurring task, create recurring events
+      // Create calendar event for new task - only create one type based on recurrence
       if (payload.new.is_recurring && payload.new.recurrence_pattern) {
+        // For recurring tasks, only create recurring calendar events
         createRecurringCalendarEvents(payload.new);
+      } else {
+        // For non-recurring tasks, only create single calendar event
+        createCalendarEventFromTask(payload.new);
       }
     } 
     else if (eventType === 'UPDATE') {
-      console.log('Task updated:', payload.new);
       // For updates, we need to fetch to get the homes relationship
       fetchTasks();
       
@@ -583,7 +575,6 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       const recurrencePatternChanged = payload.old.recurrence_pattern !== payload.new.recurrence_pattern;
       
       if (dueDateChanged || becameRecurring || recurrencePatternChanged) {
-        console.log('Task details changed, updating calendar events');
         // Delete old calendar events for this task
         supabase
           .from('calendar_events')
@@ -593,26 +584,25 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
             if (error) {
               console.error('Error deleting old calendar events:', error);
             } else {
-              console.log('Successfully deleted old calendar events');
-              // Create new calendar events
-              createCalendarEventFromTask(payload.new);
-              
+              // Create new calendar events - only create one type based on recurrence
               if (payload.new.is_recurring && payload.new.recurrence_pattern) {
+                // For recurring tasks, only create recurring calendar events
                 createRecurringCalendarEvents(payload.new);
+              } else {
+                // For non-recurring tasks, only create single calendar event
+                createCalendarEventFromTask(payload.new);
               }
             }
           });
       }
     } 
     else if (eventType === 'DELETE') {
-      console.log('Task deleted via real-time subscription:', payload.old);
       setTasks(current => 
         current.filter(task => task.id !== payload.old.id)
       );
       
       // Delete associated calendar events immediately using CalendarContext method
       if (payload.old.id) {
-        console.log('Deleting calendar events for deleted task:', payload.old.id);
         removeEventsByTaskId(payload.old.id);
         // Refresh calendar events to ensure UI is properly updated
         setTimeout(() => refreshEvents(), 100);
@@ -630,14 +620,16 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
 
   // Initial data fetch
   useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+    if (user?.id) {
+      fetchTasks();
+    } else {
+      setTasks([]);
+    }
+  }, [fetchTasks, user?.id]);
 
   // Delete a task
   const deleteTask = async (taskId: string) => {
     try {
-      console.log('Deleting task:', taskId);
-      
       // First, remove all associated calendar events using the CalendarContext method
       await removeEventsByTaskId(taskId);
       
@@ -648,8 +640,6 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         .eq('id', taskId);
 
       if (error) throw error;
-
-      console.log('Successfully deleted task:', taskId);
       
       // Remove from local state for immediate UI update
       setTasks(current => current.filter(task => task.id !== taskId));
@@ -677,7 +667,6 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
     deleteTask,
     toggleTaskActive,
     completeTask,
-    getTaskHistory,
     onRefresh,
     syncTasksToCalendar,
   };

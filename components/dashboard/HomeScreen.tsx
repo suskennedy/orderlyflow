@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalendar } from '../../lib/contexts/CalendarContext';
@@ -15,22 +15,19 @@ import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
-import { useAuth } from '../../lib/hooks/useAuth';
 
 export default function HomeScreen() {
-  const { user } = useAuth();
   const { colors } = useTheme();
-  const { homes, loading: homesLoading, onRefresh: homesRefresh } = useHomes();
-  const { tasks: allTasks, loading: tasksLoading, onRefresh: tasksRefresh } = useTasks();
-  const { events, loading: eventsLoading, onRefresh: eventsRefresh } = useCalendar();
-  const { vendors, loading: vendorsLoading, onRefresh: vendorsRefresh } = useVendors();
+  const { onRefresh: homesRefresh } = useHomes();
+  const { tasks: allTasks, onRefresh: tasksRefresh, completeTask } = useTasks();
+  const { events, onRefresh: eventsRefresh } = useCalendar();
+  const { onRefresh: vendorsRefresh } = useVendors();
   const [refreshing, setRefreshing] = useState(false);
   const insets = useSafeAreaInsets();
 
   // Get the latest 5 items from each context
   const tasks = allTasks.slice(0, 5);
   const recentEvents = events.slice(0, 5);
-  const recentVendors = vendors.slice(0, 5);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -45,14 +42,34 @@ export default function HomeScreen() {
     });
   };
 
-  const getUpcomingTasks = () => {
-    return tasks.filter(task => task.status !== 'completed').slice(0, 3);
+  const handleTaskComplete = async (taskId: string) => {
+    try {
+      await completeTask(taskId, {
+        completed_by_type: 'user',
+        completed_at: new Date().toISOString(),
+        completion_verification_status: 'verified',
+        completion_notes: 'Completed from home screen'
+      });
+    } catch (error) {
+      console.error('Error completing task:', error);
+    }
   };
 
-  const getUpcomingEvents = () => {
-    const now = new Date();
-    return recentEvents.filter(event => new Date(event.start_time) >= now).slice(0, 3);
-  };
+  // Simple test to show all tasks if none are being displayed
+  const showAllTasks = allTasks.length > 0 && allTasks.filter(task => 
+    task.task_type === 'custom' || 
+    task.task_type === 'preset' || 
+    !task.task_type
+  ).length === 0;
+
+  // const getUpcomingTasks = () => {
+  //   return tasks.filter(task => task.status !== 'completed').slice(0, 3);
+  // };
+
+  // const getUpcomingEvents = () => {
+  //   const now = new Date();
+  //   return recentEvents.filter(event => new Date(event.start_time) >= now).slice(0, 3);
+  // };
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: colors.surface }]}>
@@ -138,28 +155,161 @@ export default function HomeScreen() {
   );
 
   const renderTasks = () => {
-    // Filter user tasks (custom and preset)
-    const userTasks = allTasks.filter(task => 
-      task.task_type === 'custom' || 
-      task.task_type === 'preset' || 
-      !task.task_type
+    // Filter user tasks (custom and preset) - show all active tasks
+    let userTasks = allTasks.filter(task => 
+      (task.task_type === 'custom' || 
+       task.task_type === 'preset' || 
+       !task.task_type) &&
+      task.is_active !== false // Show all tasks that are not explicitly inactive
     );
 
-    // Group tasks by time period
+    // If no tasks found with filtering, show all tasks
+    if (userTasks.length === 0) {
+      userTasks = allTasks;
+    }
+
+    // Group tasks by time period - handle frequencies properly
     const now = new Date();
     const thisWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const thisMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
+    // Filter tasks for this week based on frequency
     const thisWeekTasks = userTasks.filter(task => {
-      if (!task.next_due) return false;
-      const dueDate = new Date(task.next_due);
-      return dueDate <= thisWeek && dueDate >= now;
+      if (task.status === 'completed' || task.is_active === false) return false;
+      
+      // Handle recurring tasks based on frequency
+      if (task.is_recurring && task.recurrence_pattern) {
+        const pattern = task.recurrence_pattern.toLowerCase();
+        
+        switch (pattern) {
+          case 'daily':
+            // Daily tasks should always show in this week
+            return true;
+            
+          case 'weekly':
+            // Weekly tasks should show if they're due this week
+            if (task.due_date) {
+              const dueDate = new Date(task.due_date);
+              return dueDate <= thisWeek && dueDate >= now;
+            }
+            // If no due date, show weekly tasks
+            return true;
+            
+          case 'bi-weekly':
+          case 'biweekly':
+            // Bi-weekly tasks should show if they're due this week
+            if (task.due_date) {
+              const dueDate = new Date(task.due_date);
+              return dueDate <= thisWeek && dueDate >= now;
+            }
+            return false;
+            
+          case 'monthly':
+          case 'quarterly':
+          case 'semi-annually':
+          case 'annually':
+          case 'yearly':
+            // Monthly and longer frequency tasks should show if they're due this week
+            if (task.due_date) {
+              const dueDate = new Date(task.due_date);
+              return dueDate <= thisWeek && dueDate >= now;
+            }
+            return false;
+            
+          default:
+            // For unknown patterns, check due date
+            if (task.due_date) {
+              const dueDate = new Date(task.due_date);
+              return dueDate <= thisWeek && dueDate >= now;
+            }
+            return false;
+        }
+      }
+      
+      // For non-recurring tasks, check if they're due this week
+      if (task.due_date) {
+        const dueDate = new Date(task.due_date);
+        return dueDate <= thisWeek && dueDate >= now;
+      }
+      
+      // If no due date and not recurring, show the task anyway (newly added tasks)
+      return true;
     });
 
+    // Filter tasks for this month based on frequency
     const thisMonthTasks = userTasks.filter(task => {
-      if (!task.next_due) return false;
-      const dueDate = new Date(task.next_due);
-      return dueDate <= thisMonth && dueDate > thisWeek;
+      if (task.status === 'completed' || task.is_active === false) return false;
+      
+      // Handle recurring tasks based on frequency
+      if (task.is_recurring && task.recurrence_pattern) {
+        const pattern = task.recurrence_pattern.toLowerCase();
+        
+        switch (pattern) {
+          case 'daily':
+            // Daily tasks should not show in this month (already in this week)
+            return false;
+            
+          case 'weekly':
+            // Weekly tasks should show if they're due this month but after this week
+            if (task.due_date) {
+              const dueDate = new Date(task.due_date);
+              return dueDate <= thisMonth && dueDate > thisWeek;
+            }
+            return false;
+            
+          case 'bi-weekly':
+          case 'biweekly':
+            // Bi-weekly tasks should show if they're due this month but after this week
+            if (task.due_date) {
+              const dueDate = new Date(task.due_date);
+              return dueDate <= thisMonth && dueDate > thisWeek;
+            }
+            return false;
+            
+          case 'monthly':
+            // Monthly tasks should show if they're due this month but after this week
+            if (task.due_date) {
+              const dueDate = new Date(task.due_date);
+              return dueDate <= thisMonth && dueDate > thisWeek;
+            }
+            return false;
+            
+          case 'quarterly':
+            // Quarterly tasks should show if they're due this month but after this week
+            if (task.due_date) {
+              const dueDate = new Date(task.due_date);
+              return dueDate <= thisMonth && dueDate > thisWeek;
+            }
+            return false;
+            
+          case 'semi-annually':
+          case 'annually':
+          case 'yearly':
+            // Longer frequency tasks should show if they're due this month but after this week
+            if (task.due_date) {
+              const dueDate = new Date(task.due_date);
+              return dueDate <= thisMonth && dueDate > thisWeek;
+            }
+            return false;
+            
+          default:
+            // For unknown patterns, check due date
+            if (task.due_date) {
+              const dueDate = new Date(task.due_date);
+              return dueDate <= thisMonth && dueDate > thisWeek;
+            }
+            return false;
+        }
+      }
+      
+      // For non-recurring tasks, check if they're due this month but after this week
+      if (task.due_date) {
+        const dueDate = new Date(task.due_date);
+        return dueDate <= thisMonth && dueDate > thisWeek;
+      }
+      
+      // If no due date, don't show in this month (already shown in this week)
+      return false;
     });
 
     // Group tasks by category
@@ -175,8 +325,8 @@ export default function HomeScreen() {
       return grouped;
     };
 
-    const thisWeekGrouped = groupTasksByCategory(thisWeekTasks);
-    const thisMonthGrouped = groupTasksByCategory(thisMonthTasks);
+    let thisWeekGrouped = groupTasksByCategory(thisWeekTasks);
+    let thisMonthGrouped = groupTasksByCategory(thisMonthTasks);
 
     const renderTaskList = (groupedTasks: { [key: string]: any[] }) => {
       return Object.entries(groupedTasks).map(([category, tasks]) => (
@@ -187,16 +337,18 @@ export default function HomeScreen() {
           <View style={styles.taskItems}>
             {tasks.slice(0, 3).map((task, index) => (
               <View key={task.id || index} style={styles.taskItem}>
-                <Ionicons 
-                  name={task.is_active ? "square-outline" : "checkmark-square"} 
-                  size={16} 
-                  color={task.is_active ? colors.textSecondary : colors.primary} 
-                />
+                <TouchableOpacity onPress={() => handleTaskComplete(task.id)}>
+                  <Ionicons 
+                    name={task.status === 'completed' ? "checkmark" : "square-outline"} 
+                    size={16} 
+                    color={task.status === 'completed' ? colors.primary : colors.textSecondary} 
+                  />
+                </TouchableOpacity>
                 <Text style={[
                   styles.taskText, 
                   { 
-                    color: task.is_active ? colors.text : colors.textSecondary,
-                    textDecorationLine: task.is_active ? 'none' : 'line-through'
+                    color: task.status === 'completed' ? colors.textSecondary : colors.text,
+                    textDecorationLine: task.status === 'completed' ? 'line-through' : 'none'
                   }
                 ]}>
                   {task.title}
@@ -215,7 +367,12 @@ export default function HomeScreen() {
 
     return (
       <View style={styles.tasksContainer}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Tasks</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Tasks</Text>
+          <TouchableOpacity onPress={() => router.push('/(dashboard)/tasks' as any)}>
+            <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.tasksColumns}>
           {/* This Week Column */}
           <View style={styles.taskColumn}>
@@ -375,5 +532,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginTop: 10,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 }); 

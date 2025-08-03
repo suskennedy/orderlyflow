@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -50,7 +50,7 @@ export default function DashboardScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const { homes, loading: homesLoading, onRefresh: homesRefresh } = useHomes();
-  const { tasks: allTasks, loading: tasksLoading, syncTasksToCalendar, onRefresh: tasksRefresh } = useTasks();
+  const { tasks: allTasks, loading: tasksLoading, syncTasksToCalendar, onRefresh: tasksRefresh, completeTask } = useTasks();
   const { events, loading: eventsLoading, onRefresh: eventsRefresh } = useCalendar();
   const { vendors, loading: vendorsLoading, onRefresh: vendorsRefresh } = useVendors();
   const { items: inventory, loading: inventoryLoading, onRefresh: inventoryRefresh } = useInventory();
@@ -62,6 +62,14 @@ export default function DashboardScreen() {
   const recentEvents = events.slice(0, 5);
   const recentVendors = vendors.slice(0, 5);
   const recentInventory = inventory.slice(0, 5);
+
+  // Track task updates for real-time debugging
+  useEffect(() => {
+    console.log('Dashboard: Tasks updated, count:', allTasks.length);
+    if (allTasks.length > 0) {
+      console.log('Dashboard: Latest task:', allTasks[0].title);
+    }
+  }, [allTasks]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -88,7 +96,338 @@ export default function DashboardScreen() {
   };
 
   const getUpcomingTasks = () => {
-    return tasks.filter(task => task.status !== 'completed').slice(0, 3);
+    const now = new Date();
+    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
+    return allTasks
+      .filter(task => {
+        // Only show active, non-completed tasks
+        if (task.status === 'completed' || !task.is_active) return false;
+        
+        // If task has a due date, check if it's within 30 days
+        if (task.due_date) {
+          const dueDate = new Date(task.due_date);
+          return dueDate >= now && dueDate <= thirtyDaysFromNow;
+        }
+        
+        // If no due date, show tasks created recently (within last 7 days)
+        if (task.created_at) {
+          const createdDate = new Date(task.created_at);
+          const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          return createdDate >= sevenDaysAgo;
+        }
+        
+        return false;
+      })
+      .sort((a, b) => {
+        // Sort by priority first (high > medium > low)
+        const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1, 'urgent': 4 };
+        const aPriority = priorityOrder[a.priority?.toLowerCase() as keyof typeof priorityOrder] || 0;
+        const bPriority = priorityOrder[b.priority?.toLowerCase() as keyof typeof priorityOrder] || 0;
+        
+        if (aPriority !== bPriority) {
+          return bPriority - aPriority;
+        }
+        
+        // Then sort by due date (earliest first)
+        if (a.due_date && b.due_date) {
+          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+        }
+        
+        // If one has due date and other doesn't, prioritize the one with due date
+        if (a.due_date && !b.due_date) return -1;
+        if (!a.due_date && b.due_date) return 1;
+        
+        // Finally sort by creation date (newest first)
+        if (a.created_at && b.created_at) {
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        }
+        
+        return 0;
+      })
+      .slice(0, 5); // Show top 5 upcoming tasks
+  };
+
+  const getTasksForThisWeek = () => {
+    const now = new Date();
+    const endOfWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    return allTasks
+      .filter(task => {
+        // Only show active, non-completed tasks
+        if (task.status === 'completed' || task.is_active === false) return false;
+        
+        // Handle recurring tasks based on frequency
+        if (task.is_recurring && task.recurrence_pattern) {
+          const pattern = task.recurrence_pattern.toLowerCase();
+          
+          switch (pattern) {
+            case 'daily':
+              // Daily tasks should always show in this week
+              return true;
+              
+            case 'weekly':
+              // Weekly tasks should show if they're due this week
+              if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                return dueDate >= now && dueDate <= endOfWeek;
+              }
+              // If no due date, show weekly tasks
+              return true;
+              
+            case 'bi-weekly':
+            case 'biweekly':
+              // Bi-weekly tasks should show if they're due this week
+              if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                return dueDate >= now && dueDate <= endOfWeek;
+              }
+              return false;
+              
+            case 'monthly':
+            case 'quarterly':
+            case 'semi-annually':
+            case 'annually':
+            case 'yearly':
+              // Monthly and longer frequency tasks should show if they're due this week
+              if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                return dueDate >= now && dueDate <= endOfWeek;
+              }
+              return false;
+              
+            default:
+              // For unknown patterns, check due date
+              if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                return dueDate >= now && dueDate <= endOfWeek;
+              }
+              return false;
+          }
+        }
+        
+        // For non-recurring tasks, check if they're due this week
+        if (task.due_date) {
+          const dueDate = new Date(task.due_date);
+          return dueDate >= now && dueDate <= endOfWeek;
+        }
+        
+        // If no due date and not recurring, show the task anyway (newly added tasks)
+        return true;
+      })
+      .sort((a, b) => {
+        if (a.due_date && b.due_date) {
+          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+        }
+        // Tasks without due dates go to the end
+        if (!a.due_date && b.due_date) return 1;
+        if (a.due_date && !b.due_date) return -1;
+        return 0;
+      });
+  };
+
+  const getTasksForThisMonth = () => {
+    const now = new Date();
+    const endOfWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const endOfMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
+    return allTasks
+      .filter(task => {
+        // Only show active, non-completed tasks
+        if (task.status === 'completed' || task.is_active === false) return false;
+        
+        // Handle recurring tasks based on frequency
+        if (task.is_recurring && task.recurrence_pattern) {
+          const pattern = task.recurrence_pattern.toLowerCase();
+          
+          switch (pattern) {
+            case 'daily':
+              // Daily tasks should not show in this month (already in this week)
+              return false;
+              
+            case 'weekly':
+              // Weekly tasks should show if they're due this month but after this week
+              if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                return dueDate > endOfWeek && dueDate <= endOfMonth;
+              }
+              return false;
+              
+            case 'bi-weekly':
+            case 'biweekly':
+              // Bi-weekly tasks should show if they're due this month but after this week
+              if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                return dueDate > endOfWeek && dueDate <= endOfMonth;
+              }
+              return false;
+              
+            case 'monthly':
+              // Monthly tasks should show if they're due this month but after this week
+              if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                return dueDate > endOfWeek && dueDate <= endOfMonth;
+              }
+              return false;
+              
+            case 'quarterly':
+              // Quarterly tasks should show if they're due this month but after this week
+              if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                return dueDate > endOfWeek && dueDate <= endOfMonth;
+              }
+              return false;
+              
+            case 'semi-annually':
+            case 'annually':
+            case 'yearly':
+              // Longer frequency tasks should show if they're due this month but after this week
+              if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                return dueDate > endOfWeek && dueDate <= endOfMonth;
+              }
+              return false;
+              
+            default:
+              // For unknown patterns, check due date
+              if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                return dueDate > endOfWeek && dueDate <= endOfMonth;
+              }
+              return false;
+          }
+        }
+        
+        // For non-recurring tasks, check if they're due this month but after this week
+        if (task.due_date) {
+          const dueDate = new Date(task.due_date);
+          return dueDate > endOfWeek && dueDate <= endOfMonth;
+        }
+        
+        // If no due date, don't show in this month (already shown in this week)
+        return false;
+      })
+      .sort((a, b) => {
+        if (a.due_date && b.due_date) {
+          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+        }
+        return 0;
+      });
+  };
+
+  const groupTasksByCategory = (tasks: any[]) => {
+    const grouped: { [key: string]: any[] } = {};
+    
+    tasks.forEach(task => {
+      const category = task.category || 'Other';
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      grouped[category].push(task);
+    });
+    
+    return grouped;
+  };
+
+  const handleTaskComplete = async (taskId: string) => {
+    try {
+      await completeTask(taskId, {
+        completed_by_type: 'user',
+        completed_at: new Date().toISOString(),
+        completion_verification_status: 'verified',
+        completion_notes: 'Completed from dashboard'
+      });
+    } catch (error) {
+      console.error('Error completing task:', error);
+    }
+  };
+
+  const renderTaskWithCheckbox = (task: any) => (
+    <TouchableOpacity
+      key={task.id}
+      style={styles.taskCheckboxItem}
+      onPress={() => handleTaskComplete(task.id)}
+    >
+      <View style={[
+        styles.checkbox,
+        { 
+          backgroundColor: task.status === 'completed' ? colors.primary : 'transparent',
+          borderColor: colors.primary
+        }
+      ]}>
+        {task.status === 'completed' && (
+          <Ionicons name="checkmark" size={12} color={colors.background} />
+        )}
+      </View>
+      <Text style={[
+        styles.taskCheckboxText,
+        { 
+          color: colors.text,
+          textDecorationLine: task.status === 'completed' ? 'line-through' : 'none',
+          opacity: task.status === 'completed' ? 0.6 : 1
+        }
+      ]}>
+        {task.title}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const renderTaskCategory = (category: string, tasks: any[]) => (
+    <View key={category} style={styles.taskCategorySection}>
+      <View style={[styles.taskCategoryTitleContainer, { backgroundColor: colors.primaryLight }]}>
+        <Text style={[styles.taskCategoryTitle, { color: colors.primary }]}>
+          {category}
+        </Text>
+      </View>
+      {tasks.map(renderTaskWithCheckbox)}
+    </View>
+  );
+
+  const renderTasksSection = () => {
+    const weekTasks = getTasksForThisWeek();
+    const monthTasks = getTasksForThisMonth();
+    const weekTasksGrouped = groupTasksByCategory(weekTasks);
+    const monthTasksGrouped = groupTasksByCategory(monthTasks);
+
+    return (
+      <View style={styles.tasksContainer}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Tasks</Text>
+          <TouchableOpacity onPress={() => router.push('/(dashboard)/tasks')}>
+            <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.tasksColumns}>
+          {/* This Week Column */}
+          <View style={styles.tasksColumn}>
+            <Text style={[styles.columnTitle, { color: colors.text }]}>This Week</Text>
+            {Object.keys(weekTasksGrouped).length > 0 ? (
+              Object.entries(weekTasksGrouped).map(([category, tasks]) => 
+                renderTaskCategory(category, tasks)
+              )
+            ) : (
+              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
+                No tasks this week
+              </Text>
+            )}
+          </View>
+
+          {/* This Month Column */}
+          <View style={styles.tasksColumn}>
+            <Text style={[styles.columnTitle, { color: colors.text }]}>This Month</Text>
+            {Object.keys(monthTasksGrouped).length > 0 ? (
+              Object.entries(monthTasksGrouped).map(([category, tasks]) => 
+                renderTaskCategory(category, tasks)
+              )
+            ) : (
+              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
+                No tasks this month
+              </Text>
+            )}
+          </View>
+        </View>
+      </View>
+    );
   };
 
   const getUpcomingEvents = () => {
@@ -204,6 +543,82 @@ export default function DashboardScreen() {
         <Ionicons name="eye-outline" size={20} color={colors.textInverse} />
         <Text style={[styles.testButtonText, { color: colors.textInverse }]}>Check Calendar Events</Text>
       </TouchableOpacity>
+      
+      {/* Cleanup button for removing duplicate events */}
+      <TouchableOpacity
+        style={[styles.testButton, { marginTop: 8, backgroundColor: colors.warning }]}
+        onPress={async () => {
+          try {
+            Alert.alert(
+              'Cleanup Calendar Events',
+              'This will remove duplicate calendar events. Continue?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Cleanup',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      // Get all calendar events
+                      const { data: allEvents, error: fetchError } = await supabase
+                        .from('calendar_events')
+                        .select('*')
+                        .eq('user_id', user?.id || '');
+                      
+                      if (fetchError) {
+                        console.error('Error fetching events:', fetchError);
+                        Alert.alert('Error', 'Failed to fetch calendar events');
+                        return;
+                      }
+                      
+                      // Find duplicates (same task_id and start_time)
+                      const duplicates = new Set();
+                      const toDelete: string[] = [];
+                      
+                      allEvents?.forEach((event, index) => {
+                        const key = `${event.task_id}_${event.start_time}`;
+                        if (duplicates.has(key)) {
+                          toDelete.push(event.id);
+                        } else {
+                          duplicates.add(key);
+                        }
+                      });
+                      
+                      if (toDelete.length > 0) {
+                        // Delete duplicate events
+                        const { error: deleteError } = await supabase
+                          .from('calendar_events')
+                          .delete()
+                          .in('id', toDelete);
+                        
+                        if (deleteError) {
+                          console.error('Error deleting duplicates:', deleteError);
+                          Alert.alert('Error', 'Failed to delete duplicate events');
+                        } else {
+                          console.log(`Deleted ${toDelete.length} duplicate events`);
+                          Alert.alert('Success', `Cleaned up ${toDelete.length} duplicate events`);
+                          // Refresh calendar events
+                          setTimeout(() => eventsRefresh?.(), 100);
+                        }
+                      } else {
+                        Alert.alert('Info', 'No duplicate events found');
+                      }
+                    } catch (error) {
+                      console.error('Error during cleanup:', error);
+                      Alert.alert('Error', 'Failed to cleanup calendar events');
+                    }
+                  }
+                }
+              ]
+            );
+          } catch (error) {
+            console.error('Error during cleanup:', error);
+          }
+        }}
+      >
+        <Ionicons name="trash-outline" size={20} color={colors.textInverse} />
+        <Text style={[styles.testButtonText, { color: colors.textInverse }]}>Cleanup Duplicates</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -262,29 +677,6 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      {getUpcomingTasks().length > 0 && (
-        <View style={styles.activitySection}>
-          <Text style={[styles.activitySectionTitle, { color: colors.textSecondary }]}>Upcoming Tasks</Text>
-          {getUpcomingTasks().map((task) => (
-            <View key={task.id} style={[styles.activityItem, { backgroundColor: colors.surface }]}>
-              <View style={[styles.activityIcon, { backgroundColor: colors.surfaceVariant }]}>
-                <Ionicons 
-                  name="checkmark-circle-outline" 
-                  size={16} 
-                  color={task.priority === 'high' ? colors.error : task.priority === 'medium' ? colors.warning : colors.success} 
-                />
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={[styles.activityTitle, { color: colors.text }]} numberOfLines={1}>{task.title}</Text>
-                <Text style={[styles.activityDate, { color: colors.textTertiary }]}>
-                  {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-
       {getUpcomingEvents().length > 0 && (
         <View style={styles.activitySection}>
           <Text style={[styles.activitySectionTitle, { color: colors.textSecondary }]}>Upcoming Events</Text>
@@ -324,6 +716,139 @@ export default function DashboardScreen() {
       )}
     </View>
   );
+
+  const renderUpcomingTasks = () => {
+    const upcomingTasks = getUpcomingTasks();
+    
+    if (upcomingTasks.length === 0) {
+      return (
+        <View style={styles.upcomingTasksContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Upcoming Tasks</Text>
+            <TouchableOpacity onPress={() => router.push('/(dashboard)/tasks')}>
+              <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={[styles.emptyState, { backgroundColor: colors.surface }]}>
+            <Ionicons name="checkmark-circle-outline" size={48} color={colors.textTertiary} />
+            <Text style={[styles.emptyStateTitle, { color: colors.text }]}>No Upcoming Tasks</Text>
+            <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+              You're all caught up! Add new tasks to see them here.
+            </Text>
+            <TouchableOpacity
+              style={[styles.addTaskButton, { backgroundColor: colors.primary }]}
+              onPress={() => router.push('/(dashboard)/tasks/add')}
+            >
+              <Ionicons name="add" size={20} color={colors.textInverse} />
+              <Text style={[styles.addTaskButtonText, { color: colors.textInverse }]}>Add Task</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.upcomingTasksContainer}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Upcoming Tasks</Text>
+          <TouchableOpacity onPress={() => router.push('/(dashboard)/tasks')}>
+            <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
+          </TouchableOpacity>
+        </View>
+        
+        {upcomingTasks.map((task, index) => {
+          const dueDate = task.due_date ? new Date(task.due_date) : null;
+          const isOverdue = dueDate && dueDate < new Date();
+          const isDueToday = dueDate && dueDate.toDateString() === new Date().toDateString();
+          const isDueTomorrow = dueDate && dueDate.toDateString() === new Date(Date.now() + 24 * 60 * 60 * 1000).toDateString();
+          
+          const getPriorityColor = () => {
+            switch (task.priority?.toLowerCase()) {
+              case 'urgent': return colors.error;
+              case 'high': return colors.error;
+              case 'medium': return colors.warning;
+              case 'low': return colors.success;
+              default: return colors.textSecondary;
+            }
+          };
+
+          const getDueDateText = () => {
+            if (!dueDate) return 'No due date';
+            if (isOverdue) return `Overdue ${dueDate.toLocaleDateString()}`;
+            if (isDueToday) return 'Due today';
+            if (isDueTomorrow) return 'Due tomorrow';
+            return `Due ${dueDate.toLocaleDateString()}`;
+          };
+
+          const getDueDateColor = () => {
+            if (isOverdue) return colors.error;
+            if (isDueToday) return colors.warning;
+            if (isDueTomorrow) return colors.warning;
+            return colors.textTertiary;
+          };
+
+          return (
+            <TouchableOpacity
+              key={task.id}
+              style={[
+                styles.taskCard,
+                { backgroundColor: colors.surface },
+                isOverdue && { borderLeftWidth: 4, borderLeftColor: colors.error }
+              ]}
+              onPress={() => router.push('/(dashboard)/tasks')}
+            >
+              <View style={styles.taskCardHeader}>
+                <View style={styles.taskCardLeft}>
+                  <View style={[
+                    styles.taskPriorityIndicator,
+                    { backgroundColor: getPriorityColor() }
+                  ]} />
+                  <View style={styles.taskCardContent}>
+                    <Text style={[styles.taskCardTitle, { color: colors.text }]} numberOfLines={2}>
+                      {task.title}
+                    </Text>
+                    {task.category && (
+                      <Text style={[styles.taskCardCategory, { color: colors.textSecondary }]}>
+                        {task.category}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <View style={styles.taskCardRight}>
+                  {task.priority && (
+                    <View style={[
+                      styles.priorityBadge,
+                      { backgroundColor: getPriorityColor() + '20' }
+                    ]}>
+                      <Text style={[
+                        styles.priorityText,
+                        { color: getPriorityColor() }
+                      ]}>
+                        {task.priority.toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+              
+              <View style={styles.taskCardFooter}>
+                <View style={styles.taskCardInfo}>
+                  <Ionicons name="calendar-outline" size={14} color={getDueDateColor()} />
+                  <Text style={[
+                    styles.taskCardDate,
+                    { color: getDueDateColor() }
+                  ]}>
+                    {getDueDateText()}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
 
   const renderHeader = () => (
     <View style={[styles.header, { 
@@ -394,6 +919,8 @@ export default function DashboardScreen() {
         <View style={styles.content}>
           {renderStatistics()}
           {renderQuickActions()}
+          {renderUpcomingTasks()}
+          {renderTasksSection()}
           {renderRecentActivity()}
         </View>
       </ScrollView>
@@ -577,10 +1104,29 @@ const styles = StyleSheet.create({
   activityContent: {
     flex: 1,
   },
+  activityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
   activityTitle: {
     fontSize: 14,
     fontWeight: '500',
-    marginBottom: 2,
+    flex: 1,
+  },
+  priorityBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  priorityText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  activityCategory: {
+    fontSize: 12,
+    marginTop: 2,
   },
   activityDate: {
     fontSize: 12,
@@ -603,5 +1149,151 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  upcomingTasksContainer: {
+    marginBottom: 20,
+  },
+  taskCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  taskCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  taskCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  taskPriorityIndicator: {
+    width: 8,
+    height: 16,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  taskCardContent: {
+    flex: 1,
+  },
+  taskCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  taskCardCategory: {
+    fontSize: 12,
+  },
+  taskCardRight: {
+    alignItems: 'flex-end',
+  },
+  taskCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  taskCardInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  taskCardDate: {
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  addTaskButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  addTaskButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  emptyState: {
+    padding: 20,
+    alignItems: 'center',
+    borderRadius: 12,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  tasksContainer: {
+    marginBottom: 20,
+  },
+  tasksColumns: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  tasksColumn: {
+    flex: 1,
+  },
+  columnTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  noTasksText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  taskCheckboxItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  taskCheckboxText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '400',
+  },
+  taskCategorySection: {
+    marginBottom: 16,
+  },
+  taskCategoryTitleContainer: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  taskCategoryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 }); 

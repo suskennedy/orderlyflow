@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,15 +15,28 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { useVendors } from '../../lib/contexts/VendorsContext';
+import { useAuth } from '../../lib/hooks/useAuth';
+import TaskCompletionModal from '../TaskCompletionModal';
+import TaskDetailsDropdown from '../TaskDetailsDropdown';
 
 export default function TasksScreen() {
   const insets = useSafeAreaInsets();
   const { tasks, loading, refreshing, onRefresh, toggleTaskActive, completeTask } = useTasks();
+  const { vendors } = useVendors();
   const { colors } = useTheme();
+  const { user } = useAuth();
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
+
+  // Completion modal state
+  const [completionModalVisible, setCompletionModalVisible] = useState(false);
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+
+  // Task dropdown state
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
   // Filter to only show user-created and user-selected tasks
   const userTasks = tasks.filter(task => 
@@ -55,8 +68,12 @@ export default function TasksScreen() {
   }, [loading, fadeAnim, slideAnim, scaleAnim]);
 
   const handleTaskPress = (task: any) => {
-    // Navigate to task detail page (404 for now as requested)
-    Alert.alert('Task Detail', 'Task detail page coming soon!');
+    // Toggle dropdown instead of navigating
+    if (expandedTaskId === task.id) {
+      setExpandedTaskId(null);
+    } else {
+      setExpandedTaskId(task.id);
+    }
   };
 
   const handleToggleTaskActive = async (taskId: string, currentState: boolean) => {
@@ -67,16 +84,30 @@ export default function TasksScreen() {
     }
   };
 
-  const handleCompleteTask = async (taskId: string) => {
+  const handleCompleteTaskPress = (taskId: string) => {
+    setCompletingTaskId(taskId);
+    setCompletionModalVisible(true);
+  };
+
+  const handleCompleteTask = async (completionData: any) => {
+    if (!completingTaskId) return;
+
     try {
-      await completeTask(taskId, {
-        notes: 'Task completed',
-        completion_rating: 5,
-        time_spent_minutes: 30
-      });
+      await completeTask(completingTaskId, completionData);
+      
+      setCompletionModalVisible(false);
+      setCompletingTaskId(null);
+      
+      Alert.alert('Success', 'Task marked as completed!');
     } catch (error) {
       console.error('Error completing task:', error);
+      Alert.alert('Error', 'Failed to complete task. Please try again.');
     }
+  };
+
+  const getAssignedVendor = (task: any) => {
+    if (!task.assigned_vendor_id) return null;
+    return vendors.find(v => v.id === task.assigned_vendor_id);
   };
 
   const formatDate = (dateString: string | null | undefined) => {
@@ -151,105 +182,170 @@ export default function TasksScreen() {
           <Ionicons name="add-circle" size={24} color={colors.background} />
           <Text style={[styles.addFirstButtonText, { color: colors.background }]}>
             Browse Task Templates
-          </Text>
+            </Text>
         </View>
-      </TouchableOpacity>
+          </TouchableOpacity>
     </Animated.View>
   );
 
-  const renderTaskItem = ({ item, index }: { item: any; index: number }) => (
-    <Animated.View
-      style={[
-        styles.taskItem,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }]
-        }
-      ]}
-    >
-      <TouchableOpacity 
-        style={[styles.taskCard, { backgroundColor: colors.surface }]}
-        onPress={() => handleTaskPress(item)}
-        activeOpacity={0.7}
+  const renderTaskItem = ({ item, index }: { item: any; index: number }) => {
+    const assignedVendor = getAssignedVendor(item);
+    const isExpanded = expandedTaskId === item.id;
+
+    return (
+      <Animated.View
+        style={[
+          styles.taskItem,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }
+        ]}
       >
-        <View style={styles.taskContent}>
-          <View style={styles.taskInfo}>
-            <View style={styles.taskHeader}>
-              <Text style={[styles.taskTitle, { color: colors.text }]}>{item.title}</Text>
-              <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(item) }]} />
-            </View>
-            <Text style={[styles.taskCategory, { color: colors.textSecondary }]}>
-              {item.category} • {item.subcategory}
-            </Text>
-            {item.next_due && (
-              <Text style={[styles.taskDue, { color: colors.textSecondary }]}>
-                Due: {formatDate(item.next_due)}
+        <TouchableOpacity
+          style={[styles.taskCard, { backgroundColor: colors.surface }]}
+          onPress={() => handleTaskPress(item)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.taskContent}>
+            <View style={styles.taskInfo}>
+              <View style={styles.taskHeader}>
+                <Text style={[
+                  styles.taskTitle, 
+                  { 
+                    color: colors.text,
+                    textDecorationLine: item.status === 'completed' ? 'line-through' : 'none',
+                    opacity: item.status === 'completed' ? 0.6 : 1
+                  }
+                ]}>{item.title}</Text>
+                <View style={styles.taskHeaderActions}>
+                  <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(item) }]} />
+                  <TouchableOpacity
+                    style={styles.expandButton}
+                    onPress={() => handleTaskPress(item)}
+                  >
+            <Ionicons 
+              name={isExpanded ? "chevron-up" : "chevron-down"} 
+                      size={16} 
+                      color={colors.textSecondary} 
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <Text style={[styles.taskCategory, { color: colors.textSecondary }]}>
+                {item.category} • {item.subcategory}
               </Text>
-            )}
-            <View style={styles.taskMetaRow}>
-              {item.priority && (
-                <View style={[
-                  styles.priorityBadge, 
-                  { backgroundColor: getPriorityColor(item.priority) + '20' }
-                ]}>
-                  <View style={[
-                    styles.priorityDot, 
-                    { backgroundColor: getPriorityColor(item.priority) }
-                  ]} />
-                  <Text style={[
-                    styles.priorityText, 
-                    { color: getPriorityColor(item.priority) }
-                  ]}>
-                    {getPriorityLabel(item.priority)}
+              {item.next_due && (
+                <Text style={[styles.taskDue, { color: colors.textSecondary }]}>
+                  Due: {formatDate(item.next_due)}
+                </Text>
+              )}
+              {item.status === 'completed' && (
+                <View style={[styles.completionIndicator, { backgroundColor: colors.primaryLight }]}>
+                  <Ionicons name="checkmark-circle" size={12} color={colors.primary} />
+                  <Text style={[styles.completionIndicatorText, { color: colors.primary }]}>
+                    Completed {item.completed_at ? formatDate(item.completed_at) : ''}
+                    {item.completed_by_type === 'vendor' && item.completed_by_vendor_id && 
+                     ` by ${vendors.find(v => v.id === item.completed_by_vendor_id)?.name || 'Vendor'}`}
+                    {item.completed_by_type === 'external' && item.completed_by_external_name && 
+                     ` by ${item.completed_by_external_name}`}
                   </Text>
                 </View>
               )}
-              {item.task_type === 'preset' && (
-                <View style={[styles.presetBadge, { backgroundColor: colors.primaryLight }]}>
-                  <Ionicons name="library" size={10} color={colors.primary} />
-                  <Text style={[styles.presetText, { color: colors.primary }]}>Template</Text>
-                </View>
-              )}
+              <View style={styles.taskMetaRow}>
+                {item.priority && (
+                  <View style={[
+                    styles.priorityBadge, 
+                    { backgroundColor: getPriorityColor(item.priority) + '20' }
+                  ]}>
+                    <View style={[
+                      styles.priorityDot, 
+                      { backgroundColor: getPriorityColor(item.priority) }
+                    ]} />
+                    <Text style={[
+                      styles.priorityText, 
+                      { color: getPriorityColor(item.priority) }
+                    ]}>
+                      {getPriorityLabel(item.priority)}
+                    </Text>
+                  </View>
+                )}
+                {assignedVendor && (
+                  <View style={[styles.vendorBadge, { backgroundColor: colors.primaryLight }]}>
+                    <Ionicons name="person" size={10} color={colors.primary} />
+                    <Text style={[styles.vendorText, { color: colors.primary }]}>
+                      {assignedVendor.name}
+                    </Text>
+                  </View>
+                )}
+                {item.task_type === 'preset' && (
+                  <View style={[styles.presetBadge, { backgroundColor: colors.primaryLight }]}>
+                    <Ionicons name="library" size={10} color={colors.primary} />
+                    <Text style={[styles.presetText, { color: colors.primary }]}>Template</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+            
+            <View style={styles.taskActions}>
+              <TouchableOpacity 
+                style={[
+                  styles.toggleSwitch, 
+                  { 
+                    backgroundColor: item.is_active ? colors.primary : '#E5E7EB',
+                    borderColor: item.is_active ? colors.primary : '#D1D5DB'
+                  }
+                ]}
+                onPress={() => handleToggleTaskActive(item.id, item.is_active)}
+                activeOpacity={0.8}
+              >
+                <View style={[
+                  styles.toggleKnob, 
+                  { 
+                    backgroundColor: '#FFFFFF',
+                    transform: [{ translateX: item.is_active ? 22 : 2 }],
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 2,
+                    elevation: 3
+                  }
+                ]} />
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.completeButton, 
+                  { 
+                    backgroundColor: item.status === 'completed' ? colors.primary : colors.primaryLight,
+                    opacity: item.status === 'completed' ? 0.6 : 1
+                  }
+                ]}
+                onPress={() => handleCompleteTaskPress(item.id)}
+                disabled={item.status === 'completed'}
+              >
+                <Ionicons 
+                  name={item.status === 'completed' ? "checkmark-circle" : "ellipse-outline"} 
+                  size={18} 
+                  color={item.status === 'completed' ? colors.background : colors.primary} 
+                />
+              </TouchableOpacity>
             </View>
           </View>
-          
-          <View style={styles.taskActions}>
-            <TouchableOpacity 
-              style={[
-                styles.toggleSwitch, 
-                { 
-                  backgroundColor: item.is_active ? colors.primary : '#E5E7EB',
-                  borderColor: item.is_active ? colors.primary : '#D1D5DB'
-                }
-              ]}
-              onPress={() => handleToggleTaskActive(item.id, item.is_active)}
-              activeOpacity={0.8}
-            >
-              <View style={[
-                styles.toggleKnob, 
-                { 
-                  backgroundColor: '#FFFFFF',
-                  transform: [{ translateX: item.is_active ? 22 : 2 }],
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 2,
-                  elevation: 3
-                }
-              ]} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.completeButton, { backgroundColor: colors.primaryLight }]}
-              onPress={() => handleCompleteTask(item.id)}
-            >
-              <Ionicons name="checkmark" size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
-  );
+        </TouchableOpacity>
+        
+        {/* Task Details Dropdown */}
+        <TaskDetailsDropdown
+          task={item}
+          isExpanded={isExpanded}
+          assignedVendor={assignedVendor}
+          vendors={vendors}
+          formatDate={formatDate}
+          getStatusColor={getStatusColor}
+        />
+      </Animated.View>
+    );
+  };
 
   const renderHeader = () => (
     <Animated.View 
@@ -265,8 +361,8 @@ export default function TasksScreen() {
         <Text style={[styles.sectionHeaderTitle, { color: colors.text }]}>My Tasks</Text>
         <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
           Manage your selected and created tasks
-        </Text>
-      </View>
+                </Text>
+              </View>
       
       <View style={styles.statsContainer}>
         <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
@@ -281,7 +377,7 @@ export default function TasksScreen() {
               My Tasks
             </Text>
           </View>
-        </View>
+      </View>
         
         <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
           <View style={[styles.statIconContainer, { backgroundColor: colors.primaryLight }]}>
@@ -298,7 +394,7 @@ export default function TasksScreen() {
         </View>
       </View>
     </Animated.View>
-  );
+    );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -306,21 +402,21 @@ export default function TasksScreen() {
         backgroundColor: colors.background,
         paddingTop: insets.top + 20 
       }]}>
-        <TouchableOpacity
+            <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
-        >
+            >
           <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
+            </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Tasks</Text>
-        <TouchableOpacity
+            <TouchableOpacity
           style={[styles.settingsButton, { backgroundColor: colors.primaryLight }]}
           onPress={() => router.push('/(dashboard)/tasks/settings' as any)}
-        >
+            >
           <Ionicons name="settings" size={20} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-      
+            </TouchableOpacity>
+          </View>
+          
       {loading ? (
         <Animated.View 
           style={[
@@ -336,7 +432,7 @@ export default function TasksScreen() {
             <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
               Loading your tasks...
             </Text>
-          </View>
+        </View>
         </Animated.View>
       ) : (
         <FlatList
@@ -351,17 +447,24 @@ export default function TasksScreen() {
           ListEmptyComponent={renderEmptyState}
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[colors.primary]}
-            />
-          }
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+            colors={[colors.primary]}
+          />
+        }
           bounces={true}
           alwaysBounceVertical={false}
         />
       )}
+      
+      <TaskCompletionModal
+        visible={completionModalVisible}
+        onClose={() => setCompletionModalVisible(false)}
+        onComplete={handleCompleteTask}
+        vendors={vendors}
+      />
     </View>
   );
 }
@@ -501,6 +604,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
+  },
+  taskHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 'auto',
+    gap: 8,
   },
   taskTitle: {
     fontSize: 16,
@@ -657,5 +766,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: -0.3,
+  },
+  vendorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    gap: 2,
+  },
+  vendorText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  completionIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    gap: 4,
+    marginTop: 4,
+  },
+  completionIndicatorText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  expandButton: {
+    padding: 4,
   },
 });

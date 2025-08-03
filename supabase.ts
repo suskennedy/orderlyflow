@@ -39,6 +39,131 @@ export type Database = {
   }
   public: {
     Tables: {
+      family_accounts: {
+        Row: {
+          id: string
+          name: string
+          owner_id: string
+          max_members: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          owner_id: string
+          max_members?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          owner_id?: string
+          max_members?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_accounts_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      family_members: {
+        Row: {
+          id: string
+          family_account_id: string
+          user_id: string
+          role: 'owner' | 'admin' | 'member'
+          joined_at: string
+        }
+        Insert: {
+          id?: string
+          family_account_id: string
+          user_id: string
+          role?: 'owner' | 'admin' | 'member'
+          joined_at?: string
+        }
+        Update: {
+          id?: string
+          family_account_id?: string
+          user_id?: string
+          role?: 'owner' | 'admin' | 'member'
+          joined_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_members_family_account_id_fkey"
+            columns: ["family_account_id"]
+            isOneToOne: false
+            referencedRelation: "family_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "family_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      family_invitations: {
+        Row: {
+          id: string
+          family_account_id: string
+          invited_by: string
+          email: string
+          invitation_token: string
+          status: 'pending' | 'accepted' | 'expired'
+          expires_at: string
+          created_at: string
+          accepted_at: string | null
+        }
+        Insert: {
+          id?: string
+          family_account_id: string
+          invited_by: string
+          email: string
+          invitation_token: string
+          status?: 'pending' | 'accepted' | 'expired'
+          expires_at?: string
+          created_at?: string
+          accepted_at?: string | null
+        }
+        Update: {
+          id?: string
+          family_account_id?: string
+          invited_by?: string
+          email?: string
+          invitation_token?: string
+          status?: 'pending' | 'accepted' | 'expired'
+          expires_at?: string
+          created_at?: string
+          accepted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_invitations_family_account_id_fkey"
+            columns: ["family_account_id"]
+            isOneToOne: false
+            referencedRelation: "family_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "family_invitations_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       appliances: {
         Row: {
           brand: string | null
@@ -54,6 +179,7 @@ export type Database = {
           serial_number: string | null
           updated_at: string | null
           warranty_expiration: string | null
+          family_account_id: string | null
         }
         Insert: {
           brand?: string | null
@@ -69,6 +195,7 @@ export type Database = {
           serial_number?: string | null
           updated_at?: string | null
           warranty_expiration?: string | null
+          family_account_id?: string | null
         }
         Update: {
           brand?: string | null
@@ -84,6 +211,7 @@ export type Database = {
           serial_number?: string | null
           updated_at?: string | null
           warranty_expiration?: string | null
+          family_account_id?: string | null
         }
         Relationships: [
           {
@@ -113,6 +241,7 @@ export type Database = {
           style: string | null
           updated_at: string | null
           warranty_expiration: string | null
+          family_account_id: string | null
         }
         Insert: {
           brand?: string | null
@@ -131,6 +260,7 @@ export type Database = {
           style?: string | null
           updated_at?: string | null
           warranty_expiration?: string | null
+          family_account_id?: string | null
         }
         Update: {
           brand?: string | null
@@ -149,6 +279,7 @@ export type Database = {
           style?: string | null
           updated_at?: string | null
           warranty_expiration?: string | null
+          family_account_id?: string | null
         }
         Relationships: [
           {
@@ -179,6 +310,7 @@ export type Database = {
           title: string
           updated_at: string | null
           user_id: string | null
+          family_account_id: string | null
         }
         Insert: {
           all_day?: boolean | null
@@ -198,6 +330,7 @@ export type Database = {
           title: string
           updated_at?: string | null
           user_id?: string | null
+          family_account_id?: string | null
         }
         Update: {
           all_day?: boolean | null
@@ -217,6 +350,7 @@ export type Database = {
           title?: string
           updated_at?: string | null
           user_id?: string | null
+          family_account_id?: string | null
         }
         Relationships: [
           {
@@ -243,6 +377,7 @@ export type Database = {
           size: string | null
           type: string | null
           updated_at: string | null
+          family_account_id: string | null
         }
         Insert: {
           brand?: string | null
@@ -258,6 +393,7 @@ export type Database = {
           size?: string | null
           type?: string | null
           updated_at?: string | null
+          family_account_id?: string | null
         }
         Update: {
           brand?: string | null
@@ -273,6 +409,7 @@ export type Database = {
           size?: string | null
           type?: string | null
           updated_at?: string | null
+          family_account_id?: string | null
         }
         Relationships: [
           {
@@ -301,6 +438,7 @@ export type Database = {
           user_id: string | null
           year_built: number | null
           zip: string | null
+          family_account_id: string | null
         }
         Insert: {
           address?: string | null
@@ -318,6 +456,7 @@ export type Database = {
           user_id?: string | null
           year_built?: number | null
           zip?: string | null
+          family_account_id?: string | null
         }
         Update: {
           address?: string | null
@@ -335,6 +474,7 @@ export type Database = {
           user_id?: string | null
           year_built?: number | null
           zip?: string | null
+          family_account_id?: string | null
         }
         Relationships: []
       }
@@ -349,6 +489,7 @@ export type Database = {
           notes: string | null
           type: string | null
           updated_at: string | null
+          family_account_id: string | null
         }
         Insert: {
           access_instructions?: string | null
@@ -360,6 +501,7 @@ export type Database = {
           notes?: string | null
           type?: string | null
           updated_at?: string | null
+          family_account_id?: string | null
         }
         Update: {
           access_instructions?: string | null
@@ -371,6 +513,7 @@ export type Database = {
           notes?: string | null
           type?: string | null
           updated_at?: string | null
+          family_account_id?: string | null
         }
         Relationships: [
           {
@@ -398,6 +541,7 @@ export type Database = {
           type: string | null
           updated_at: string | null
           warranty_expiration: string | null
+          family_account_id: string | null
           wattage: string | null
         }
         Insert: {
@@ -415,6 +559,7 @@ export type Database = {
           type?: string | null
           updated_at?: string | null
           warranty_expiration?: string | null
+          family_account_id?: string | null
           wattage?: string | null
         }
         Update: {
@@ -432,6 +577,7 @@ export type Database = {
           type?: string | null
           updated_at?: string | null
           warranty_expiration?: string | null
+          family_account_id?: string | null
           wattage?: string | null
         }
         Relationships: [
@@ -457,6 +603,7 @@ export type Database = {
           notes: string | null
           room: string | null
           updated_at: string | null
+          family_account_id: string | null
         }
         Insert: {
           brand?: string | null
@@ -470,6 +617,7 @@ export type Database = {
           notes?: string | null
           room?: string | null
           updated_at?: string | null
+          family_account_id?: string | null
         }
         Update: {
           brand?: string | null
@@ -483,6 +631,7 @@ export type Database = {
           notes?: string | null
           room?: string | null
           updated_at?: string | null
+          family_account_id?: string | null
         }
         Relationships: [
           {
@@ -512,6 +661,7 @@ export type Database = {
           title: string
           updated_at: string | null
           user_id: string | null
+          family_account_id: string | null
         }
         Insert: {
           category?: string | null
@@ -530,6 +680,7 @@ export type Database = {
           title: string
           updated_at?: string | null
           user_id?: string | null
+          family_account_id?: string | null
         }
         Update: {
           category?: string | null
@@ -548,6 +699,7 @@ export type Database = {
           title?: string
           updated_at?: string | null
           user_id?: string | null
+          family_account_id?: string | null
         }
         Relationships: [
           {
@@ -573,6 +725,7 @@ export type Database = {
           room: string | null
           size: string | null
           updated_at: string | null
+          family_account_id: string | null
         }
         Insert: {
           brand?: string | null
@@ -587,6 +740,7 @@ export type Database = {
           room?: string | null
           size?: string | null
           updated_at?: string | null
+          family_account_id?: string | null
         }
         Update: {
           brand?: string | null
@@ -601,6 +755,7 @@ export type Database = {
           room?: string | null
           size?: string | null
           updated_at?: string | null
+          family_account_id?: string | null
         }
         Relationships: [
           {
@@ -629,6 +784,7 @@ export type Database = {
           phone: string | null
           theme: string | null
           updated_at: string | null
+          family_account_id: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -646,6 +802,7 @@ export type Database = {
           phone?: string | null
           theme?: string | null
           updated_at?: string | null
+          family_account_id?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -663,6 +820,7 @@ export type Database = {
           phone?: string | null
           theme?: string | null
           updated_at?: string | null
+          family_account_id?: string | null
         }
         Relationships: []
       }
@@ -675,6 +833,7 @@ export type Database = {
           theme: string | null
           updated_at: string | null
           user_id: string | null
+          family_account_id: string | null
         }
         Insert: {
           calendar_sync?: Json | null
@@ -684,6 +843,7 @@ export type Database = {
           theme?: string | null
           updated_at?: string | null
           user_id?: string | null
+          family_account_id?: string | null
         }
         Update: {
           calendar_sync?: Json | null
@@ -693,6 +853,7 @@ export type Database = {
           theme?: string | null
           updated_at?: string | null
           user_id?: string | null
+          family_account_id?: string | null
         }
         Relationships: []
       }
@@ -710,6 +871,7 @@ export type Database = {
           notes: string | null
           created_at: string | null
           updated_at: string | null
+          family_account_id: string | null
         }
         Insert: {
           id?: string
@@ -724,6 +886,7 @@ export type Database = {
           notes?: string | null
           created_at?: string | null
           updated_at?: string | null
+          family_account_id?: string | null
         }
         Update: {
           id?: string
@@ -738,6 +901,7 @@ export type Database = {
           notes?: string | null
           created_at?: string | null
           updated_at?: string | null
+          family_account_id?: string | null
         }
         Relationships: []
       }
@@ -746,7 +910,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_family_account: {
+        Args: {
+          account_name: string
+        }
+        Returns: string
+      }
+      invite_family_member: {
+        Args: {
+          invitee_email: string
+        }
+        Returns: string
+      }
+      accept_family_invitation: {
+        Args: {
+          invitation_token: string
+        }
+        Returns: boolean
+      }
+      remove_family_member: {
+        Args: {
+          member_user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

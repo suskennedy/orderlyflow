@@ -136,7 +136,6 @@ export default function DashboardLayout() {
               />
             </View>
           ),
-          href: '/(vendors)',
         }}
       />
       

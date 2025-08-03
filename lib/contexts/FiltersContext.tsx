@@ -44,9 +44,30 @@ export function FiltersProvider({ homeId, children }: { homeId: string; children
         .select('*')
         .eq('home_id', homeId)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
-      setFilters(data || []);
+
+      // Supabase returns raw rows whose shape does not perfectly match
+      // our Filter interface (e.g. the db still uses `location` instead
+      // of `room`).  Normalise the rows so TypeScript – and the rest of
+      // the application – get exactly what they expect.
+      const normalisedFilters: Filter[] = (data ?? []).map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        room: row.room ?? row.location ?? null,
+        type: row.type ?? null,
+        brand: row.brand ?? null,
+        model: row.model ?? null,
+        size: row.size ?? null,
+        last_replaced: row.last_replaced ?? null,
+        replacement_frequency: row.replacement_frequency ?? null,
+        notes: row.notes ?? null,
+        home_id: row.home_id ?? null,
+        created_at: row.created_at ?? null,
+        updated_at: row.updated_at ?? null,
+      }));
+
+      setFilters(normalisedFilters);
     } catch (error) {
       console.error('Error fetching filters:', error);
     } finally {

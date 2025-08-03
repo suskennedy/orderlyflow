@@ -3,12 +3,16 @@ import { router } from 'expo-router';
 import React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFamily } from '../../lib/contexts/FamilyContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import ThemeSwitcher from '../ui/ThemeSwitcher';
 
 export default function SettingsScreen() {
   const { colors, theme, themeMode, setThemeMode } = useTheme();
+  const { familyAccount, userRole } = useFamily();
   const insets = useSafeAreaInsets();
+
+  const canManageFamily = userRole?.role === 'owner' || userRole?.role === 'admin';
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -98,6 +102,50 @@ export default function SettingsScreen() {
           </Text>
           </TouchableOpacity>
       </View>
+    </View>
+  );
+
+  const renderFamilySection = () => (
+    <View style={[styles.section, { backgroundColor: colors.surface }]}>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Family Management</Text>
+      
+      {familyAccount ? (
+        <>
+          <View style={styles.familyInfo}>
+            <Text style={[styles.familyName, { color: colors.text }]}>{familyAccount.name}</Text>
+            <Text style={[styles.familyRole, { color: colors.textSecondary }]}>
+              Your role: {userRole?.role === 'owner' ? 'Owner' : userRole?.role === 'admin' ? 'Administrator' : 'Member'}
+            </Text>
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => router.push('/(settings)/family-management' as any)}
+          >
+            <Ionicons name="people-outline" size={20} color={colors.text} />
+            <Text style={[styles.menuItemText, { color: colors.text }]}>Manage Family Members</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+          </TouchableOpacity>
+          
+          {canManageFamily && (
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => router.push('/(settings)/invite-members' as any)}
+            >
+              <Ionicons name="person-add-outline" size={20} color={colors.text} />
+              <Text style={[styles.menuItemText, { color: colors.text }]}>Invite New Members</Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </TouchableOpacity>
+          )}
+        </>
+      ) : (
+        <View style={styles.noFamilyState}>
+          <Ionicons name="people-outline" size={32} color={colors.textSecondary} />
+          <Text style={[styles.noFamilyText, { color: colors.textSecondary }]}>
+            No family account found
+          </Text>
+        </View>
+      )}
     </View>
   );
 
@@ -229,6 +277,7 @@ export default function SettingsScreen() {
       >
         <View style={styles.content}>
           {renderThemeSection()}
+          {renderFamilySection()}
           {renderNotificationsSection()}
           {renderBillingSection()}
           {renderSecuritySection()}
@@ -281,6 +330,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 16,
+  },
+  familyInfo: {
+    marginBottom: 16,
+  },
+  familyName: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  familyRole: {
+    fontSize: 14,
+  },
+  noFamilyState: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  noFamilyText: {
+    fontSize: 16,
+    marginTop: 8,
   },
   themeContainer: {
     flexDirection: 'row',
