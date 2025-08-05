@@ -25,7 +25,7 @@ export default function FiltersScreen() {
       ) : (
         <FlatList
           data={filters}
-          renderItem={({ item }) => <FilterCard filter={item} />}
+          renderItem={({ item }) => <FilterCard filter={item as any} />}
           keyExtractor={item => item.id}
           contentContainerStyle={[styles.list, { paddingBottom: 100 }]}
           ListEmptyComponent={

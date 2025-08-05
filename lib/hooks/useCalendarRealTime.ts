@@ -1,10 +1,10 @@
 import { useCallback, useEffect } from 'react';
-import { CalendarEvent } from '../../components/calendar/CalendarMonthView';
 import { supabase } from '../supabase';
+import { CalendarEvent } from '../../types/database';
 
 type SubscriptionCallback = {
-  onInsert?: (newEvent: CalendarEvent) => void;
-  onUpdate?: (updatedEvent: CalendarEvent) => void;
+        onInsert?: (newEvent: CalendarEvent) => void;
+        onUpdate?: (updatedEvent: CalendarEvent) => void;
   onDelete?: (deletedEventId: string) => void;
 };
 

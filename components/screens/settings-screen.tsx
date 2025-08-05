@@ -151,7 +151,7 @@ export default function SettingsScreen() {
           
           <TouchableOpacity 
             style={styles.menuItem}
-            onPress={() => router.push('/(settings)/family-management' as any)}
+            onPress={() => router.push('/(tabs)/(settings)/family-management' as any)}
           >
             <Ionicons name="people-outline" size={20} color={colors.text} />
             <Text style={[styles.menuItemText, { color: colors.text }]}>Manage Family Members</Text>

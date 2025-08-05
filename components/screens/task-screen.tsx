@@ -6,11 +6,11 @@ import {
   Alert,
   Animated,
   FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTasks } from '../../lib/contexts/TasksContext';
@@ -175,7 +175,7 @@ export default function TasksScreen() {
       </Text>
       <TouchableOpacity
         style={[styles.addFirstButton, { backgroundColor: colors.primary }]}
-        onPress={() => router.push('/(dashboard)/tasks/settings' as any)}
+        onPress={() => router.push('/(tabs)/(dashboard)/tasks/settings' as any)}
         activeOpacity={0.8}
       >
         <View style={styles.addFirstButtonContent}>
@@ -411,7 +411,7 @@ export default function TasksScreen() {
         <Text style={[styles.headerTitle, { color: colors.text }]}>Tasks</Text>
             <TouchableOpacity
           style={[styles.settingsButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push('/(dashboard)/tasks/settings' as any)}
+          onPress={() => router.push('/(tabs)/(dashboard)/tasks/settings' as any)}
             >
           <Ionicons name="settings" size={20} color={colors.primary} />
             </TouchableOpacity>

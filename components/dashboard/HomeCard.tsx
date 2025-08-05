@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { routes } from '../../lib/navigation';
 
 interface Home {
   id: string;
@@ -101,7 +102,7 @@ export default function HomeCard({ home, onDelete }: HomeCardProps) {
       <View style={styles.cardActions}>
         <TouchableOpacity 
           style={[styles.viewButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push(`/homes/view/${home.id}`)}
+          onPress={() => router.push(routes.home.detail(home.id) as any)}
         >
           <Ionicons name="eye-outline" size={16} color={colors.primary} />
           <Text style={[styles.viewButtonText, { color: colors.primary }]}>View Details</Text>
@@ -109,7 +110,7 @@ export default function HomeCard({ home, onDelete }: HomeCardProps) {
 
         <TouchableOpacity 
           style={[styles.editButton, { backgroundColor: colors.success + '15' }]}
-          onPress={() => router.push(`/homes/edit/${home.id}`)}
+          onPress={() => router.push(routes.home.edit(home.id) as any)}
         >
           <Ionicons name="create-outline" size={16} color={colors.success} />
           <Text style={[styles.editButtonText, { color: colors.success }]}>Edit</Text>

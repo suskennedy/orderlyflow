@@ -18,7 +18,7 @@ export default function MaterialsScreen() {
       <ScreenHeader 
         title="Materials" 
         showBackButton
-        onAddPress={() => router.push(`/(home)/${homeId}/materials/add`)}
+        onAddPress={() => router.push(`/(tabs)/(home)/${homeId}/materials/add`)}
       />
       {loading ? (
         <ActivityIndicator style={{ flex: 1 }} />

@@ -36,14 +36,14 @@ export function WarrantiesProvider({ homeId, children }: { homeId: string; child
     
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('warranties')
         .select('*')
         .eq('home_id', homeId)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      setWarranties(data || []);
+      setWarranties((data || []) as Warranty[]);
     } catch (error) {
       console.error('Error fetching warranties:', error);
     } finally {
@@ -93,7 +93,7 @@ export function WarrantiesProvider({ homeId, children }: { homeId: string; child
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not logged in');
       
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('warranties')
         .insert([{ ...warrantyData, home_id: homeId }])
         .select()
@@ -111,7 +111,7 @@ export function WarrantiesProvider({ homeId, children }: { homeId: string; child
 
   const updateWarranty = async (id: string, updates: Partial<Warranty>) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('warranties')
         .update(updates)
         .eq('id', id)
@@ -130,7 +130,7 @@ export function WarrantiesProvider({ homeId, children }: { homeId: string; child
 
   const deleteWarranty = async (id: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('warranties')
         .delete()
         .eq('id', id);

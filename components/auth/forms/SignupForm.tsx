@@ -208,44 +208,33 @@ export default function SignUpForm() {
   };
 
   return (
-    <AuthContainer scrollEnabled={true}>
+    <AuthContainer>
       <AuthHeader 
         title="OrderlyFlow" 
         subtitle="Create your account" 
-        iconName="person-add"
-        showBackButton={true}
-        backRoute="/(auth)/signin"
       />
 
-      <AuthCard
-        title="Get started"
-        subtitle="Create your account to begin"
-      >
+      <AuthCard>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Get started</Text>
+        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>Create your account to begin</Text>
+        
         <FormInput
           label="Full Name"
-          iconName="person-outline"
           placeholder="Enter your full name"
           value={formData.fullName}
           onChangeText={(text) => handleInputChange('fullName', text)}
           error={touched.fullName ? errors.fullName : ''}
-          onBlur={() => handleBlur('fullName')}
           autoCapitalize="words"
-          autoComplete="name"
-          testID="fullname-input"
         />
 
         <FormInput
           label="Email"
-          iconName="mail-outline"
           placeholder="Enter your email"
           value={formData.email}
           onChangeText={(text) => handleInputChange('email', text)}
           error={touched.email ? errors.email : ''}
-          onBlur={() => handleBlur('email')}
           keyboardType="email-address"
           autoCapitalize="none"
-          autoComplete="email"
-          testID="email-input"
         />
 
         <PasswordInput
@@ -254,7 +243,6 @@ export default function SignUpForm() {
           placeholder="Create a password"
           onChangeText={(text) => handleInputChange('password', text)}
           error={touched.password ? errors.password : ''}
-          confirmPassword
         />
         
         {touched.password && getPasswordStrengthHints()}
@@ -265,7 +253,6 @@ export default function SignUpForm() {
           placeholder="Confirm your password"
           onChangeText={(text) => handleInputChange('confirmPassword', text)}
           error={touched.confirmPassword ? errors.confirmPassword : ''}
-          confirmPassword
         />
 
         <Button
@@ -276,8 +263,7 @@ export default function SignUpForm() {
         />
 
         <LinkButton
-          question="Already have an account?"
-          linkText="Sign in"
+          title="Already have an account? Sign in"
           onPress={() => navigate.toSignIn()}
         />
       </AuthCard>
@@ -304,5 +290,14 @@ const styles = StyleSheet.create({
   },
   hintText: {
     fontSize: 12,
+  },
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  cardSubtitle: {
+    fontSize: 16,
+    marginBottom: 24,
   },
 });

@@ -37,14 +37,14 @@ export function MaterialsProvider({ homeId, children }: { homeId: string; childr
     
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('materials')
         .select('*')
         .eq('home_id', homeId)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      setMaterials(data || []);
+      setMaterials((data || []) as Material[]);
     } catch (error) {
       console.error('Error fetching materials:', error);
     } finally {
@@ -94,7 +94,7 @@ export function MaterialsProvider({ homeId, children }: { homeId: string; childr
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not logged in');
       
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('materials')
         .insert([{ ...materialData, home_id: homeId }])
         .select()
@@ -112,7 +112,7 @@ export function MaterialsProvider({ homeId, children }: { homeId: string; childr
 
   const updateMaterial = async (id: string, updates: Partial<Material>) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('materials')
         .update(updates)
         .eq('id', id)
@@ -131,7 +131,7 @@ export function MaterialsProvider({ homeId, children }: { homeId: string; childr
 
   const deleteMaterial = async (id: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('materials')
         .delete()
         .eq('id', id);

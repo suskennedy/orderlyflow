@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet } from 'react-native';
+import { Alert, StyleSheet, Text } from 'react-native';
 import { resetPassword } from '../../../lib/auth/actions';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import navigate from '../../../lib/navigation';
 import Button from '../../ui/Button';
@@ -20,6 +21,7 @@ const validateEmail = (email: string) => {
 
 export default function ForgotPasswordForm() {
   const { user, loading: authLoading } = useAuth();
+  const { colors } = useTheme();
   
   // Form state
   const [email, setEmail] = useState('');
@@ -89,31 +91,29 @@ export default function ForgotPasswordForm() {
           ? "Check your email for reset instructions" 
           : "Reset your password"
         }
-        iconName="lock-closed"
-        showBackButton={true}
-        backRoute="/(auth)/signin"
       />
 
-      <AuthCard
-        title={emailSent ? "Email Sent!" : "Forgot Password?"}
-        subtitle={emailSent 
-          ? "We've sent password reset instructions to your email address."
-          : "Don't worry, we'll help you reset your password."
-        }
-      >
+      <AuthCard>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>
+          {emailSent ? "Email Sent!" : "Forgot Password?"}
+        </Text>
+        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
+          {emailSent 
+            ? "We've sent password reset instructions to your email address."
+            : "Don't worry, we'll help you reset your password."
+          }
+        </Text>
+        
         {!emailSent && (
           <>
             <FormInput
               label="Email Address"
-              iconName="mail-outline"
               placeholder="Enter your email"
               value={email}
               onChangeText={handleEmailChange}
               error={touched ? emailError : ''}
-              onBlur={handleBlur}
               keyboardType="email-address"
               autoCapitalize="none"
-              autoComplete="email"
             />
 
             <Button
@@ -126,10 +126,8 @@ export default function ForgotPasswordForm() {
         )}
 
         <LinkButton
-          question=""
-          linkText={emailSent ? "Back to Sign In" : "Remember your password? Sign In"}
+          title={emailSent ? "Back to Sign In" : "Remember your password? Sign In"}
           onPress={() => navigate.toSignIn()}
-          textAlign="center"
         />
       </AuthCard>
     </AuthContainer>
@@ -138,6 +136,15 @@ export default function ForgotPasswordForm() {
 
 const styles = StyleSheet.create({
   resetButton: {
+    marginBottom: 24,
+  },
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  cardSubtitle: {
+    fontSize: 16,
     marginBottom: 24,
   },
 });

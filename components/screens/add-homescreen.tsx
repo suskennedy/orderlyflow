@@ -52,6 +52,8 @@ export default function AddHomeScreen() {
   const warrantyRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
+  const isSubmittingRef = useRef(false);
+
   const handlePlaceSelect = async (placeId: string) => {
     try {
       const details = await googlePlacesService.getPlaceDetails(placeId);
@@ -81,13 +83,21 @@ export default function AddHomeScreen() {
   };
 
   const handleSave = async () => {
+    // Prevent duplicate submissions
+    if (isSubmittingRef.current || loading) {
+      console.log('Submission already in progress, ignoring duplicate click');
+      return;
+    }
+
     if (!formData.name.trim()) {
       Alert.alert('Error', 'Please enter a home name');
       nameRef.current?.focus();
       return;
     }
 
+    isSubmittingRef.current = true;
     setLoading(true);
+    
     try {
       const homeData = {
         name: formData.name.trim(),
@@ -108,6 +118,7 @@ export default function AddHomeScreen() {
         longitude: formData.longitude,
       };
 
+      console.log('Creating home with data:', homeData);
       await createHome(homeData);
       
       showToast(`${formData.name} home added successfully!`, 'success');
@@ -122,6 +133,7 @@ export default function AddHomeScreen() {
       showToast('Failed to add home. Please try again.', 'error');
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 

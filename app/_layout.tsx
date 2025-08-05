@@ -26,7 +26,7 @@ function AppContent() {
       {/* Use SafeAreaView with edges prop to handle both top and bottom system UI elements */}
       <SafeAreaView
         style={{ flex: 1, backgroundColor: colors.background }}
-        edges={["top", "bottom", "left", "right"]}
+        edges={["top", "left", "right"]}
       >
         <ToastProvider>
           <FamilyProvider>
@@ -45,7 +45,6 @@ function AppContent() {
                             }),
                           },
                           animation: "slide_from_right",
-                          // Add additional padding for Android navigation bar if needed
                         }}
                       >
                         <Stack.Screen
@@ -61,24 +60,22 @@ function AppContent() {
                           }}
                         />
                         <Stack.Screen
-                          name="(dashboard)"
+                          name="(tabs)"
                           options={{
                             headerShown: false,
                             gestureEnabled: false,
                           }}
                         />
                         <Stack.Screen
-                          name="(home)"
+                          name="(profile)"
                           options={{
                             headerShown: false,
-                            gestureEnabled: false,
                           }}
                         />
                         <Stack.Screen
-                          name="settings"
+                          name="invite"
                           options={{
                             headerShown: false,
-                            presentation: "modal",
                           }}
                         />
                       </Stack>

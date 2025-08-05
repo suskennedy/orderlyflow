@@ -149,10 +149,10 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
           const { data: existingTasks } = await supabase
             .from('tasks')
             .select('id')
-            .in('id', taskIds);
+            .in('id', taskIds as any);
             
           const existingTaskIds = new Set(existingTasks?.map(task => task.id) || []);
-          const orphanedEvents = taskEvents.filter(event => !existingTaskIds.has(event.task_id));
+          const orphanedEvents = taskEvents.filter(event => event.task_id && !existingTaskIds.has(event.task_id));
           
           if (orphanedEvents.length > 0) {
             console.log(`Found ${orphanedEvents.length} orphaned calendar events, cleaning up...`);

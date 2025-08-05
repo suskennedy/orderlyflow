@@ -50,14 +50,7 @@ export default function ApplianceCard({ appliance, onPress }: ApplianceCardProps
                 {appliance.brand}
               </Text>
             )}
-            {appliance.room && (
-              <View style={styles.roomContainer}>
-                <Ionicons name="location" size={12} color={colors.textSecondary} />
-                <Text style={[styles.room, { color: colors.textSecondary }]}>
-                  {appliance.room}
-                </Text>
-              </View>
-            )}
+           
           </View>
         </View>
         
@@ -93,14 +86,6 @@ export default function ApplianceCard({ appliance, onPress }: ApplianceCardProps
               <Ionicons name="calendar" size={16} color={colors.textSecondary} />
               <Text style={[styles.detailText, { color: colors.text }]}>
                 Purchased: {new Date(appliance.purchase_date).toLocaleDateString()}
-              </Text>
-            </View>
-          )}
-          {appliance.purchased_store && (
-            <View style={styles.detailRow}>
-              <Ionicons name="storefront" size={16} color={colors.textSecondary} />
-              <Text style={[styles.detailText, { color: colors.text }]}>
-                Store: {appliance.purchased_store}
               </Text>
             </View>
           )}

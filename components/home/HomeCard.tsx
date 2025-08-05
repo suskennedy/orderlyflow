@@ -6,6 +6,7 @@ import { Home, useHomes } from '../../lib/contexts/HomesContext';
 
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { getHomeImageUrl } from '../../lib/utils/imageUtils';
+import { routes } from '../../lib/navigation';
 
 interface HomeCardProps {
   home: Home;
@@ -37,7 +38,7 @@ export default function HomeCard({ home }: HomeCardProps) {
   };
 
   const handleCardPress = () => {
-    router.push(`/(home)/${home.id}` as any);
+    router.push(routes.home.detail(home.id) as any);
   };
 
   return (

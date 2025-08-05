@@ -129,7 +129,6 @@ export default function SignInForm() {
           autoCapitalize="none"
           error={errors.email}
           icon="mail-outline"
-          onBlur={() => handleBlur('email')}
         />
         
         <FormInput
@@ -140,7 +139,6 @@ export default function SignInForm() {
           secureTextEntry={true}
           error={errors.password}
           icon="lock-closed-outline"
-          onBlur={() => handleBlur('password')}
         />
         
         <TouchableOpacity style={styles.forgotPassword}>
@@ -157,8 +155,7 @@ export default function SignInForm() {
         />
         
         <LinkButton
-          title="Don't have an account?"
-          linkText="Sign up"
+          title="Don't have an account? Sign up"
           onPress={() => navigate.toSignUp()}
         />
       </View>

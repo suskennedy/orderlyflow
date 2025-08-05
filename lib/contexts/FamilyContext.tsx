@@ -104,7 +104,7 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
           console.error('Error fetching family account:', familyError);
         } else if (familyData) {
           console.log('Setting family account:', familyData);
-          setFamilyAccount(familyData);
+            setFamilyAccount(familyData as any);
           
           // Get user's role in the family
           const { data: memberData, error: memberError } = await supabase
@@ -121,7 +121,7 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
             console.error('Error fetching family member:', memberError);
           } else if (memberData) {
             console.log('Setting user role:', memberData);
-            setUserRole(memberData);
+            setUserRole(memberData as any);
           }
         }
       } else {
@@ -167,7 +167,7 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
           const { data: profileData } = await supabase
             .from('user_profiles')
             .select('display_name, full_name, avatar_url')
-            .eq('id', member.user_id)
+            .eq('id', member.user_id as string)
             .single();
 
           return {
@@ -214,7 +214,7 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
           const { data: profileData } = await supabase
             .from('user_profiles')
             .select('display_name, full_name')
-            .eq('id', invitation.invited_by)
+            .eq('id', invitation.invited_by as string)
             .single();
 
           return {
@@ -331,7 +331,7 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
           familyName: familyAccount.name,
           inviterName: inviterName,
           invitationUrl: invitationUrl,
-          expiresAt: invitationDetails.expires_at
+          expiresAt: invitationDetails.expires_at as string
         });
 
         console.log('Invitation email sent successfully to:', email);

@@ -3,6 +3,7 @@ import { RelativePathString, router } from 'expo-router';
 import React from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { routes } from '../../lib/navigation';
 import { InventoryItem } from '../../lib/services/InventoryService';
 
 interface InventoryItemCardProps {
@@ -87,7 +88,7 @@ export default function InventoryItemCard({ item, onDelete }: InventoryItemCardP
 
   // Get URL for editing based on item type
   const getEditUrl = () => {
-    return `/inventory/edit/${item.item_type}/${item.id}`;
+    return routes.inventory.edit(item.id) as RelativePathString;
   };
 
   // Get item type display name

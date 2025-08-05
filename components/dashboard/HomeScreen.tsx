@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalendar } from '../../lib/contexts/CalendarContext';
@@ -353,7 +353,7 @@ export default function HomeScreen() {
                 ]}>
                   {task.title}
                 </Text>
-              </View>
+            </View>
             ))}
             {tasks.length === 0 && (
               <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
@@ -372,7 +372,7 @@ export default function HomeScreen() {
           <TouchableOpacity onPress={() => router.push('/(dashboard)/tasks' as any)}>
             <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
           </TouchableOpacity>
-        </View>
+          </View>
         <View style={styles.tasksColumns}>
           {/* This Week Column */}
           <View style={styles.taskColumn}>
@@ -396,10 +396,10 @@ export default function HomeScreen() {
                 No tasks due this month
               </Text>
             )}
-          </View>
         </View>
       </View>
-    );
+    </View>
+  );
   };
 
   return (

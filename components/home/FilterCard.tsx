@@ -24,7 +24,7 @@ export default function FilterCard({ filter }: FilterCardProps) {
       {isExpanded && (
         <View style={styles.details}>
           <Text style={[styles.detailText, { color: colors.text }]}>Brand: {filter.brand}</Text>
-          <Text style={[styles.detailText, { color: colors.text }]}>Last Changed: {filter.last_changed_date}</Text>
+          <Text style={[styles.detailText, { color: colors.text }]}>Last Changed: {filter.last_replaced}</Text>
           <Text style={[styles.detailText, { color: colors.text }]}>Notes: {filter.notes}</Text>
         </View>
       )}

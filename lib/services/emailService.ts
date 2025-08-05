@@ -1,8 +1,3 @@
-import { Resend } from 'resend';
-
-// Initialize Resend with API key
-const resend = new Resend(process.env.EXPO_PUBLIC_RESEND_API_KEY);
-
 export interface InvitationEmailData {
   to: string;
   familyName: string;
@@ -16,17 +11,28 @@ export class EmailService {
     try {
       const { to, familyName, inviterName, invitationUrl, expiresAt } = data;
 
-      // Use configurable from email or fallback
-      const fromEmail = process.env.EXPO_PUBLIC_FROM_EMAIL || 'noreply@orderlyflow.com';
-
-      const result = await resend.emails.send({
-        from: `OrderlyFlow <${fromEmail}>`,
-        to: [to],
-        subject: `You're invited to join ${familyName} on OrderlyFlow`,
-        html: this.createInvitationEmailHTML(data),
-        text: this.createInvitationEmailText(data),
+      // Use Resend API directly with fetch (works in React Native)
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.EXPO_PUBLIC_RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: `OrderlyFlow <${process.env.EXPO_PUBLIC_FROM_EMAIL || 'noreply@orderlyflow.com'}>`,
+          to: [to],
+          subject: `You're invited to join ${familyName} on OrderlyFlow`,
+          html: this.createInvitationEmailHTML(data),
+          text: this.createInvitationEmailText(data),
+        }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Email sending failed: ${errorData.message || response.statusText}`);
+      }
+
+      const result = await response.json();
       console.log('Email sent successfully:', result);
       return result;
     } catch (error) {

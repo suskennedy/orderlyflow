@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalendar } from '../../lib/contexts/CalendarContext';
@@ -19,6 +19,7 @@ import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
 import { useAuth } from '../../lib/hooks/useAuth';
+import { routes } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 import { CalendarEvent } from '../../types/database';
 
@@ -393,7 +394,7 @@ export default function DashboardScreen() {
       <View style={styles.tasksContainer}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Tasks</Text>
-          <TouchableOpacity onPress={() => router.push('/(dashboard)/tasks')}>
+          <TouchableOpacity onPress={() => router.push(routes.tasks.index as any)}>
             <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
           </TouchableOpacity>
         </View>
@@ -451,7 +452,7 @@ export default function DashboardScreen() {
       <View style={styles.quickActionsGrid}>
         <TouchableOpacity
           style={[styles.quickActionCard, { backgroundColor: colors.surface }]}
-          onPress={() => router.push('/(dashboard)/homes/add')}
+          onPress={() => router.push(routes.home.add as any)}
         >
           <View style={[styles.quickActionIcon, { backgroundColor: colors.surfaceVariant }]}>
             <Ionicons name="home-outline" size={24} color={colors.primary} />
@@ -461,7 +462,7 @@ export default function DashboardScreen() {
 
         <TouchableOpacity
           style={[styles.quickActionCard, { backgroundColor: colors.surface }]}
-          onPress={() => router.push('/(dashboard)/tasks/add')}
+          onPress={() => router.push(routes.tasks.add as any)}
         >
           <View style={[styles.quickActionIcon, { backgroundColor: colors.surfaceVariant }]}>
             <Ionicons name="checkmark-circle-outline" size={24} color={colors.secondary} />
@@ -471,7 +472,7 @@ export default function DashboardScreen() {
 
         <TouchableOpacity
           style={[styles.quickActionCard, { backgroundColor: colors.surface }]}
-          onPress={() => router.push('/(dashboard)/calendar/add')}
+          onPress={() => router.push(routes.calendar.add as any)}
         >
           <View style={[styles.quickActionIcon, { backgroundColor: colors.surfaceVariant }]}>
             <Ionicons name="calendar-outline" size={24} color={colors.accent} />
@@ -481,7 +482,7 @@ export default function DashboardScreen() {
 
         <TouchableOpacity
           style={[styles.quickActionCard, { backgroundColor: colors.surface }]}
-          onPress={() => router.push('/(dashboard)/inventory/add')}
+          onPress={() => router.push(routes.inventory.add as any)}
         >
           <View style={[styles.quickActionIcon, { backgroundColor: colors.surfaceVariant }]}>
             <Ionicons name="cube-outline" size={24} color={colors.info} />
@@ -672,7 +673,7 @@ export default function DashboardScreen() {
     <View style={styles.recentActivityContainer}>
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
-        <TouchableOpacity onPress={() => router.push('/(dashboard)/tasks')}>
+        <TouchableOpacity onPress={() => router.push(routes.tasks.index as any)}>
           <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
         </TouchableOpacity>
       </View>
@@ -725,7 +726,7 @@ export default function DashboardScreen() {
         <View style={styles.upcomingTasksContainer}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Upcoming Tasks</Text>
-            <TouchableOpacity onPress={() => router.push('/(dashboard)/tasks')}>
+            <TouchableOpacity onPress={() => router.push(routes.tasks.index as any)}>
               <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -737,7 +738,7 @@ export default function DashboardScreen() {
             </Text>
             <TouchableOpacity
               style={[styles.addTaskButton, { backgroundColor: colors.primary }]}
-              onPress={() => router.push('/(dashboard)/tasks/add')}
+              onPress={() => router.push(routes.tasks.add as any)}
             >
               <Ionicons name="add" size={20} color={colors.textInverse} />
               <Text style={[styles.addTaskButtonText, { color: colors.textInverse }]}>Add Task</Text>
@@ -751,7 +752,7 @@ export default function DashboardScreen() {
       <View style={styles.upcomingTasksContainer}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Upcoming Tasks</Text>
-          <TouchableOpacity onPress={() => router.push('/(dashboard)/tasks')}>
+          <TouchableOpacity onPress={() => router.push(routes.tasks.index as any)}>
             <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
           </TouchableOpacity>
         </View>
@@ -795,7 +796,7 @@ export default function DashboardScreen() {
                 { backgroundColor: colors.surface },
                 isOverdue && { borderLeftWidth: 4, borderLeftColor: colors.error }
               ]}
-              onPress={() => router.push('/(dashboard)/tasks')}
+              onPress={() => router.push(routes.tasks.index as any)}
             >
               <View style={styles.taskCardHeader}>
                 <View style={styles.taskCardLeft}>
@@ -863,21 +864,21 @@ export default function DashboardScreen() {
       <View style={styles.headerRight}>
         <TouchableOpacity
           style={[styles.headerButton, { backgroundColor: colors.surfaceVariant }]}
-          onPress={() => router.push('/(dashboard)/notifications')}
+          onPress={() => router.push(routes.notifications as any)}
         >
           <Ionicons name="notifications-outline" size={20} color={colors.text} />
         </TouchableOpacity>
         
         <TouchableOpacity
           style={[styles.headerButton, { backgroundColor: colors.surfaceVariant }]}
-          onPress={() => router.push('/(dashboard)/profile')}
+          onPress={() => router.push(routes.profile.index as any)}
         >
           <Ionicons name="person-outline" size={20} color={colors.text} />
         </TouchableOpacity>
         
         <TouchableOpacity
           style={[styles.headerButton, { backgroundColor: colors.surfaceVariant }]}
-          onPress={() => router.push('/(dashboard)/settings')}
+          onPress={() => router.push(routes.settings.index as any)}
         >
           <Ionicons name="settings-outline" size={20} color={colors.text} />
         </TouchableOpacity>

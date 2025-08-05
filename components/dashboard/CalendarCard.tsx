@@ -63,7 +63,7 @@ function CalendarEventCard({
         backgroundColor: colors.surface,
         borderLeftColor: colorStyle.color 
       }]}
-      onPress={() => router.push(`/calendar/edit/${event.id}` as RelativePathString)}
+      onPress={() => router.push(`/(tabs)/(calendar)/edit/${event.id}` as RelativePathString)}
     >
       <View style={styles.header}>
         <View style={styles.titleRow}>

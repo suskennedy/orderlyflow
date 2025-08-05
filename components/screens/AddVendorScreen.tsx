@@ -102,7 +102,7 @@ export default function AddVendorScreen() {
         notes: notes.trim() || null
       };
 
-      await addVendor(vendorData);
+      await addVendor(vendorData as any);
       
       Alert.alert('Success', 'Vendor added successfully!', [
         { text: 'OK', onPress: () => router.back() }

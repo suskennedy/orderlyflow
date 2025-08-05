@@ -87,7 +87,7 @@ const CalendarMonthView = ({
           <Text style={[styles.noEventsText, { color: colors.textTertiary }]}>No events scheduled</Text>
           <TouchableOpacity
             style={[styles.addEventButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.push('/calendar/add')}
+            onPress={() => router.push('/(tabs)/(calendar)/add')}
           >
             <Text style={[styles.addEventText, { color: colors.textInverse }]}>Add Event</Text>
           </TouchableOpacity>

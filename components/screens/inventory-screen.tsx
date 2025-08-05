@@ -54,7 +54,7 @@ export default function InventoryScreen() {
   // Navigate to the appropriate add screen based on item type
   const navigateToAddScreen = (itemType: string) => {
     setShowAddTypeModal(false);
-    router.push(`/(dashboard)/homes/inventory/add/${itemType}` as RelativePathString);
+    router.push(`/(tabs)/(dashboard)/homes/inventory/add/${itemType}` as RelativePathString);
   };
 
   // Check if a warranty is active or expired

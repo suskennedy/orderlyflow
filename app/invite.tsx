@@ -67,7 +67,7 @@ export default function InviteScreen() {
       }
 
       // Check if invitation is expired
-      if (new Date(data.expires_at) < new Date()) {
+      if (new Date(data.expires_at as string) < new Date()) {
         setError('This invitation has expired');
         setLoading(false);
         return;

@@ -1,4 +1,3 @@
-import { ThemeColors } from '../contexts/ThemeContext';
 
 /**
  * Helper function to get hex color codes for calendar events
@@ -33,7 +32,7 @@ export const getEventColor = (colorName: string): string => {
 /**
  * Get calendar theme configuration with theme support
  */
-export const getCalendarTheme = (colors: ThemeColors) => ({
+export const getCalendarTheme = (colors:any ) => ({
   backgroundColor: colors.surface,
   calendarBackground: colors.surface,
   textSectionTitleColor: colors.textTertiary,
@@ -82,7 +81,7 @@ export const getCalendarTheme = (colors: ThemeColors) => ({
 /**
  * Get dark theme calendar colors
  */
-export const getDarkCalendarTheme = (colors: ThemeColors) => ({
+export const getDarkCalendarTheme = (colors: any) => ({
   backgroundColor: colors.surface,
   calendarBackground: colors.surface,
   textSectionTitleColor: colors.textTertiary,

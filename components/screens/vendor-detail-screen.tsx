@@ -126,7 +126,7 @@ export default function VendorDetailScreen() {
         <Text style={[styles.headerTitle, { color: colors.text }]}>Contact Details</Text>
         <TouchableOpacity
           style={styles.editButton}
-          onPress={() => router.push(`/(dashboard)/vendors/edit/${vendor.id}`)}
+          onPress={() => router.push(`/(tabs)/(dashboard)/vendors/edit/${vendor.id}`)}
         >
           <Ionicons name="create-outline" size={24} color={colors.primary} />
         </TouchableOpacity>

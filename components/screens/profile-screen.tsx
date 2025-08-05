@@ -127,7 +127,7 @@ export default function ProfileScreen() {
         </View>
       )}
       
-      <TouchableOpacity style={styles.editButton} onPress={() => router.push('/(dashboard)/profile/edit')}>
+      <TouchableOpacity style={styles.editButton} onPress={() => router.push('/(tabs)/(dashboard)/profile/edit')}>
         <Ionicons name="create-outline" size={16} color={colors.primary} />
         <Text style={[styles.editButtonText, { color: colors.primary }]}>Edit Profile</Text>
       </TouchableOpacity>

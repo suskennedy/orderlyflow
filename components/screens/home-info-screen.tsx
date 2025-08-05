@@ -33,13 +33,18 @@ export default function HomeInfoScreen() {
     }
   };
 
-  const InfoRow = ({ label, value, field, keyboardType = 'default' }: any) => (
+  const InfoRow = ({ label, value, field, keyboardType = 'default' }: {
+    label: string;
+    value: string | number | null;
+    field: string;
+    keyboardType?: 'default' | 'numeric';
+  }) => (
     <View style={styles.infoRow}>
       <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
       {isEditing ? (
         <TextInput
           style={[styles.input, { color: colors.text, borderBottomColor: colors.border }]}
-          value={String(formData[field] || '')}
+          value={String((formData as any)[field] || '')}
           onChangeText={text => setFormData({ ...formData, [field]: text })}
           keyboardType={keyboardType}
         />
@@ -54,19 +59,20 @@ export default function HomeInfoScreen() {
       <ScreenHeader 
         title="Home Info" 
         showBackButton 
-        rightButton={
-          <TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
-            <Ionicons name={isEditing ? "close" : "create-outline"} size={24} color={colors.primary} />
-          </TouchableOpacity>
-        }
       />
+      <TouchableOpacity 
+        style={[styles.editButton, { backgroundColor: colors.primary }]}
+        onPress={() => setIsEditing(!isEditing)}
+      >
+        <Ionicons name={isEditing ? "close" : "create-outline"} size={24} color={colors.textInverse} />
+      </TouchableOpacity>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <InfoRow label="Address" value={home?.address} field="address" />
-        <InfoRow label="Square Footage" value={home?.square_footage} field="square_footage" keyboardType="numeric" />
-        <InfoRow label="Bedrooms" value={home?.bedrooms} field="bedrooms" keyboardType="numeric" />
-        <InfoRow label="Bathrooms" value={home?.bathrooms} field="bathrooms" keyboardType="numeric" />
-        <InfoRow label="Year Built" value={home?.year_built} field="year_built" keyboardType="numeric" />
-        <InfoRow label="Purchase Date" value={home?.purchase_date} field="purchase_date" />
+        <InfoRow label="Address" value={home?.address || null} field="address" />
+        <InfoRow label="Square Footage" value={home?.square_footage || null} field="square_footage" keyboardType="numeric" />
+        <InfoRow label="Bedrooms" value={home?.bedrooms || null} field="bedrooms" keyboardType="numeric" />
+        <InfoRow label="Bathrooms" value={home?.bathrooms || null} field="bathrooms" keyboardType="numeric" />
+        <InfoRow label="Year Built" value={home?.year_built || null} field="year_built" keyboardType="numeric" />
+        <InfoRow label="Purchase Date" value={home?.purchase_date || null} field="purchase_date" />
 
         {isEditing && (
           <TouchableOpacity
@@ -115,5 +121,13 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  editButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    borderRadius: 25,
+    padding: 10,
+    zIndex: 1,
   },
 }); 

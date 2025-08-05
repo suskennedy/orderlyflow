@@ -344,10 +344,10 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
 
       // Create calendar events for each task
       for (const task of allTasks || []) {
-        await createCalendarEventFromTask(task);
+        await createCalendarEventFromTask(task as any);
         
         if (task.is_recurring && task.recurrence_pattern) {
-          await createRecurringCalendarEvents(task);
+          await createRecurringCalendarEvents(task as any);
         }
       }
 

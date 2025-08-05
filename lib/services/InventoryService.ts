@@ -115,35 +115,28 @@ export class InventoryService {
       const inventoryItems: InventoryItem[] = [
         ...(appliances || []).map(item => ({
           ...item,
-          item_type: 'appliance',
-          homes: item.home_id ? { name: homesMap[item.home_id]?.name } : null
+          item_type: 'appliance' as const,
         })),
         ...(filters || []).map(item => ({
           ...item,
-          item_type: 'filter',
-          homes: item.home_id ? { name: homesMap[item.home_id]?.name } : null
+          item_type: 'filter' as const,
         })),
         ...(lightFixtures || []).map(item => ({
           ...item,
-          item_type: 'light_fixture',
-          homes: item.home_id ? { name: homesMap[item.home_id]?.name } : null
+          item_type: 'light_fixture' as const,
         })),
         ...(cabinets || []).map(item => ({
           ...item,
-          item_type: 'cabinet',
-          homes: item.home_id ? { name: homesMap[item.home_id]?.name } : null
+          item_type: 'cabinet' as const,
         })),
         ...(tiles || []).map(item => ({
           ...item,
-          item_type: 'tile',
-          homes: item.home_id ? { name: homesMap[item.home_id]?.name } : null
+          item_type: 'tile' as const,
         })),
         ...(paintColors || []).map(item => ({
           ...item,
-          item_type: 'paint',
-          warranty_expiration: null, // Paints don't have warranties
-          homes: item.home_id ? { name: homesMap[item.home_id]?.name } : null
-        }))
+          item_type: 'paint' as const,
+        })),
       ];
       
       return inventoryItems;
@@ -154,42 +147,35 @@ export class InventoryService {
     }
   }
 
-  /**
-   * Deletes an inventory item based on its type
-   */
-  static async deleteInventoryItem(itemId: string, itemType: string): Promise<void> {
-    let table: string;
-    
+  private static getItemTypeTable(itemType: string): string {
     switch (itemType) {
       case 'appliance':
-        table = 'appliances';
-        break;
+        return 'appliances';
       case 'filter':
-        table = 'filters';
-        break;
+        return 'filters';
       case 'light_fixture':
-        table = 'light_fixtures';
-        break;
+        return 'light_fixtures';
       case 'cabinet':
-        table = 'cabinets';
-        break;
+        return 'cabinets';
       case 'tile':
-        table = 'tiles';
-        break;
+        return 'tiles';
       case 'paint':
-        table = 'paint_colors';
-        break;
+        return 'paint_colors';
       default:
         throw new Error(`Unknown item type: ${itemType}`);
     }
+  }
+
+  static async deleteInventoryItem(itemId: string, itemType: string): Promise<void> {
+    const table = this.getItemTypeTable(itemType);
     
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from(table)
       .delete()
       .eq('id', itemId);
-      
+    
     if (error) {
-      throw new Error(`Error deleting ${itemType}: ${error.message}`);
+      throw new Error(`Failed to delete ${itemType}: ${error.message}`);
     }
   }
 }

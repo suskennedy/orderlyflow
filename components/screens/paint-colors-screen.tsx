@@ -18,7 +18,7 @@ export default function PaintColorsScreen() {
       <ScreenHeader 
         title="Paint Colors" 
         showBackButton
-        onAddPress={() => router.push(`/(home)/${homeId}/paints/add`)}
+        onAddPress={() => router.push(`/(tabs)/(home)/${homeId}/paints/add`)}
       />
       {loading ? (
         <ActivityIndicator style={{ flex: 1 }} />

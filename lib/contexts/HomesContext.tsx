@@ -83,7 +83,16 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
       const eventType = payload.eventType;
 
       if (eventType === 'INSERT') {
-        setHomes(current => [...current, payload.new]);
+        const newHome = payload.new;
+        setHomes(current => {
+          // Check if home already exists to prevent duplicates
+          if (current.some(home => home.id === newHome.id)) {
+            console.log('Home already exists in state, skipping duplicate');
+            return current;
+          }
+          console.log('Adding new home to state:', newHome.id);
+          return [...current, newHome];
+        });
       } 
       else if (eventType === 'UPDATE') {
         setHomes(current => 
@@ -135,7 +144,7 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
 
       if (error) throw error;
 
-      setHomes(current => [...current, data]);
+      // The real-time subscription will handle adding it to the state
     } catch (error) {
       console.error('Error creating home:', error);
       throw error;

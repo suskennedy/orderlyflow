@@ -2,13 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Animated,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTasks } from '../../lib/contexts/TasksContext';
@@ -479,7 +479,7 @@ export default function TaskSettingsScreen() {
       ]}
     >
       <View style={styles.headerTitleContainer}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Task Templates</Text>
+        <Text style={[styles.mainHeaderTitle, { color: colors.text }]}>Task Templates</Text>
         <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
           Select from pre-made tasks or create your own
         </Text>
@@ -532,7 +532,7 @@ export default function TaskSettingsScreen() {
         <Text style={[styles.headerTitle, { color: colors.text }]}>Task Settings</Text>
         <TouchableOpacity
           style={[styles.createButton, { backgroundColor: colors.primary }]}
-          onPress={() => router.push('/(dashboard)/tasks/add' as any)}
+          onPress={() => router.push('/(tabs)/(dashboard)/tasks/add' as any)}
         >
           <Ionicons name="add" size={20} color={colors.background} />
         </TouchableOpacity>
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
   headerTitleContainer: {
     marginBottom: 20,
   },
-  headerTitle: {
+  mainHeaderTitle: {
     fontSize: 28,
     fontWeight: '800',
     letterSpacing: -0.5,

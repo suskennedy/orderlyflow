@@ -46,7 +46,7 @@ export function AppliancesProvider({ homeId, children }: { homeId: string; child
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      setAppliances(data || []);
+        setAppliances(data as any[]);
     } catch (error) {
       console.error('Error fetching appliances:', error);
     } finally {
