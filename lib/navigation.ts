@@ -97,6 +97,12 @@ export const routes = {
   // Other routes
   invite: '/invite',
   notifications: '/(tabs)/(dashboard)/notifications',
+  
+  // Flo routes
+  flo: {
+    index: '/(tabs)/(flo)',
+    chat: '/(tabs)/(flo)/chat',
+  },
 };
 
 // Type-safe navigation helper with only current functionality

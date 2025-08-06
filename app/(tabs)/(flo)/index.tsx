@@ -98,8 +98,7 @@ export default function FloScreen() {
           <TouchableOpacity
             style={[styles.chatButton, { backgroundColor: colors.primary }]}
             onPress={() => {
-              // TODO: Implement chat functionality
-              console.log('Open chat with Flo');
+              router.push('/(tabs)/(flo)/chat' as any);
             }}
           >
             <Ionicons name="chatbubble" size={20} color={colors.background} />

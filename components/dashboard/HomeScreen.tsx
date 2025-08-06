@@ -15,6 +15,7 @@ import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
+import { routes } from '../../lib/navigation';
 
 export default function HomeScreen() {
   const { colors } = useTheme();
@@ -145,7 +146,7 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={[styles.quickLinkButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push('/(home)/add' as any)}
+          onPress={() => router.push(routes.home.appliances as any)}
         >
           <Ionicons name="construct" size={24} color={colors.text} />
           <Text style={[styles.quickLinkText, { color: colors.text }]}>Add Appliance</Text>

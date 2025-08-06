@@ -2,13 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFamily } from '../../lib/contexts/FamilyContext';
@@ -174,165 +176,171 @@ export default function FamilyManagementScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { 
-        backgroundColor: colors.background,
-        paddingTop: insets.top + 20 
-      }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Family Management</Text>
-        <View style={styles.headerRight} />
-      </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Family Account Info */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Family Account</Text>
-          
-          <View style={[styles.accountCard, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.accountName, { color: colors.text }]}>{familyAccount.name}</Text>
-            <Text style={[styles.accountInfo, { color: colors.textSecondary }]}>
-              {familyMembers.length} of {familyAccount.max_members} members
-            </Text>
-            <Text style={[styles.userRole, { color: getRoleColor(userRole?.role || 'member') }]}>
-              Your role: {getRoleDisplayName(userRole?.role || 'member')}
-            </Text>
-          </View>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        {/* Header */}
+        <View style={[styles.header, { 
+          backgroundColor: colors.background,
+          paddingTop: insets.top + 20 
+        }]}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Family Management</Text>
+          <View style={styles.headerRight} />
         </View>
 
-        {/* Invite New Member */}
-        {canManageFamily && (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Family Account Info */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Invite New Member</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Family Account</Text>
             
-            <View style={[styles.inviteCard, { backgroundColor: colors.surface }]}>
-              <TextInput
-                style={[styles.emailInput, { 
-                  backgroundColor: colors.background,
-                  color: colors.text,
-                  borderColor: colors.border 
-                }]}
-                value={inviteEmail}
-                onChangeText={setInviteEmail}
-                placeholder="Enter email address"
-                placeholderTextColor={colors.textSecondary}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                style={[
-                  styles.inviteButton, 
-                  { 
-                    backgroundColor: isInviting ? colors.textSecondary : colors.primary,
-                    opacity: isInviting ? 0.6 : 1
-                  }
-                ]}
-                onPress={handleInviteMember}
-                disabled={isInviting}
-              >
-                <Text style={[styles.inviteButtonText, { color: colors.background }]}>
-                  {isInviting ? 'Sending...' : 'Send Invitation'}
-                </Text>
-              </TouchableOpacity>
+            <View style={[styles.accountCard, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.accountName, { color: colors.text }]}>{familyAccount.name}</Text>
+              <Text style={[styles.accountInfo, { color: colors.textSecondary }]}>
+                {familyMembers.length} of {familyAccount.max_members} members
+              </Text>
+              <Text style={[styles.userRole, { color: getRoleColor(userRole?.role || 'member') }]}>
+                Your role: {getRoleDisplayName(userRole?.role || 'member')}
+              </Text>
             </View>
           </View>
-        )}
 
-        {/* Pending Invitations */}
-        {invitations.length > 0 && (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Pending Invitations</Text>
-            
-            <View style={[styles.invitationsCard, { backgroundColor: colors.surface }]}>
-              {invitations.map((invitation) => (
-                <View key={invitation.id} style={styles.invitationItem}>
-                  <View style={styles.invitationInfo}>
-                    <Text style={[styles.invitationEmail, { color: colors.text }]}>
-                      {invitation.email}
-                    </Text>
-                    <Text style={[styles.invitationDate, { color: colors.textSecondary }]}>
-                      Invited {new Date(invitation.created_at).toLocaleDateString()}
-                    </Text>
+          {/* Invite New Member */}
+          {canManageFamily && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Invite New Member</Text>
+              
+              <View style={[styles.inviteCard, { backgroundColor: colors.surface }]}>
+                <TextInput
+                  style={[styles.emailInput, { 
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: colors.border 
+                  }]}
+                  value={inviteEmail}
+                  onChangeText={setInviteEmail}
+                  placeholder="Enter email address"
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.inviteButton, 
+                    { 
+                      backgroundColor: isInviting ? colors.textSecondary : colors.primary,
+                      opacity: isInviting ? 0.6 : 1
+                    }
+                  ]}
+                  onPress={handleInviteMember}
+                  disabled={isInviting}
+                >
+                  <Text style={[styles.inviteButtonText, { color: colors.background }]}>
+                    {isInviting ? 'Sending...' : 'Send Invitation'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Pending Invitations */}
+          {invitations.length > 0 && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Pending Invitations</Text>
+              
+              <View style={[styles.invitationsCard, { backgroundColor: colors.surface }]}>
+                {invitations.map((invitation) => (
+                  <View key={invitation.id} style={styles.invitationItem}>
+                    <View style={styles.invitationInfo}>
+                      <Text style={[styles.invitationEmail, { color: colors.text }]}>
+                        {invitation.email}
+                      </Text>
+                      <Text style={[styles.invitationDate, { color: colors.textSecondary }]}>
+                        Invited {new Date(invitation.created_at).toLocaleDateString()}
+                      </Text>
+                    </View>
+                    {canManageFamily && (
+                      <TouchableOpacity
+                        style={[styles.declineButton, { backgroundColor: colors.surfaceVariant }]}
+                        onPress={() => handleDeclineInvitation(invitation.id, invitation.email)}
+                      >
+                        <Ionicons name="close" size={16} color={colors.error} />
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  {canManageFamily && (
-                    <TouchableOpacity
-                      style={[styles.declineButton, { backgroundColor: colors.surfaceVariant }]}
-                      onPress={() => handleDeclineInvitation(invitation.id, invitation.email)}
-                    >
-                      <Ionicons name="close" size={16} color={colors.error} />
-                    </TouchableOpacity>
-                  )}
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Family Members */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Family Members</Text>
+            
+            <View style={[styles.membersCard, { backgroundColor: colors.surface }]}>
+              {familyMembers.map((member) => (
+                <View key={member.id} style={styles.memberItem}>
+                  <View style={styles.memberInfo}>
+                    <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
+                      <Ionicons name="person" size={20} color={colors.primary} />
+                    </View>
+                    <View style={styles.memberDetails}>
+                      <Text style={[styles.memberName, { color: colors.text }]}>
+                        {member.user?.display_name || member.user?.full_name || 'Unknown User'}
+                      </Text>
+                      <Text style={[styles.memberEmail, { color: colors.textSecondary }]}>
+                        {member.user?.full_name || 'No name available'}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.memberActions}>
+                    <View style={[
+                      styles.roleBadge, 
+                      { backgroundColor: getRoleColor(member.role) + '20' }
+                    ]}>
+                      <Text style={[styles.roleText, { color: getRoleColor(member.role) }]}>
+                        {getRoleDisplayName(member.role)}
+                      </Text>
+                    </View>
+                    
+                    {canManageFamily && member.role !== 'owner' && (
+                      <View style={styles.actionButtons}>
+                        <TouchableOpacity
+                          style={[styles.actionButton, { backgroundColor: colors.surfaceVariant }]}
+                          onPress={() => handleUpdateRole(member.user_id, member.role, member.user?.display_name || 'this member')}
+                        >
+                          <Ionicons name="swap-horizontal" size={16} color={colors.secondary} />
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity
+                          style={[styles.actionButton, { backgroundColor: colors.surfaceVariant }]}
+                          onPress={() => handleRemoveMember(member.user_id, member.user?.display_name || 'this member')}
+                        >
+                          <Ionicons name="trash" size={16} color={colors.error} />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
                 </View>
               ))}
             </View>
           </View>
-        )}
-
-        {/* Family Members */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Family Members</Text>
-          
-          <View style={[styles.membersCard, { backgroundColor: colors.surface }]}>
-            {familyMembers.map((member) => (
-              <View key={member.id} style={styles.memberItem}>
-                <View style={styles.memberInfo}>
-                  <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
-                    <Ionicons name="person" size={20} color={colors.primary} />
-                  </View>
-                  <View style={styles.memberDetails}>
-                    <Text style={[styles.memberName, { color: colors.text }]}>
-                      {member.user?.display_name || member.user?.full_name || 'Unknown User'}
-                    </Text>
-                    <Text style={[styles.memberEmail, { color: colors.textSecondary }]}>
-                      {member.user?.full_name || 'No name available'}
-                    </Text>
-                  </View>
-                </View>
-                
-                <View style={styles.memberActions}>
-                  <View style={[
-                    styles.roleBadge, 
-                    { backgroundColor: getRoleColor(member.role) + '20' }
-                  ]}>
-                    <Text style={[styles.roleText, { color: getRoleColor(member.role) }]}>
-                      {getRoleDisplayName(member.role)}
-                    </Text>
-                  </View>
-                  
-                  {canManageFamily && member.role !== 'owner' && (
-                    <View style={styles.actionButtons}>
-                      <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: colors.surfaceVariant }]}
-                        onPress={() => handleUpdateRole(member.user_id, member.role, member.user?.display_name || 'this member')}
-                      >
-                        <Ionicons name="swap-horizontal" size={16} color={colors.secondary} />
-                      </TouchableOpacity>
-                      
-                      <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: colors.surfaceVariant }]}
-                        onPress={() => handleRemoveMember(member.user_id, member.user?.display_name || 'this member')}
-                      >
-                        <Ionicons name="trash" size={16} color={colors.error} />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

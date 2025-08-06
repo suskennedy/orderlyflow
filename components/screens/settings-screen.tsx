@@ -329,6 +329,7 @@ export default function SettingsScreen() {
         style={styles.scrollView} 
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
           {renderThemeSection()}

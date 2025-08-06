@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
@@ -55,7 +55,10 @@ export default function HomeInfoScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <KeyboardAvoidingView 
+      style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <ScreenHeader 
         title="Home Info" 
         showBackButton 
@@ -66,7 +69,10 @@ export default function HomeInfoScreen() {
       >
         <Ionicons name={isEditing ? "close" : "create-outline"} size={24} color={colors.textInverse} />
       </TouchableOpacity>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView 
+        contentContainerStyle={[styles.scrollContainer, { paddingBottom: insets.bottom + 100 }]}
+        keyboardShouldPersistTaps="handled"
+      >
         <InfoRow label="Address" value={home?.address || null} field="address" />
         <InfoRow label="Square Footage" value={home?.square_footage || null} field="square_footage" keyboardType="numeric" />
         <InfoRow label="Bedrooms" value={home?.bedrooms || null} field="bedrooms" keyboardType="numeric" />
@@ -84,7 +90,7 @@ export default function HomeInfoScreen() {
           </TouchableOpacity>
         )}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
