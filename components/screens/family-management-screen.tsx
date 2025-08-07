@@ -35,10 +35,19 @@ export default function FamilyManagementScreen() {
   const [isInviting, setIsInviting] = useState(false);
 
   const canManageFamily = userRole?.role === 'owner' || userRole?.role === 'admin';
+  const currentMembers = familyMembers.length;
+  const pendingInvitations = invitations.length;
+  const totalUsers = currentMembers + pendingInvitations;
+  const canInviteMore = totalUsers < 4;
 
   const handleInviteMember = async () => {
     if (!inviteEmail.trim()) {
       Alert.alert('Error', 'Please enter an email address');
+      return;
+    }
+
+    if (!canInviteMore) {
+      Alert.alert('Maximum Capacity', 'Family account is at maximum capacity (4 users). Please remove a member before inviting someone new.');
       return;
     }
 
@@ -209,11 +218,29 @@ export default function FamilyManagementScreen() {
             <View style={[styles.accountCard, { backgroundColor: colors.surface }]}>
               <Text style={[styles.accountName, { color: colors.text }]}>{familyAccount.name}</Text>
               <Text style={[styles.accountInfo, { color: colors.textSecondary }]}>
-                {familyMembers.length} of {familyAccount.max_members} members
+                {totalUsers} of 4 members ({currentMembers} active, {pendingInvitations} pending)
               </Text>
               <Text style={[styles.userRole, { color: getRoleColor(userRole?.role || 'member') }]}>
                 Your role: {getRoleDisplayName(userRole?.role || 'member')}
               </Text>
+              
+              {/* Capacity indicator */}
+              <View style={styles.capacityIndicator}>
+                <View style={styles.capacityBar}>
+                  <View 
+                    style={[
+                      styles.capacityFill, 
+                      { 
+                        backgroundColor: totalUsers >= 4 ? colors.error : colors.primary,
+                        width: `${(totalUsers / 4) * 100}%`
+                      }
+                    ]} 
+                  />
+                </View>
+                <Text style={[styles.capacityText, { color: colors.textSecondary }]}>
+                  {totalUsers}/4 members
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -223,6 +250,15 @@ export default function FamilyManagementScreen() {
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Invite New Member</Text>
               
               <View style={[styles.inviteCard, { backgroundColor: colors.surface }]}>
+                {!canInviteMore && (
+                  <View style={[styles.warningCard, { backgroundColor: colors.error + '15' }]}>
+                    <Ionicons name="warning" size={20} color={colors.error} />
+                    <Text style={[styles.warningText, { color: colors.error }]}>
+                      Maximum capacity reached. Remove a member to invite someone new.
+                    </Text>
+                  </View>
+                )}
+                
                 <TextInput
                   style={[styles.emailInput, { 
                     backgroundColor: colors.background,
@@ -235,20 +271,21 @@ export default function FamilyManagementScreen() {
                   placeholderTextColor={colors.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  editable={canInviteMore}
                 />
                 <TouchableOpacity
                   style={[
                     styles.inviteButton, 
                     { 
-                      backgroundColor: isInviting ? colors.textSecondary : colors.primary,
-                      opacity: isInviting ? 0.6 : 1
+                      backgroundColor: isInviting || !canInviteMore ? colors.textSecondary : colors.primary,
+                      opacity: isInviting || !canInviteMore ? 0.6 : 1
                     }
                   ]}
                   onPress={handleInviteMember}
-                  disabled={isInviting}
+                  disabled={isInviting || !canInviteMore}
                 >
                   <Text style={[styles.inviteButtonText, { color: colors.background }]}>
-                    {isInviting ? 'Sending...' : 'Send Invitation'}
+                    {isInviting ? 'Sending...' : canInviteMore ? 'Send Invitation' : 'At Capacity'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -430,6 +467,40 @@ const styles = StyleSheet.create({
   userRole: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  capacityIndicator: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  capacityBar: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  capacityFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  capacityText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  warningCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  warningText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   inviteCard: {
     borderRadius: 12,

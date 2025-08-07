@@ -14,6 +14,8 @@ export default function SettingsScreen() {
   const [isCreatingFamily, setIsCreatingFamily] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [familyName, setFamilyName] = useState('');
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState('free');
 
   const canManageFamily = userRole?.role === 'owner' || userRole?.role === 'admin';
 
@@ -45,6 +47,22 @@ export default function SettingsScreen() {
     setFamilyName('');
   };
 
+  const handleUpgradePlan = (plan: string) => {
+    setSelectedPlan(plan);
+    setShowPricingModal(true);
+  };
+
+  const handlePurchasePlan = () => {
+    Alert.alert(
+      'Upgrade Plan',
+      `You selected the ${selectedPlan} plan. This feature will be implemented with payment processing.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Continue', onPress: () => setShowPricingModal(false) }
+      ]
+    );
+  };
+
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <TouchableOpacity
@@ -73,7 +91,7 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.themeOptions}>
-            <TouchableOpacity
+        <TouchableOpacity
           style={[
             styles.themeOption,
             { backgroundColor: themeMode === 'light' ? colors.primaryLight : colors.surfaceVariant }
@@ -91,9 +109,9 @@ export default function SettingsScreen() {
           ]}>
             Light
           </Text>
-            </TouchableOpacity>
+        </TouchableOpacity>
 
-            <TouchableOpacity
+        <TouchableOpacity
           style={[
             styles.themeOption,
             { backgroundColor: themeMode === 'dark' ? colors.primaryLight : colors.surfaceVariant }
@@ -111,9 +129,9 @@ export default function SettingsScreen() {
           ]}>
             Dark
           </Text>
-            </TouchableOpacity>
+        </TouchableOpacity>
 
-          <TouchableOpacity
+        <TouchableOpacity
           style={[
             styles.themeOption,
             { backgroundColor: themeMode === 'system' ? colors.primaryLight : colors.surfaceVariant }
@@ -131,7 +149,7 @@ export default function SettingsScreen() {
           ]}>
             System
           </Text>
-          </TouchableOpacity>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -204,93 +222,67 @@ export default function SettingsScreen() {
     </View>
   );
 
-  const renderNotificationsSection = () => (
+  const renderPricingSection = () => (
     <View style={[styles.section, { backgroundColor: colors.surface }]}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Notifications</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Subscription Plans</Text>
       
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="notifications-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>Push Notifications</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="mail-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>Email Notifications</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="calendar-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>Calendar Reminders</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="warning-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>Task Due Date Alerts</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-            </View>
-  );
+      <View style={styles.pricingContainer}>
+        <View style={[styles.planCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          <View style={styles.planHeader}>
+            <Text style={[styles.planName, { color: colors.text }]}>Free Plan</Text>
+            <Text style={[styles.planPrice, { color: colors.primary }]}>$0/month</Text>
+          </View>
+          <View style={styles.planFeatures}>
+            <Text style={[styles.planFeature, { color: colors.textSecondary }]}>• Up to 4 family members</Text>
+            <Text style={[styles.planFeature, { color: colors.textSecondary }]}>• Basic task management</Text>
+            <Text style={[styles.planFeature, { color: colors.textSecondary }]}>• 1 home</Text>
+            <Text style={[styles.planFeature, { color: colors.textSecondary }]}>• Basic support</Text>
+          </View>
+          <View style={[styles.currentPlanBadge, { backgroundColor: colors.primaryLight }]}>
+            <Text style={[styles.currentPlanText, { color: colors.primary }]}>Current Plan</Text>
+          </View>
+        </View>
 
-  const renderBillingSection = () => (
-    <View style={[styles.section, { backgroundColor: colors.surface }]}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Billing & Subscription</Text>
-      
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="card-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>Payment Methods</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="receipt-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>Billing History</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="star-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>Upgrade Plan</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="business-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>Tax Information</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-            </View>
-  );
+        <View style={[styles.planCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          <View style={styles.planHeader}>
+            <Text style={[styles.planName, { color: colors.text }]}>Pro Plan</Text>
+            <Text style={[styles.planPrice, { color: colors.primary }]}>$9.99/month</Text>
+          </View>
+          <View style={styles.planFeatures}>
+            <Text style={[styles.planFeature, { color: colors.textSecondary }]}>• Up to 8 family members</Text>
+            <Text style={[styles.planFeature, { color: colors.textSecondary }]}>• Advanced task management</Text>
+            <Text style={[styles.planFeature, { color: colors.textSecondary }]}>• Multiple homes</Text>
+            <Text style={[styles.planFeature, { color: colors.textSecondary }]}>• Priority support</Text>
+            <Text style={[styles.planFeature, { color: colors.textSecondary }]}>• Calendar integration</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.upgradeButton, { backgroundColor: colors.primary }]}
+            onPress={() => handleUpgradePlan('pro')}
+          >
+            <Text style={[styles.upgradeButtonText, { color: colors.background }]}>Upgrade to Pro</Text>
+          </TouchableOpacity>
+        </View>
 
-  const renderSecuritySection = () => (
-    <View style={[styles.section, { backgroundColor: colors.surface }]}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Security</Text>
-      
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="lock-closed-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>Change Password</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="shield-checkmark-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>Two-Factor Authentication</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="key-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>API Keys</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.menuItem}>
-        <Ionicons name="shield-outline" size={20} color={colors.text} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>Privacy Settings</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
+        <View style={[styles.planCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          <View style={styles.planHeader}>
+            <Text style={[styles.planName, { color: colors.text }]}>Premium Plan</Text>
+            <Text style={[styles.planPrice, { color: colors.primary }]}>$19.99/month</Text>
+          </View>
+          <View style={styles.planFeatures}>
+            <Text style={[styles.planFeature, { color: colors.textSecondary }]}>• Unlimited family members</Text>
+            <Text style={[styles.planFeature, { color: colors.textSecondary }]}>• All Pro features</Text>
+            <Text style={[styles.planFeature, { color: colors.textSecondary }]}>• Advanced analytics</Text>
+            <Text style={[styles.planFeature, { color: colors.textSecondary }]}>• Custom integrations</Text>
+            <Text style={[styles.planFeature, { color: colors.textSecondary }]}>• 24/7 support</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.upgradeButton, { backgroundColor: colors.primary }]}
+            onPress={() => handleUpgradePlan('premium')}
+          >
+            <Text style={[styles.upgradeButtonText, { color: colors.background }]}>Upgrade to Premium</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 
@@ -334,9 +326,7 @@ export default function SettingsScreen() {
         <View style={styles.content}>
           {renderThemeSection()}
           {renderFamilySection()}
-          {renderNotificationsSection()}
-          {renderBillingSection()}
-          {renderSecuritySection()}
+          {renderPricingSection()}
           {renderInfoSection()}
         </View>
       </ScrollView>
@@ -392,6 +382,45 @@ export default function SettingsScreen() {
               >
                 <Text style={[styles.createButtonText, { color: colors.background }]}>
                   {isCreatingFamily ? 'Creating...' : 'Create'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Pricing Modal */}
+      <Modal
+        visible={showPricingModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowPricingModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Upgrade Plan</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+              You selected the {selectedPlan} plan. This feature will be implemented with payment processing.
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { borderColor: colors.border }]}
+                onPress={() => setShowPricingModal(false)}
+              >
+                <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.modalButton, 
+                  styles.createButton, 
+                  { backgroundColor: colors.primary }
+                ]}
+                onPress={handlePurchasePlan}
+              >
+                <Text style={[styles.createButtonText, { color: colors.background }]}>
+                  Continue
                 </Text>
               </TouchableOpacity>
             </View>
@@ -546,6 +575,63 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  pricingContainer: {
+    gap: 16,
+  },
+  planCard: {
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  planHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: 12,
+  },
+  planName: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  planPrice: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  planFeatures: {
+    marginBottom: 16,
+  },
+  planFeature: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  currentPlanBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    marginTop: 12,
+  },
+  currentPlanText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  upgradeButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  upgradeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   // Modal styles
   modalOverlay: {

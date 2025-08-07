@@ -36,6 +36,7 @@ export const routes = {
     add: '/(tabs)/(home)/add',
     detail: (homeId: string) => `/(tabs)/(home)/${homeId}`,
     edit: (homeId: string) => `/(tabs)/(home)/${homeId}/edit`,
+    info: (homeId: string) => `/(tabs)/(home)/${homeId}/info`,
     appliances: (homeId: string) => `/(tabs)/(home)/${homeId}/appliances`,
     addAppliance: (homeId: string) => `/(tabs)/(home)/${homeId}/appliances/add`,
     applianceDetail: (homeId: string, applianceId: string) => `/(tabs)/(home)/${homeId}/appliances/${applianceId}`,
@@ -58,6 +59,8 @@ export const routes = {
     index: '/(tabs)/(tasks)',
     add: '/(tabs)/(tasks)/add',
     settings: '/(tabs)/(tasks)/settings',
+    edit: '/(tabs)/(tasks)/edit',
+    projects: '/(tabs)/(tasks)/projects',
   },
   
   // Vendor routes

@@ -1,17 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import { RelativePathString, router } from 'expo-router';
+import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
-  Alert,
-  FlatList,
-  Linking,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    FlatList,
+    Linking,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
 
@@ -37,6 +38,7 @@ interface GroupedVendors {
 export default function VendorsScreen() {
   const { vendors, loading, refreshing, onRefresh, deleteVendor } = useVendors();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchByCategory, setSearchByCategory] = useState(false);
 
@@ -150,33 +152,34 @@ export default function VendorsScreen() {
   };
 
   const renderVendorItem = ({ item }: { item: Vendor }) => (
-    <View style={[styles.vendorItem, { backgroundColor: colors.surface }]}>
+    <View style={[styles.vendorCard, { backgroundColor: colors.surface }]}>
       <TouchableOpacity
-        style={styles.vendorInfo}
+        style={styles.vendorHeader}
         onPress={() => router.push(`/(vendors)/${item.id}`)}
       >
-        <View style={styles.vendorHeader}>
+        <View style={styles.vendorInfo}>
           <Text style={[styles.vendorName, { color: colors.text }]}>{item.name}</Text>
+          {item.contact_name && (
+            <Text style={[styles.vendorContact, { color: colors.textSecondary }]}>
+              {item.contact_name}
+            </Text>
+          )}
+          {item.category && (
+            <Text style={[styles.vendorCategory, { color: colors.textTertiary }]}>
+              {item.category}
+            </Text>
+          )}
         </View>
-        {item.contact_name && (
-          <Text style={[styles.contactName, { color: colors.textSecondary }]}>
-            {item.contact_name}
-          </Text>
-        )}
-        {item.category && (
-          <Text style={[styles.categoryText, { color: colors.textTertiary }]}>
-            {item.category}
-          </Text>
-        )}
       </TouchableOpacity>
       
       {/* Action Buttons */}
-      <View style={styles.actionButtons}>
+      <View style={styles.vendorActions}>
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: colors.primaryLight }]}
           onPress={() => handleCall(item)}
         >
           <Ionicons name="call" size={16} color={colors.primary} />
+          <Text style={[styles.actionButtonText, { color: colors.primary }]}>Call</Text>
         </TouchableOpacity>
         
         <TouchableOpacity
@@ -184,6 +187,7 @@ export default function VendorsScreen() {
           onPress={() => handleSchedule(item)}
         >
           <Ionicons name="calendar" size={16} color={colors.primary} />
+          <Text style={[styles.actionButtonText, { color: colors.primary }]}>Schedule</Text>
         </TouchableOpacity>
         
         <TouchableOpacity
@@ -191,10 +195,11 @@ export default function VendorsScreen() {
           onPress={() => handleEmail(item)}
         >
           <Ionicons name="mail" size={16} color={colors.primary} />
+          <Text style={[styles.actionButtonText, { color: colors.primary }]}>Email</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
+          style={[styles.deleteButton, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
           onPress={() => handleDelete(item)}
         >
           <Ionicons name="trash" size={16} color="#EF4444" />
@@ -214,7 +219,7 @@ export default function VendorsScreen() {
       {alphabet.map(letter => (
         <TouchableOpacity
           key={letter}
-          style={styles.alphabetItem}
+          style={styles.alphabetButton}
           onPress={() => {
             // Scroll to section logic would go here
           }}
@@ -236,32 +241,23 @@ export default function VendorsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primaryLight }]}>
-        <View style={styles.headerContent}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity
-              style={[styles.headerIcon, { backgroundColor: colors.primaryLight }]}
-              onPress={() => router.push('/(dashboard)/' as RelativePathString)}
-            >
-              <Ionicons name="home" size={20} color={colors.text} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.headerIcon, { backgroundColor: colors.primaryLight }]}
-              onPress={() => router.push('/(dashboard)/profile')}
-            >
-              <Ionicons name="person" size={20} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-          
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Vendors</Text>
-          
-          <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.push('/(vendors)/add')}
-          >
-            <Ionicons name="add" size={20} color={colors.textInverse} />
-          </TouchableOpacity>
-        </View>
+      <View style={[styles.header, { 
+        backgroundColor: colors.background,
+        paddingTop: insets.top + 20 
+      }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Vendors</Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => router.push('/(vendors)/add')}
+        >
+          <Ionicons name="add" size={20} color={colors.text} />
+        </TouchableOpacity>
       </View>
 
       {/* Search Bar */}
@@ -298,6 +294,7 @@ export default function VendorsScreen() {
                 style={[styles.addFirstButton, { backgroundColor: colors.primary }]}
                 onPress={() => router.push('/(vendors)/add')}
               >
+                <Ionicons name="add" size={16} color={colors.textInverse} />
                 <Text style={[styles.addFirstButtonText, { color: colors.textInverse }]}>
                   Add Your First Vendor
                 </Text>
@@ -345,9 +342,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingTop: 20,
-    paddingBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
+    paddingBottom: 16,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     shadowColor: '#000',
@@ -356,23 +355,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     marginBottom: 16,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
   },
   headerTitle: {
     fontSize: 24,
@@ -386,6 +368,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -423,12 +413,7 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 16,
   },
-  vendorItem: {
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+  vendorCard: {
     borderRadius: 12,
     marginBottom: 12,
     shadowColor: '#000',
@@ -437,30 +422,28 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  vendorInfo: {
-    flex: 1,
-    width: '100%',
-  },
   vendorHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  vendorInfo: {
+    width: '100%',
   },
   vendorName: {
     fontSize: 16,
     fontWeight: 'bold',
-    flex: 1,
   },
-  contactName: {
+  vendorContact: {
     fontSize: 14,
     marginTop: 2,
   },
-  categoryText: {
+  vendorCategory: {
     fontSize: 12,
     marginTop: 2,
   },
-  actionButtons: {
+  vendorActions: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     width: '100%',
@@ -470,16 +453,22 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(0, 0, 0, 0.1)',
   },
   actionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    marginHorizontal: 5,
+  },
+  actionButtonText: {
+    marginLeft: 5,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  deleteButton: {
+    padding: 8,
+    borderRadius: 20,
+    marginHorizontal: 5,
   },
   sectionHeader: {
     paddingVertical: 8,
@@ -506,7 +495,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  alphabetItem: {
+  alphabetButton: {
     paddingVertical: 3,
     paddingHorizontal: 6,
     borderRadius: 10,
@@ -536,12 +525,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   addFirstButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 20,
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 10,
   },
   addFirstButtonText: {
+    marginLeft: 10,
     fontSize: 16,
     fontWeight: 'bold',
   },

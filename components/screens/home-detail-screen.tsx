@@ -100,13 +100,13 @@ export default function HomeDetailScreen() {
   };
 
   const handleEditHome = () => {
-    // Navigate to edit home screen (you'll need to create this)
-    router.push(`/(home)/${homeId}/edit` as any);
+    // Navigate to edit home screen
+    router.push(`/(tabs)/(home)/${homeId}/edit` as any);
   };
 
   const handleAddUsers = () => {
-    // Navigate to add users screen (you'll need to create this)
-    router.push(`/(home)/${homeId}/users` as any);
+    // Navigate to family management screen
+    router.push('/(tabs)/(settings)/family-management' as any);
   };
 
   return (

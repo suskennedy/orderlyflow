@@ -1,7 +1,6 @@
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { FamilyAccount, FamilyInvitation, FamilyMember } from '../../types/family';
 import { useAuth } from '../hooks/useAuth';
-import { EmailService } from '../services/emailService';
 import { supabase } from '../supabase';
 
 interface FamilyContextType {
@@ -282,64 +281,58 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
     }
   };
 
-  // Invite member
+  // Invite member with 4-user limit check
   const inviteMember = async (email: string) => {
     if (!familyAccount?.id || !user?.id) {
       throw new Error('Family account or user not found');
     }
 
     try {
-      // First create the invitation in the database
-      const { data: invitationToken, error: invitationError } = await supabase.rpc('invite_family_member', {
-        invitee_email: email
+      // Check current member count (including pending invitations)
+      const currentMembers = familyMembers.length;
+      const pendingInvitations = invitations.length;
+      const totalUsers = currentMembers + pendingInvitations;
+
+      if (totalUsers >= 4) {
+        throw new Error('Family account is at maximum capacity (4 users). Please remove a member before inviting someone new.');
+      }
+
+      // Check if email is already a member
+      const isAlreadyMember = familyMembers.some(member => 
+        member.user?.display_name === email || member.user?.full_name === email
+      );
+
+      if (isAlreadyMember) {
+        throw new Error('This user is already a member of the family account.');
+      }
+
+      // Check if there's already a pending invitation for this email
+      const hasPendingInvitation = invitations.some(invitation => 
+        invitation.email.toLowerCase() === email.toLowerCase()
+      );
+
+      if (hasPendingInvitation) {
+        throw new Error('An invitation has already been sent to this email address.');
+      }
+
+      console.log('Inviting member:', email);
+      
+      // Use Supabase Edge Function to send invitation email
+      const { data, error } = await supabase.functions.invoke('send-family-invitation', {
+        body: {
+          email: email,
+          familyAccountId: familyAccount.id,
+          familyName: familyAccount.name,
+          inviterId: user.id
+        }
       });
 
-      if (invitationError) {
-        console.error('Error creating invitation:', invitationError);
-        throw new Error(invitationError.message || 'Failed to create invitation');
+      if (error) {
+        console.error('Error sending invitation:', error);
+        throw new Error(error.message || 'Failed to send invitation');
       }
 
-      console.log('Invitation created with token:', invitationToken);
-
-      // Get invitation details for email
-      const { data: invitationDetails } = await supabase
-        .from('family_invitations')
-        .select('*')
-        .eq('invitation_token', invitationToken)
-        .single();
-
-      if (!invitationDetails) {
-        throw new Error('Failed to retrieve invitation details');
-      }
-
-      // Get inviter's profile information
-      const { data: inviterProfile } = await supabase
-        .from('user_profiles')
-        .select('display_name, full_name')
-        .eq('id', user.id)
-        .single();
-
-      const inviterName = inviterProfile?.display_name || inviterProfile?.full_name || 'A family member';
-
-      // Create invitation URL
-      const invitationUrl = `${process.env.EXPO_PUBLIC_APP_URL || 'https://your-app-url.com'}/invite?token=${invitationToken}`;
-
-      // Send invitation email
-      try {
-        await EmailService.sendFamilyInvitation({
-          to: email,
-          familyName: familyAccount.name,
-          inviterName: inviterName,
-          invitationUrl: invitationUrl,
-          expiresAt: invitationDetails.expires_at as string
-        });
-
-        console.log('Invitation email sent successfully to:', email);
-      } catch (emailError) {
-        console.error('Error sending invitation email:', emailError);
-        // Don't throw here - the invitation was created successfully
-        // Just log the error for debugging
-      }
+      console.log('Invitation sent successfully:', data);
 
       // Refresh invitations
       await fetchInvitations();
@@ -390,11 +383,9 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
     if (!familyAccount?.id) throw new Error('No family account found');
 
     try {
-      const { error } = await supabase
-        .from('family_members')
-        .delete()
-        .eq('family_account_id', familyAccount.id)
-        .eq('user_id', userId);
+      const { error } = await supabase.rpc('remove_family_member', {
+        member_user_id: userId
+      });
 
       if (error) throw error;
 

@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalendar } from '../../lib/contexts/CalendarContext';
@@ -19,7 +19,7 @@ import { routes } from '../../lib/navigation';
 
 export default function HomeScreen() {
   const { colors } = useTheme();
-  const { onRefresh: homesRefresh } = useHomes();
+  const { onRefresh: homesRefresh, homes } = useHomes();
   const { tasks: allTasks, onRefresh: tasksRefresh, completeTask } = useTasks();
   const { events, onRefresh: eventsRefresh } = useCalendar();
   const { onRefresh: vendorsRefresh } = useVendors();
@@ -122,7 +122,7 @@ export default function HomeScreen() {
       >
         <TouchableOpacity
           style={[styles.quickLinkButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push('/(vendors)/add' as any)}
+          onPress={() => router.push(routes.vendors.add as any)}
         >
           <Ionicons name="person-add" size={24} color={colors.text} />
           <Text style={[styles.quickLinkText, { color: colors.text }]}>Add Contact</Text>
@@ -130,7 +130,7 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={[styles.quickLinkButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push('/(dashboard)/tasks/add' as any)}
+          onPress={() => router.push(routes.tasks.settings as any)}
         >
           <Ionicons name="checkbox" size={24} color={colors.text} />
           <Text style={[styles.quickLinkText, { color: colors.text }]}>Add Task</Text>
@@ -138,7 +138,7 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={[styles.quickLinkButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push('/(dashboard)/info' as any)}
+          onPress={() => router.push(routes.tabs.flo as any)}
         >
           <Ionicons name="chatbubble" size={24} color={colors.text} />
           <Text style={[styles.quickLinkText, { color: colors.text }]}>Ask Flo</Text>
@@ -146,7 +146,16 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={[styles.quickLinkButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push(routes.home.appliances as any)}
+          onPress={() => {
+            // Check if user has homes, if not redirect to add home first
+            if (homes.length === 0) {
+              router.push(routes.home.add as any);
+            } else {
+              // Navigate to the first home's appliances page
+              const firstHome = homes[0];
+              router.push(routes.home.appliances(firstHome.id) as any);
+            }
+          }}
         >
           <Ionicons name="construct" size={24} color={colors.text} />
           <Text style={[styles.quickLinkText, { color: colors.text }]}>Add Appliance</Text>

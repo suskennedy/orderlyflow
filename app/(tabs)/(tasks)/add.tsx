@@ -1,244 +1,192 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import { router } from 'expo-router';
+import React, { useEffect, useRef } from 'react';
 import {
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Animated,
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTasks } from '../../../lib/contexts/TasksContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useVendors } from '../../../lib/contexts/VendorsContext';
 
-const TASK_CATEGORIES = [
-  {
-    name: 'Home Maintenance',
-    subcategories: [
-      'Filters',
-      'Light Bulbs', 
-      'Irrigation',
-      'Window Cleaning',
-      'Furniture Cleaning',
-      'Rug Cleaning',
-      'Exterior Home',
-      'Painting',
-      'Gutters',
-      'Chimney / Fireplace',
-      'Decks / Patio',
-      'Tree / Shrub Trimming',
-      'Grass cutting',
-      'HVAC Service',
-      'Sump Pump',
-      'Security Systems and Cameras'
-    ]
-  },
-  {
-    name: 'Health + Safety',
-    subcategories: [
-      'Smoke / CO2 Detectors',
-      'Fire Extinguisher',
-      'Emergency Kit',
-      'Medication Clean Out'
-    ]
-  },
-  {
-    name: 'Deep Cleaning',
-    subcategories: [
-      'Fridge',
-      'Dryer Vents',
-      'Trash Cans',
-      'Sheets',
-      'Baseboards and Door Frames',
-      'Light Fixtures + Ceiling Fans',
-      'Vents + Air Returns',
-      'Shower Heads',
-      'Garbage Disposal',
-      'Washer + Dryer',
-      'Grout',
-      'Garage'
-    ]
-  },
-  {
-    name: 'Repairs',
-    subcategories: [
-      'General Repairs'
-    ]
-  }
-];
-
-const FREQUENCY_OPTIONS = [
-  'Daily',
-  'Weekly',
-  'Bi-weekly',
-  'Monthly',
-  'Quarterly',
-  'Semi-annually',
-  'Annually',
-  'As needed',
-  'Custom'
-];
-
-const PRIORITY_OPTIONS = [
-  'Low',
-  'Medium',
-  'High',
-  'Urgent'
-];
-
-export default function AddTaskScreen() {
+export default function AddEditTasksScreen() {
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
-  const { addTask } = useTasks();
+  const { tasks, loading, refreshing, onRefresh } = useTasks();
   const { vendors } = useVendors();
-  const params = useLocalSearchParams();
+  const { colors } = useTheme();
   
-  // Pre-select category if passed from task screen
-  const initialCategory = params.category as string || '';
-  const initialSubcategory = params.subcategory as string || '';
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
-  const [selectedSubcategory, setSelectedSubcategory] = useState(initialSubcategory);
-  const [suggestedFrequency, setSuggestedFrequency] = useState('');
-  const [customFrequency, setCustomFrequency] = useState('');
-  const [instructions, setInstructions] = useState('');
-  const [estimatedCost, setEstimatedCost] = useState('');
-  const [priority, setPriority] = useState('Medium');
-  const [assignedVendor, setAssignedVendor] = useState('');
-  const [assignedVendorId, setAssignedVendorId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [dropdownItems, setDropdownItems] = useState<string[]>([]);
-  const [dropdownTitle, setDropdownTitle] = useState('');
-
-  const selectedCategoryData = TASK_CATEGORIES.find(cat => cat.name === selectedCategory);
-
-  const openDropdown = (type: string, items: string[], title: string) => {
-    setActiveDropdown(type);
-    setDropdownItems(items);
-    setDropdownTitle(title);
-  };
-
-  const closeDropdown = () => {
-    setActiveDropdown(null);
-  };
-
-  const handleDropdownSelect = (value: string) => {
-    switch (activeDropdown) {
-      case 'category':
-        setSelectedCategory(value);
-        setSelectedSubcategory(''); // Reset subcategory when category changes
-        break;
-      case 'subcategory':
-        setSelectedSubcategory(value);
-        break;
-      case 'frequency':
-        setSuggestedFrequency(value);
-        break;
-      case 'priority':
-        setPriority(value);
-        break;
-      case 'vendor':
-        setAssignedVendor(value);
-        const selectedVendor = vendors.find(v => v.name === value);
-        setAssignedVendorId(selectedVendor?.id || null);
-        break;
-    }
-    closeDropdown();
-  };
-
-  const handleAddTask = async () => {
-    if (!title.trim()) {
-      Alert.alert('Error', 'Please enter a task title');
-      return;
-    }
-
-    if (!selectedCategory) {
-      Alert.alert('Error', 'Please select a category');
-      return;
-    }
-
-    if (!selectedSubcategory) {
-      Alert.alert('Error', 'Please select a subcategory');
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const taskData = {
-        title: title.trim(),
-        description: description.trim() || null,
-        category: selectedCategory,
-        subcategory: selectedSubcategory,
-        suggested_frequency: suggestedFrequency || 'As needed',
-        custom_frequency: customFrequency || null,
-        instructions: instructions.trim() || null,
-        estimated_cost: estimatedCost ? parseFloat(estimatedCost) : null,
-        priority: priority,
-        priority_level: priority.toLowerCase(),
-        task_type: 'custom',
-        is_active: true,
-        status: 'pending',
-        frequency_type: customFrequency ? 'custom' : 'suggested',
-        assigned_vendor_id: assignedVendorId
-      };
-
-      await addTask(taskData);
+  // Filter to only show active tasks, sorted by due date
+  const activeTasks = tasks
+    .filter(task => 
+      task.is_active && (
+        task.task_type === 'custom' || 
+        task.task_type === 'preset' || 
+        !task.task_type
+      )
+    )
+    .sort((a, b) => {
+      const dateA = a.next_due || a.due_date;
+      const dateB = b.next_due || b.due_date;
       
-      Alert.alert('Success', 'Task added successfully!', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
-    } catch (error) {
-      console.error('Error adding task:', error);
-      Alert.alert('Error', 'Failed to add task. Please try again.');
-    } finally {
-      setLoading(false);
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+      
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
+    });
+
+  useEffect(() => {
+    if (!loading) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
+  }, [loading, fadeAnim, slideAnim, scaleAnim]);
+
+  const handleTaskPress = (task: any) => {
+    // Navigate to edit task screen
+    router.push(`/(tabs)/(tasks)/edit?taskName=${encodeURIComponent(task.title)}` as any);
   };
 
-  const renderDropdownButton = (
-    selectedValue: string,
-    onPress: () => void,
-    placeholder: string
-  ) => (
-    <TouchableOpacity
-      style={[styles.dropdownButton, { 
-        backgroundColor: colors.background,
-        borderColor: colors.border 
-      }]}
-      onPress={onPress}
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+
+  const getAssignedVendor = (task: any) => {
+    if (!task.assigned_vendor_id) return null;
+    return vendors.find(v => v.id === task.assigned_vendor_id);
+  };
+
+  const renderEmptyState = () => (
+    <Animated.View 
+      style={[
+        styles.emptyContainer,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }]
+        }
+      ]}
     >
-      <Text style={[styles.dropdownText, { color: selectedValue ? colors.text : colors.textSecondary }]}>
-        {selectedValue || placeholder}
+      <View style={[styles.emptyIconContainer, { backgroundColor: colors.primaryLight }]}>
+        <View style={[styles.emptyIconInner, { backgroundColor: colors.primary }]}>
+          <Ionicons name="checkmark-circle" size={32} color={colors.background} />
+        </View>
+      </View>
+      <Text style={[styles.emptyTitle, { color: colors.text }]}>No Active Tasks</Text>
+      <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+        Go to settings to add tasks or activate existing ones
       </Text>
-      <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+      <TouchableOpacity
+        style={[styles.addFirstButton, { backgroundColor: colors.primary }]}
+        onPress={() => router.push('/(tabs)/(tasks)/settings' as any)}
+        activeOpacity={0.8}
+      >
+        <View style={styles.addFirstButtonContent}>
+          <Ionicons name="settings" size={24} color={colors.background} />
+          <Text style={[styles.addFirstButtonText, { color: colors.background }]}>
+            Go to Settings
+          </Text>
+        </View>
     </TouchableOpacity>
+    </Animated.View>
   );
 
-  const getSelectedValue = () => {
-    switch (activeDropdown) {
-      case 'category':
-        return selectedCategory;
-      case 'subcategory':
-        return selectedSubcategory;
-      case 'frequency':
-        return suggestedFrequency;
-      case 'priority':
-        return priority;
-      case 'vendor':
-        return assignedVendor;
-      default:
-        return '';
-    }
+  const renderTaskItem = ({ item, index }: { item: any; index: number }) => {
+    const assignedVendor = getAssignedVendor(item);
+    
+    return (
+      <Animated.View
+        style={[
+          styles.taskItem,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }
+        ]}
+      >
+        <TouchableOpacity
+          style={[styles.taskCard, { backgroundColor: '#E3F2FD' }]}
+          onPress={() => handleTaskPress(item)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.taskContent}>
+            <View style={styles.taskInfo}>
+              <Text style={[styles.taskTitle, { color: colors.text }]}>
+                {item.title}
+              </Text>
+              {item.category && (
+                <Text style={[styles.taskCategory, { color: colors.textSecondary }]}>
+                  {item.category} • {item.subcategory || 'General'}
+                </Text>
+              )}
+              {assignedVendor && (
+                <Text style={[styles.taskVendor, { color: colors.primary }]}>
+                  Assigned to: {assignedVendor.name}
+                </Text>
+              )}
+            </View>
+            
+            <View style={styles.taskDate}>
+              <View style={[styles.datePill, { backgroundColor: '#1976D2' }]}>
+                <Text style={[styles.dateText, { color: '#FFFFFF' }]}>
+                  {item.next_due ? formatDate(item.next_due) : formatDate(item.due_date)}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    );
   };
+
+  const renderHeader = () => (
+    <Animated.View 
+      style={[
+        styles.headerSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }]
+        }
+      ]}
+    >
+      <View style={styles.headerTitleContainer}>
+        <Text style={[styles.sectionHeaderTitle, { color: colors.text }]}>Active Tasks</Text>
+        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+          Sorted by due date • {activeTasks.length} tasks
+        </Text>
+      </View>
+    </Animated.View>
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -253,210 +201,56 @@ export default function AddTaskScreen() {
         >
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Add New Task</Text>
-        <View style={styles.headerRight} />
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Add / Edit Tasks</Text>
+        <TouchableOpacity
+          style={[styles.settingsButton, { backgroundColor: colors.primaryLight }]}
+          onPress={() => router.push('/(tabs)/(tasks)/settings' as any)}
+        >
+          <Ionicons name="settings" size={20} color={colors.primary} />
+        </TouchableOpacity>
       </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Task Title */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Task Title *</Text>
-          <TextInput
-            style={[styles.textInput, { 
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border 
-            }]}
-            placeholder="Enter task title"
-            placeholderTextColor={colors.textSecondary}
-            value={title}
-            onChangeText={setTitle}
-            maxLength={255}
-          />
-        </View>
-
-        {/* Description */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Description</Text>
-          <TextInput
-            style={[styles.textArea, { 
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border 
-            }]}
-            placeholder="Enter task description (optional)"
-            placeholderTextColor={colors.textSecondary}
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={3}
-            maxLength={500}
-          />
-        </View>
-
-        {/* Category */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Category *</Text>
-          {renderDropdownButton(
-            selectedCategory,
-            () => openDropdown('category', TASK_CATEGORIES.map(cat => cat.name), 'Select category'),
-            'Select category'
-          )}
-        </View>
-
-        {/* Subcategory */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Subcategory *</Text>
-          {renderDropdownButton(
-            selectedSubcategory,
-            () => openDropdown('subcategory', selectedCategoryData?.subcategories || [], 'Select subcategory'),
-            'Select subcategory'
-          )}
-        </View>
-
-        {/* Assigned Vendor */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Assign Vendor</Text>
-          {renderDropdownButton(
-            assignedVendor,
-            () => openDropdown('vendor', vendors.map(v => v.name), 'Select vendor'),
-            'Select vendor (optional)'
-          )}
-        </View>
-
-        {/* Suggested Frequency */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Suggested Frequency</Text>
-          {renderDropdownButton(
-            suggestedFrequency,
-            () => openDropdown('frequency', FREQUENCY_OPTIONS, 'Select frequency'),
-            'Select frequency'
-          )}
-        </View>
-
-        {/* Custom Frequency */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Custom Frequency</Text>
-          <TextInput
-            style={[styles.textInput, { 
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border 
-            }]}
-            placeholder="Enter custom frequency (optional)"
-            placeholderTextColor={colors.textSecondary}
-            value={customFrequency}
-            onChangeText={setCustomFrequency}
-            maxLength={255}
-          />
-        </View>
-
-        {/* Priority */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Priority</Text>
-          {renderDropdownButton(
-            priority,
-            () => openDropdown('priority', PRIORITY_OPTIONS, 'Select priority'),
-            'Select priority'
-          )}
-        </View>
-
-        {/* Instructions */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Instructions</Text>
-          <TextInput
-            style={[styles.textArea, { 
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border 
-            }]}
-            placeholder="Enter task instructions (optional)"
-            placeholderTextColor={colors.textSecondary}
-            value={instructions}
-            onChangeText={setInstructions}
-            multiline
-            numberOfLines={4}
-            maxLength={1000}
-          />
-        </View>
-
-        {/* Estimated Cost */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Estimated Cost ($)</Text>
-          <TextInput
-            style={[styles.textInput, { 
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border 
-            }]}
-            placeholder="Enter estimated cost (optional)"
-            placeholderTextColor={colors.textSecondary}
-            value={estimatedCost}
-            onChangeText={setEstimatedCost}
-            keyboardType="numeric"
-            maxLength={10}
-          />
-        </View>
-
-        {/* Add Task Button */}
-        <TouchableOpacity
-          style={[styles.addButton, { 
-            backgroundColor: loading ? colors.textSecondary : colors.primary 
-          }]}
-          onPress={handleAddTask}
-          disabled={loading}
+          
+      {loading ? (
+        <Animated.View 
+          style={[
+            styles.loadingContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }]
+            }
+          ]}
         >
-          <Ionicons name="add-circle" size={24} color={colors.background} />
-          <Text style={[styles.addButtonText, { color: colors.background }]}>
-            {loading ? 'Adding Task...' : 'Add Task'}
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      {/* Dropdown Modal */}
-      <Modal
-        visible={activeDropdown !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={closeDropdown}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={closeDropdown}
-        >
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>{dropdownTitle}</Text>
-              <TouchableOpacity onPress={closeDropdown}>
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              {dropdownItems.map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[styles.modalItem, { 
-                    backgroundColor: getSelectedValue() === item ? colors.primaryLight : 'transparent'
-                  }]}
-                  onPress={() => handleDropdownSelect(item)}
-                >
-                  <Text style={[styles.modalItemText, { 
-                    color: getSelectedValue() === item ? colors.primary : colors.text 
-                  }]}>
-                    {item}
+          <View style={[styles.loadingCard, { backgroundColor: colors.surface }]}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+              Loading your tasks...
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
           </View>
-        </TouchableOpacity>
-      </Modal>
+        </Animated.View>
+      ) : (
+        <FlatList
+          data={activeTasks}
+          renderItem={renderTaskItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={[
+            styles.list, 
+            { paddingBottom: insets.bottom + 120 }
+          ]}
+          ListHeaderComponent={activeTasks.length > 0 ? renderHeader : null}
+          ListEmptyComponent={renderEmptyState}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+            />
+          }
+          bounces={true}
+          alwaysBounceVertical={false}
+        />
+      )}
     </View>
   );
 }
@@ -469,113 +263,179 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   backButton: {
     padding: 8,
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  settingsButton: {
+    padding: 10,
+    borderRadius: 8,
+    minWidth: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  loadingCard: {
+    borderRadius: 20,
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '500',
     textAlign: 'center',
   },
-  headerRight: {
-    width: 40,
+  headerSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  inputGroup: {
+  headerTitleContainer: {
     marginBottom: 20,
   },
-  inputLabel: {
+  sectionHeaderTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '400',
+    lineHeight: 22,
+  },
+  list: {
+    paddingHorizontal: 20,
+  },
+  taskItem: {
     marginBottom: 8,
   },
-  textInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-  },
-  textArea: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    textAlignVertical: 'top',
-    minHeight: 80,
-  },
-  dropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-  },
-  dropdownText: {
-    fontSize: 16,
-    flex: 1,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
+  taskCard: {
     borderRadius: 12,
-    marginTop: 20,
-    gap: 8,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  addButtonText: {
-    fontSize: 18,
+  taskContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  taskInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  taskTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  taskCategory: {
+    fontSize: 14,
+    fontWeight: '400',
+    marginBottom: 2,
+  },
+  taskVendor: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  taskDate: {
+    alignItems: 'flex-end',
+  },
+  datePill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  dateText: {
+    fontSize: 14,
     fontWeight: '600',
   },
-  modalOverlay: {
+  separator: {
+    height: 8,
+  },
+  emptyContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingVertical: 80,
   },
-  modalContent: {
-    width: '80%',
-    borderRadius: 12,
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  emptyIconInner: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    marginBottom: 12,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+    marginBottom: 40,
+    opacity: 0.8,
+  },
+  addFirstButton: {
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
     overflow: 'hidden',
   },
-  modalHeader: {
+  addFirstButtonContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 28,
+    gap: 10,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  modalScroll: {
-    maxHeight: 300,
-  },
-  modalItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  modalItemText: {
+  addFirstButtonText: {
     fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
 }); 

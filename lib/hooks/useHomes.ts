@@ -152,6 +152,10 @@ export function useHomes() {
     }
   };
 
+  const getHomeById = (homeId: string) => {
+    return homes.find(home => home.id === homeId) || null;
+  };
+
   return {
     homes,
     currentHome,
@@ -161,5 +165,6 @@ export function useHomes() {
     updateHome,
     deleteHome,
     switchHome,
+    getHomeById,
   };
 } 

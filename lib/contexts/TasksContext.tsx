@@ -480,6 +480,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         updated_at: new Date().toISOString()
       };
 
+      console.log('TasksContext: Updating task in database:', taskId, updateData);
+
       const { error } = await supabase
         .from('tasks')
         .update(updateData)
@@ -493,9 +495,68 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
           task.id === taskId ? { ...task, ...updateData } : task
         )
       );
+
+      // Also update calendar events directly in the database
+      await updateCalendarEventsForTask(taskId, updateData);
     } catch (error) {
       console.error('Error updating task:', error);
       throw error;
+    }
+  };
+
+  // Helper function to update calendar events for a task
+  const updateCalendarEventsForTask = async (taskId: string, taskUpdates: any) => {
+    if (!user?.id) {
+      console.log('Skipping calendar event update - no user ID');
+      return;
+    }
+
+    try {
+      console.log('TasksContext: Updating calendar events for task:', taskId);
+
+      // Get the updated task data
+      const updatedTask = tasks.find(task => task.id === taskId);
+      if (!updatedTask) {
+        console.log('Task not found in local state, skipping calendar update');
+        return;
+      }
+
+      // Check if we need to update calendar events
+      const needsCalendarUpdate = taskUpdates.title || taskUpdates.due_date || taskUpdates.is_recurring || taskUpdates.recurrence_pattern;
+      
+      if (!needsCalendarUpdate) {
+        console.log('No calendar-relevant changes, skipping calendar update');
+        return;
+      }
+
+      // Delete existing calendar events for this task
+      const { error: deleteError } = await supabase
+        .from('calendar_events')
+        .delete()
+        .eq('task_id', taskId)
+        .eq('user_id', user.id);
+
+      if (deleteError) {
+        console.error('Error deleting old calendar events:', deleteError);
+        return;
+      }
+
+      console.log('Successfully deleted old calendar events for task:', taskId);
+
+      // Create new calendar events based on updated task data
+      const taskWithUpdates = { ...updatedTask, ...taskUpdates };
+      
+      if (taskWithUpdates.is_recurring && taskWithUpdates.recurrence_pattern) {
+        // For recurring tasks, create recurring calendar events
+        await createRecurringCalendarEvents(taskWithUpdates);
+      } else {
+        // For non-recurring tasks, create single calendar event
+        await createCalendarEventFromTask(taskWithUpdates);
+      }
+
+      console.log('Successfully updated calendar events for task:', taskId);
+    } catch (error) {
+      console.error('Error updating calendar events for task:', error);
     }
   };
 
@@ -548,11 +609,19 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
   
   // Set up real-time subscription for tasks table
   const handleTaskChange = useCallback((payload: any) => {
-    console.log('TasksContext: Real-time update received:', payload.eventType, payload.new?.title);
+    console.log('TasksContext: Real-time update received:', {
+      eventType: payload.eventType,
+      taskId: payload.new?.id || payload.old?.id,
+      oldTitle: payload.old?.title,
+      newTitle: payload.new?.title,
+      oldDueDate: payload.old?.due_date,
+      newDueDate: payload.new?.due_date
+    });
     
     const eventType = payload.eventType;
 
     if (eventType === 'INSERT') {
+      console.log('TasksContext: Processing INSERT event for task:', payload.new?.title);
       // For new tasks, we need to fetch to get the homes relationship
       fetchTasks();
       
@@ -566,15 +635,28 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       }
     } 
     else if (eventType === 'UPDATE') {
+      console.log('TasksContext: Processing UPDATE event for task:', payload.new?.title);
       // For updates, we need to fetch to get the homes relationship
       fetchTasks();
       
-      // Update calendar events if due date changed or task became recurring
+      // Update calendar events if due date changed, task became recurring, recurrence pattern changed, or title changed
       const dueDateChanged = payload.new.due_date !== payload.old.due_date;
       const becameRecurring = !payload.old.is_recurring && payload.new.is_recurring;
       const recurrencePatternChanged = payload.old.recurrence_pattern !== payload.new.recurrence_pattern;
+      const titleChanged = payload.old.title !== payload.new.title;
       
-      if (dueDateChanged || becameRecurring || recurrencePatternChanged) {
+      if (dueDateChanged || becameRecurring || recurrencePatternChanged || titleChanged) {
+        console.log('TasksContext: Updating calendar events due to changes:', {
+          dueDateChanged,
+          becameRecurring,
+          recurrencePatternChanged,
+          titleChanged,
+          oldTitle: payload.old.title,
+          newTitle: payload.new.title,
+          oldDueDate: payload.old.due_date,
+          newDueDate: payload.new.due_date
+        });
+        
         // Delete old calendar events for this task
         supabase
           .from('calendar_events')
@@ -584,6 +666,7 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
             if (error) {
               console.error('Error deleting old calendar events:', error);
             } else {
+              console.log('Successfully deleted old calendar events for task:', payload.new.id);
               // Create new calendar events - only create one type based on recurrence
               if (payload.new.is_recurring && payload.new.recurrence_pattern) {
                 // For recurring tasks, only create recurring calendar events
@@ -594,9 +677,12 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
               }
             }
           });
+      } else {
+        console.log('TasksContext: No calendar-relevant changes detected, skipping calendar update');
       }
     } 
     else if (eventType === 'DELETE') {
+      console.log('TasksContext: Processing DELETE event for task:', payload.old?.title);
       setTasks(current => 
         current.filter(task => task.id !== payload.old.id)
       );
