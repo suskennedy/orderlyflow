@@ -45,12 +45,33 @@ export default function HomeScreen() {
 
   const handleTaskComplete = async (taskId: string) => {
     try {
-      await completeTask(taskId, {
-        completed_by_type: 'user',
-        completed_at: new Date().toISOString(),
-        completion_verification_status: 'verified',
-        completion_notes: 'Completed from home screen'
-      });
+      // Find the task to get current status
+      const task = allTasks.find(t => t.id === taskId);
+      if (!task) {
+        console.error('Task not found:', taskId);
+        return;
+      }
+
+      // If task is already completed, uncomplete it
+      if (task.status === 'completed') {
+        await completeTask(taskId, {
+          status: 'pending',
+          completed_by_type: null,
+          completed_at: null,
+          completion_verification_status: null,
+          completion_notes: null,
+          last_completed: null,
+          completion_date: null
+        });
+      } else {
+        // Complete the task
+        await completeTask(taskId, {
+          completed_by_type: 'user',
+          completed_at: new Date().toISOString(),
+          completion_verification_status: 'verified',
+          completion_notes: 'Completed from home screen'
+        });
+      }
     } catch (error) {
       console.error('Error completing task:', error);
     }
@@ -182,6 +203,7 @@ export default function HomeScreen() {
     const now = new Date();
     const thisWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const thisMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const thisYear = new Date(now.getFullYear() + 1, 0, 1); // End of current year
 
     // Filter tasks for this week based on frequency
     const thisWeekTasks = userTasks.filter(task => {
@@ -246,7 +268,7 @@ export default function HomeScreen() {
       return true;
     });
 
-    // Filter tasks for this month based on frequency
+    // Filter tasks for this month based on frequency (exclude this week tasks)
     const thisMonthTasks = userTasks.filter(task => {
       if (task.status === 'completed' || task.is_active === false) return false;
       
@@ -322,6 +344,68 @@ export default function HomeScreen() {
       return false;
     });
 
+    // Filter tasks for this year based on frequency (exclude this week and this month tasks)
+    const thisYearTasks = userTasks.filter(task => {
+      if (task.status === 'completed' || task.is_active === false) return false;
+      
+      // Handle recurring tasks based on frequency
+      if (task.is_recurring && task.recurrence_pattern) {
+        const pattern = task.recurrence_pattern.toLowerCase();
+        
+        switch (pattern) {
+          case 'daily':
+          case 'weekly':
+          case 'bi-weekly':
+          case 'biweekly':
+          case 'monthly':
+            // These frequencies should not show in this year (already in this week/month)
+            return false;
+            
+          case 'quarterly':
+            // Quarterly tasks should show if they're due this year but after this month
+            if (task.due_date) {
+              const dueDate = new Date(task.due_date);
+              return dueDate <= thisYear && dueDate > thisMonth;
+            }
+            return false;
+            
+          case 'semi-annually':
+            // Semi-annually tasks should show if they're due this year but after this month
+            if (task.due_date) {
+              const dueDate = new Date(task.due_date);
+              return dueDate <= thisYear && dueDate > thisMonth;
+            }
+            return false;
+            
+          case 'annually':
+          case 'yearly':
+            // Annual tasks should show if they're due this year but after this month
+            if (task.due_date) {
+              const dueDate = new Date(task.due_date);
+              return dueDate <= thisYear && dueDate > thisMonth;
+            }
+            return false;
+            
+          default:
+            // For unknown patterns, check due date
+            if (task.due_date) {
+              const dueDate = new Date(task.due_date);
+              return dueDate <= thisYear && dueDate > thisMonth;
+            }
+            return false;
+        }
+      }
+      
+      // For non-recurring tasks, check if they're due this year but after this month
+      if (task.due_date) {
+        const dueDate = new Date(task.due_date);
+        return dueDate <= thisYear && dueDate > thisMonth;
+      }
+      
+      // If no due date, don't show in this year (already shown in this week)
+      return false;
+    });
+
     // Group tasks by category
     const groupTasksByCategory = (taskList: any[]) => {
       const grouped: { [key: string]: any[] } = {};
@@ -337,6 +421,7 @@ export default function HomeScreen() {
 
     let thisWeekGrouped = groupTasksByCategory(thisWeekTasks);
     let thisMonthGrouped = groupTasksByCategory(thisMonthTasks);
+    let thisYearGrouped = groupTasksByCategory(thisYearTasks);
 
     const renderTaskList = (groupedTasks: { [key: string]: any[] }) => {
       return Object.entries(groupedTasks).map(([category, tasks]) => (
@@ -347,10 +432,14 @@ export default function HomeScreen() {
           <View style={styles.taskItems}>
             {tasks.slice(0, 3).map((task, index) => (
               <View key={task.id || index} style={styles.taskItem}>
-                <TouchableOpacity onPress={() => handleTaskComplete(task.id)}>
+                <TouchableOpacity 
+                  onPress={() => handleTaskComplete(task.id)}
+                  style={styles.taskCheckbox}
+                  activeOpacity={0.7}
+                >
                   <Ionicons 
-                    name={task.status === 'completed' ? "checkmark" : "square-outline"} 
-                    size={16} 
+                    name={task.status === 'completed' ? "checkmark-circle" : "ellipse-outline"} 
+                    size={20} 
                     color={task.status === 'completed' ? colors.primary : colors.textSecondary} 
                   />
                 </TouchableOpacity>
@@ -406,10 +495,22 @@ export default function HomeScreen() {
                 No tasks due this month
               </Text>
             )}
+          </View>
+
+          {/* This Year Column */}
+          <View style={styles.taskColumn}>
+            <Text style={[styles.columnTitle, { color: colors.text }]}>This Year</Text>
+            {Object.keys(thisYearGrouped).length > 0 ? (
+              renderTaskList(thisYearGrouped)
+            ) : (
+              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
+                No tasks due this year
+              </Text>
+            )}
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
   };
 
   return (
@@ -552,5 +653,12 @@ const styles = StyleSheet.create({
   seeAllText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  taskCheckbox: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
 }); 

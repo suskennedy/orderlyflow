@@ -573,18 +573,37 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
   // Complete a task
   const completeTask = async (taskId: string, completionData: any) => {
     try {
-      // Update task with completion info using the new schema fields
-      const taskUpdates = {
-        status: 'completed',
-        completed_by_type: completionData.completed_by_type || 'user',
-        completed_by_vendor_id: completionData.completed_by_vendor_id || null,
-        completed_by_external_name: completionData.completed_by_external_name || null,
-        completed_at: completionData.completed_at || new Date().toISOString(),
-        completion_verification_status: completionData.completion_verification_status || 'verified',
-        completion_notes: completionData.completion_notes || completionData.notes || null,
-        last_completed: new Date().toISOString(),
-        completion_date: new Date().toISOString()
-      };
+      // Determine if we're completing or uncompleting the task
+      const isCompleting = completionData.status !== 'pending';
+      
+      let taskUpdates;
+      
+      if (isCompleting) {
+        // Completing the task
+        taskUpdates = {
+          status: 'completed',
+          completed_by_type: completionData.completed_by_type || 'user',
+          completed_by_vendor_id: completionData.completed_by_vendor_id || null,
+          completed_by_external_name: completionData.completed_by_external_name || null,
+          completed_at: completionData.completed_at || new Date().toISOString(),
+          completion_verification_status: completionData.completion_verification_status || 'verified',
+          completion_notes: completionData.completion_notes || completionData.notes || null,
+          last_completed: new Date().toISOString(),
+          completion_date: new Date().toISOString()
+        };
+      } else {
+        // Uncompleting the task
+        taskUpdates = {
+          status: 'pending',
+          completed_by_type: null,
+          completed_by_vendor_id: null,
+          completed_by_external_name: null,
+          completed_at: null,
+          completion_verification_status: null,
+          completion_notes: null,
+          completion_date: null
+        };
+      }
 
       await updateTask(taskId, taskUpdates);
 

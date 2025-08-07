@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFamily } from '../../lib/contexts/FamilyContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { EmailService } from '../../lib/services/emailService';
 
 export default function FamilyManagementScreen() {
   const { colors } = useTheme();
@@ -33,6 +34,7 @@ export default function FamilyManagementScreen() {
   
   const [inviteEmail, setInviteEmail] = useState('');
   const [isInviting, setIsInviting] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
 
   const canManageFamily = userRole?.role === 'owner' || userRole?.role === 'admin';
   const currentMembers = familyMembers.length;
@@ -57,10 +59,80 @@ export default function FamilyManagementScreen() {
       setInviteEmail('');
       Alert.alert('Success', 'Invitation sent successfully!');
     } catch (error: any) {
+      console.error('Invitation error details:', error);
       Alert.alert('Error', error.message || 'Failed to send invitation');
     } finally {
       setIsInviting(false);
     }
+  };
+
+  const handleTestResendConnection = async () => {
+    try {
+      setIsTesting(true);
+      const isConnected = await EmailService.testResendConnection();
+      if (isConnected) {
+        Alert.alert('Success', 'Resend API connection is working!');
+      } else {
+        Alert.alert('Error', 'Resend API connection failed. Check your API key.');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to test connection');
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    Alert.prompt(
+      'Send Test Email',
+      'Enter an email address to send a test email:',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send',
+          onPress: async (email) => {
+            if (!email || !email.trim()) {
+              Alert.alert('Error', 'Please enter a valid email address');
+              return;
+            }
+
+            try {
+              setIsTesting(true);
+              await EmailService.sendTestEmail(email.trim());
+              Alert.alert('Success', 'Test email sent successfully! Check your inbox.');
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to send test email');
+            } finally {
+              setIsTesting(false);
+            }
+          }
+        }
+      ],
+      'plain-text'
+    );
+  };
+
+  const handleClearInvitations = async () => {
+    Alert.alert(
+      'Clear Invitations',
+      'This will clear all pending invitations. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // This is a temporary function for testing
+              // In production, you'd want to handle this differently
+              Alert.alert('Info', 'Please manually delete invitations from your database for testing.');
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to clear invitations');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleRemoveMember = (memberId: string, memberName: string) => {
@@ -243,6 +315,68 @@ export default function FamilyManagementScreen() {
               </View>
             </View>
           </View>
+
+          {/* Test Resend Connection */}
+          {canManageFamily && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Email Service Test</Text>
+              
+              <View style={[styles.testCard, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.testText, { color: colors.textSecondary }]}>
+                  Test if your Resend API key is working correctly
+                </Text>
+                <View style={styles.testButtons}>
+                  <TouchableOpacity
+                    style={[
+                      styles.testButton, 
+                      { 
+                        backgroundColor: isTesting ? colors.textSecondary : colors.secondary,
+                        opacity: isTesting ? 0.6 : 1,
+                        marginBottom: 8
+                      }
+                    ]}
+                    onPress={handleTestResendConnection}
+                    disabled={isTesting}
+                  >
+                    <Text style={[styles.testButtonText, { color: colors.background }]}>
+                      {isTesting ? 'Testing...' : 'Test Connection'}
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.testButton, 
+                      { 
+                        backgroundColor: isTesting ? colors.textSecondary : colors.primary,
+                        opacity: isTesting ? 0.6 : 1
+                      }
+                    ]}
+                    onPress={handleSendTestEmail}
+                    disabled={isTesting}
+                  >
+                    <Text style={[styles.testButtonText, { color: colors.background }]}>
+                      {isTesting ? 'Sending...' : 'Send Test Email'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.testButton, 
+                      { 
+                        backgroundColor: colors.error,
+                        opacity: 0.8
+                      }
+                    ]}
+                    onPress={handleClearInvitations}
+                  >
+                    <Text style={[styles.testButtonText, { color: colors.background }]}>
+                      Clear Invitations (Testing)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* Invite New Member */}
           {canManageFamily && (
@@ -622,5 +756,31 @@ const styles = StyleSheet.create({
   actionButton: {
     padding: 8,
     borderRadius: 6,
+  },
+  testCard: {
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  testText: {
+    fontSize: 16,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  testButtons: {
+    gap: 8,
+  },
+  testButton: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  testButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 

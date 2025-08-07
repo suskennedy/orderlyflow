@@ -135,15 +135,37 @@ export default function AddEditTasksScreen() {
         ]}
       >
         <TouchableOpacity
-          style={[styles.taskCard, { backgroundColor: '#E3F2FD' }]}
+          style={[
+            styles.taskCard, 
+            { 
+              backgroundColor: item.status === 'completed' ? '#E8F5E8' : '#E3F2FD',
+              opacity: item.status === 'completed' ? 0.8 : 1
+            }
+          ]}
           onPress={() => handleTaskPress(item)}
           activeOpacity={0.7}
         >
           <View style={styles.taskContent}>
             <View style={styles.taskInfo}>
-              <Text style={[styles.taskTitle, { color: colors.text }]}>
-                {item.title}
-              </Text>
+              <View style={styles.taskHeader}>
+                <Text style={[
+                  styles.taskTitle, 
+                  { 
+                    color: item.status === 'completed' ? colors.textSecondary : colors.text,
+                    textDecorationLine: item.status === 'completed' ? 'line-through' : 'none'
+                  }
+                ]}>
+                  {item.title}
+                </Text>
+                {item.status === 'completed' && (
+                  <View style={[styles.completedBadge, { backgroundColor: colors.primary }]}>
+                    <Ionicons name="checkmark-circle" size={12} color={colors.background} />
+                    <Text style={[styles.completedText, { color: colors.background }]}>
+                      Completed
+                    </Text>
+                  </View>
+                )}
+              </View>
               {item.category && (
                 <Text style={[styles.taskCategory, { color: colors.textSecondary }]}>
                   {item.category} • {item.subcategory || 'General'}
@@ -154,10 +176,20 @@ export default function AddEditTasksScreen() {
                   Assigned to: {assignedVendor.name}
                 </Text>
               )}
+              {item.status === 'completed' && item.completed_at && (
+                <Text style={[styles.completionDate, { color: colors.textSecondary }]}>
+                  Completed: {formatDate(item.completed_at)}
+                </Text>
+              )}
             </View>
             
             <View style={styles.taskDate}>
-              <View style={[styles.datePill, { backgroundColor: '#1976D2' }]}>
+              <View style={[
+                styles.datePill, 
+                { 
+                  backgroundColor: item.status === 'completed' ? colors.textSecondary : '#1976D2' 
+                }
+              ]}>
                 <Text style={[styles.dateText, { color: '#FFFFFF' }]}>
                   {item.next_due ? formatDate(item.next_due) : formatDate(item.due_date)}
                 </Text>
@@ -346,10 +378,14 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 16,
   },
+  taskHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   taskTitle: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 4,
   },
   taskCategory: {
     fontSize: 14,
@@ -437,5 +473,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: -0.3,
+  },
+  completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  completedText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  completionDate: {
+    fontSize: 12,
+    marginTop: 4,
   },
 }); 

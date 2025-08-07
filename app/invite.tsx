@@ -2,94 +2,55 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFamily } from '../lib/contexts/FamilyContext';
 import { useTheme } from '../lib/contexts/ThemeContext';
 import { useAuth } from '../lib/hooks/useAuth';
-import { supabase } from '../lib/supabase';
 
 export default function InviteScreen() {
   const { colors } = useTheme();
-  const { user } = useAuth();
   const { acceptInvitation } = useFamily();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { token } = useLocalSearchParams<{ token: string }>();
   
-  const [loading, setLoading] = useState(true);
-  const [invitation, setInvitation] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [userExists, setUserExists] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (token) {
-      fetchInvitationDetails();
-    } else {
-      setError('No invitation token provided');
-      setLoading(false);
+      // You could fetch invitation details here if needed
+      console.log('Invitation token:', token);
+      // For now, we'll assume user exists if they're authenticated
+      setUserExists(!!user);
     }
-  }, [token]);
-
-  const fetchInvitationDetails = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('family_invitations')
-        .select(`
-          *,
-          family_accounts (
-            name
-          ),
-          user_profiles!invited_by (
-            display_name,
-            full_name
-          )
-        `)
-        .eq('invitation_token', token)
-        .eq('status', 'pending')
-        .single();
-
-      if (error) {
-        console.error('Error fetching invitation:', error);
-        setError('Invalid or expired invitation');
-        setLoading(false);
-        return;
-      }
-
-      if (!data) {
-        setError('Invitation not found');
-        setLoading(false);
-        return;
-      }
-
-      // Check if invitation is expired
-      if (new Date(data.expires_at as string) < new Date()) {
-        setError('This invitation has expired');
-        setLoading(false);
-        return;
-      }
-
-      setInvitation(data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching invitation:', error);
-      setError('Failed to load invitation');
-      setLoading(false);
-    }
-  };
+  }, [token, user]);
 
   const handleAcceptInvitation = async () => {
+    if (!token) {
+      Alert.alert('Error', 'Invalid invitation link');
+      return;
+    }
+
+    // If user is not authenticated, guide them to sign in/sign up
     if (!user) {
       Alert.alert(
-        'Sign In Required',
-        'You need to sign in to accept this invitation. Would you like to sign in now?',
+        'Account Required',
+        userExists ? 
+          'Please sign in to your existing account to accept this invitation.' :
+          'Please create an account or sign in to accept this invitation.',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Sign In', onPress: () => router.push('/signin' as any) }
+          { 
+            text: userExists ? 'Sign In' : 'Create Account', 
+            onPress: () => router.push('/(auth)/signin' as any) 
+          }
         ]
       );
       return;
@@ -98,19 +59,17 @@ export default function InviteScreen() {
     try {
       setLoading(true);
       await acceptInvitation(token);
-      
       Alert.alert(
-        'Success!',
-        `You've successfully joined ${invitation.family_accounts.name}!`,
+        'Success', 
+        'You have successfully joined the family account!',
         [
-          {
-            text: 'Go to App',
-            onPress: () => router.push('/(tabs)' as any)
+          { 
+            text: 'OK', 
+            onPress: () => router.replace('/(tabs)/(dashboard)') 
           }
         ]
       );
     } catch (error: any) {
-      console.error('Error accepting invitation:', error);
       Alert.alert('Error', error.message || 'Failed to accept invitation');
     } finally {
       setLoading(false);
@@ -127,147 +86,142 @@ export default function InviteScreen() {
           text: 'Decline',
           style: 'destructive',
           onPress: () => {
-            setError('Invitation declined');
-            setLoading(false);
+            Alert.alert('Invitation Declined', 'You can always accept it later if you change your mind.');
           }
         }
       ]
     );
   };
 
-  if (loading) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.loadingContainer}>
-          <Ionicons name="hourglass-outline" size={48} color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.text }]}>
-            Loading invitation...
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={colors.error} />
-          <Text style={[styles.errorTitle, { color: colors.text }]}>
-            Invitation Error
-          </Text>
-          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
-            {error}
-          </Text>
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: colors.primary }]}
-            onPress={() => router.push('/(tabs)' as any)}
-          >
-            <Text style={[styles.buttonText, { color: colors.background }]}>
-              Go to App
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  const inviterName = invitation.user_profiles?.display_name || 
-                     invitation.user_profiles?.full_name || 
-                     'A family member';
+  const handleSignInSignUp = () => {
+    router.push('/(auth)/signin' as any);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Ionicons name="people" size={48} color={colors.primary} />
-          <Text style={[styles.title, { color: colors.text }]}>
-            You're Invited!
-          </Text>
-        </View>
+      {/* Header */}
+      <View style={[styles.header, { 
+        backgroundColor: colors.background,
+        paddingTop: insets.top + 20 
+      }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Family Invitation</Text>
+        <View style={styles.headerRight} />
+      </View>
 
-        {/* Invitation Card */}
+      {/* Content */}
+      <View style={styles.content}>
         <View style={[styles.invitationCard, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.familyName, { color: colors.text }]}>
-            {invitation.family_accounts.name}
+          <View style={styles.iconContainer}>
+            <Ionicons name="people" size={64} color={colors.primary} />
+          </View>
+          
+          <Text style={[styles.title, { color: colors.text }]}>
+            You are Invited!
           </Text>
           
-          <Text style={[styles.invitationText, { color: colors.textSecondary }]}>
-            <Text style={{ fontWeight: '600' }}>{inviterName}</Text> has invited you to join their family account on OrderlyFlow.
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Someone has invited you to join their family account on OrderlyFlow.
           </Text>
 
           <View style={[styles.benefitsContainer, { backgroundColor: colors.background }]}>
             <Text style={[styles.benefitsTitle, { color: colors.text }]}>
-              What you'll be able to do:
+              What you will be able to do:
             </Text>
-            <View style={styles.benefitsList}>
-              <View style={styles.benefitItem}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                <Text style={[styles.benefitText, { color: colors.textSecondary }]}>
-                  View and manage family tasks
-                </Text>
-              </View>
-              <View style={styles.benefitItem}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                <Text style={[styles.benefitText, { color: colors.textSecondary }]}>
-                  Access home information and inventory
-                </Text>
-              </View>
-              <View style={styles.benefitItem}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                <Text style={[styles.benefitText, { color: colors.textSecondary }]}>
-                  Coordinate with family members
-                </Text>
-              </View>
-              <View style={styles.benefitItem}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                <Text style={[styles.benefitText, { color: colors.textSecondary }]}>
-                  Manage vendor contacts
-                </Text>
-              </View>
+            
+            <View style={styles.benefitItem}>
+              <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+              <Text style={[styles.benefitText, { color: colors.text }]}>
+                View and manage family tasks
+              </Text>
+            </View>
+            
+            <View style={styles.benefitItem}>
+              <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+              <Text style={[styles.benefitText, { color: colors.text }]}>
+                Access home information and inventory
+              </Text>
+            </View>
+            
+            <View style={styles.benefitItem}>
+              <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+              <Text style={[styles.benefitText, { color: colors.text }]}>
+                Coordinate with family members
+              </Text>
+            </View>
+            
+            <View style={styles.benefitItem}>
+              <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+              <Text style={[styles.benefitText, { color: colors.text }]}>
+                Manage vendor contacts
+              </Text>
             </View>
           </View>
 
-          <Text style={[styles.expiryText, { color: colors.textTertiary }]}>
-            This invitation expires on {new Date(invitation.expires_at).toLocaleDateString()}
-          </Text>
-        </View>
+          {/* Account Status Notice */}
+          {!user && (
+            <View style={[styles.accountNotice, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="information-circle" size={20} color={colors.primary} />
+              <Text style={[styles.accountNoticeText, { color: colors.primary }]}>
+                {userExists ? 
+                  'You need to sign in to your existing account to accept this invitation.' :
+                  'You need to create an account or sign in to accept this invitation.'
+                }
+              </Text>
+            </View>
+          )}
 
-        {/* Action Buttons */}
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.acceptButton,
-              { 
-                backgroundColor: loading ? colors.textSecondary : colors.primary,
-                opacity: loading ? 0.6 : 1
-              }
-            ]}
-            onPress={handleAcceptInvitation}
-            disabled={loading}
-          >
-            <Ionicons name="checkmark" size={20} color={colors.background} />
-            <Text style={[styles.acceptButtonText, { color: colors.background }]}>
-              {loading ? 'Accepting...' : 'Accept Invitation'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.buttonContainer}>
+            {user ? (
+              // User is authenticated - show accept/decline buttons
+              <>
+                <TouchableOpacity
+                  style={[
+                    styles.acceptButton, 
+                    { 
+                      backgroundColor: loading ? colors.textSecondary : colors.primary,
+                      opacity: loading ? 0.6 : 1
+                    }
+                  ]}
+                  onPress={handleAcceptInvitation}
+                  disabled={loading}
+                >
+                  <Ionicons name="checkmark" size={20} color={colors.background} />
+                  <Text style={[styles.acceptButtonText, { color: colors.background }]}>
+                    {loading ? 'Accepting...' : 'Accept Invitation'}
+                  </Text>
+                </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.declineButton, { borderColor: colors.border }]}
-            onPress={handleDeclineInvitation}
-            disabled={loading}
-          >
-            <Text style={[styles.declineButtonText, { color: colors.text }]}>
-              Decline
-            </Text>
-          </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.declineButton, { borderColor: colors.textSecondary }]}
+                  onPress={handleDeclineInvitation}
+                  disabled={loading}
+                >
+                  <Text style={[styles.declineButtonText, { color: colors.textSecondary }]}>
+                    Decline
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              // User is not authenticated - show sign in/sign up button
+              <TouchableOpacity
+                style={[styles.acceptButton, { backgroundColor: colors.primary }]}
+                onPress={handleSignInSignUp}
+              >
+                <Ionicons name="log-in" size={20} color={colors.background} />
+                <Text style={[styles.acceptButtonText, { color: colors.background }]}>
+                  {userExists ? 'Sign In to Accept' : 'Create Account to Accept'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -276,100 +230,77 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    fontSize: 16,
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-  },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 32,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  headerRight: {
+    width: 40,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  invitationCard: {
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  iconContainer: {
+    marginBottom: 24,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    marginTop: 16,
     textAlign: 'center',
+    marginBottom: 12,
   },
-  invitationCard: {
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  familyName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  invitationText: {
+  subtitle: {
     fontSize: 16,
-    lineHeight: 24,
-    marginBottom: 20,
     textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
   },
   benefitsContainer: {
     borderRadius: 12,
     padding: 20,
-    marginBottom: 16,
+    marginBottom: 32,
+    width: '100%',
   },
   benefitsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 12,
-  },
-  benefitsList: {
-    gap: 12,
+    marginBottom: 16,
+    textAlign: 'center',
   },
   benefitItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    marginBottom: 12,
   },
   benefitText: {
-    fontSize: 14,
+    fontSize: 16,
+    marginLeft: 12,
     flex: 1,
   },
-  expiryText: {
-    fontSize: 12,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
   buttonContainer: {
+    width: '100%',
     gap: 12,
   },
   acceptButton: {
@@ -377,6 +308,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
+    paddingHorizontal: 24,
     borderRadius: 12,
     gap: 8,
   },
@@ -386,21 +318,27 @@ const styles = StyleSheet.create({
   },
   declineButton: {
     paddingVertical: 16,
+    paddingHorizontal: 24,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 2,
     alignItems: 'center',
   },
   declineButtonText: {
     fontSize: 16,
     fontWeight: '500',
   },
-  button: {
-    paddingVertical: 16,
-    borderRadius: 12,
+  accountNotice: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 24,
+    width: '100%',
   },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
+  accountNoticeText: {
+    marginLeft: 12,
+    fontSize: 14,
+    fontWeight: '500',
   },
 }); 

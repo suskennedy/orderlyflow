@@ -2,15 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Animated,
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTasks } from '../../lib/contexts/TasksContext';
@@ -19,7 +19,7 @@ import { useVendors } from '../../lib/contexts/VendorsContext';
 
 export default function TasksScreen() {
   const insets = useSafeAreaInsets();
-  const { tasks, loading, refreshing, onRefresh } = useTasks();
+  const { tasks, loading, refreshing, onRefresh, completeTask } = useTasks();
   const { vendors } = useVendors();
   const { colors } = useTheme();
   
@@ -73,6 +73,40 @@ export default function TasksScreen() {
   const handleTaskPress = (task: any) => {
     // Show 404 alert for now (placeholder for future detail page)
     Alert.alert('Task Details', 'Task detail page coming soon!');
+  };
+
+  const handleTaskComplete = async (taskId: string) => {
+    try {
+      // Find the task to get current status
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) {
+        console.error('Task not found:', taskId);
+        return;
+      }
+
+      // If task is already completed, uncomplete it
+      if (task.status === 'completed') {
+        await completeTask(taskId, {
+          status: 'pending',
+          completed_by_type: null,
+          completed_at: null,
+          completion_verification_status: null,
+          completion_notes: null,
+          last_completed: null,
+          completion_date: null
+        });
+      } else {
+        // Complete the task
+        await completeTask(taskId, {
+          completed_by_type: 'user',
+          completed_at: new Date().toISOString(),
+          completion_verification_status: 'verified',
+          completion_notes: 'Completed from tasks screen'
+        });
+      }
+    } catch (error) {
+      console.error('Error completing task:', error);
+    }
   };
 
   const formatDate = (dateString: string | null | undefined) => {
@@ -146,19 +180,54 @@ export default function TasksScreen() {
         ]}
       >
         <TouchableOpacity
-          style={[styles.taskCard, { backgroundColor: '#E3F2FD' }]}
+          style={[
+            styles.taskCard, 
+            { 
+              backgroundColor: item.status === 'completed' ? '#E8F5E8' : '#E3F2FD',
+              opacity: item.status === 'completed' ? 0.8 : 1
+            }
+          ]}
           onPress={() => handleTaskPress(item)}
           activeOpacity={0.7}
         >
           <View style={styles.taskContent}>
             <View style={styles.taskInfo}>
-              <Text style={[styles.taskTitle, { color: colors.text }]}>
-                {item.title}
-              </Text>
+              <View style={styles.taskHeader}>
+                <Text style={[
+                  styles.taskTitle, 
+                  { 
+                    color: item.status === 'completed' ? colors.textSecondary : colors.text,
+                    textDecorationLine: item.status === 'completed' ? 'line-through' : 'none'
+                  }
+                ]}>
+                  {item.title}
+                </Text>
+                <TouchableOpacity 
+                  onPress={() => handleTaskComplete(item.id)}
+                  style={styles.taskCheckbox}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons 
+                    name={item.status === 'completed' ? "checkmark-circle" : "ellipse-outline"} 
+                    size={20} 
+                    color={item.status === 'completed' ? colors.primary : colors.textSecondary} 
+                  />
+                </TouchableOpacity>
+              </View>
+              {item.status === 'completed' && item.completed_at && (
+                <Text style={[styles.completionDate, { color: colors.textSecondary }]}>
+                  Completed: {formatDate(item.completed_at)}
+                </Text>
+              )}
             </View>
             
             <View style={styles.taskDate}>
-              <View style={[styles.datePill, { backgroundColor: '#1976D2' }]}>
+              <View style={[
+                styles.datePill, 
+                { 
+                  backgroundColor: item.status === 'completed' ? colors.textSecondary : '#1976D2' 
+                }
+              ]}>
                 <Text style={[styles.dateText, { color: '#FFFFFF' }]}>
                   {item.next_due ? formatDate(item.next_due) : formatDate(item.due_date)}
                 </Text>
@@ -378,9 +447,22 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 16,
   },
+  taskHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   taskTitle: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  taskCheckbox: {
+    padding: 4,
+  },
+  completionDate: {
+    fontSize: 12,
+    marginTop: 4,
   },
   taskDate: {
     alignItems: 'flex-end',

@@ -4,14 +4,20 @@ export interface InvitationEmailData {
   inviterName: string;
   invitationUrl: string;
   expiresAt: string;
+  userExists: boolean;
 }
 
 export class EmailService {
   static async sendFamilyInvitation(data: InvitationEmailData) {
     try {
-      const { to, familyName, inviterName, invitationUrl, expiresAt } = data;
+      const { to, familyName, inviterName, invitationUrl, expiresAt, userExists } = data;
 
-      // Use Resend API directly with fetch (works in React Native)
+      console.log('EmailService: Starting to send invitation email');
+      console.log('EmailService: API Key exists:', !!process.env.EXPO_PUBLIC_RESEND_API_KEY);
+      console.log('EmailService: From email:', process.env.EXPO_PUBLIC_FROM_EMAIL);
+      console.log('EmailService: To email:', to);
+
+      // Use Resend API directly with fetch
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -19,7 +25,7 @@ export class EmailService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: `OrderlyFlow <${process.env.EXPO_PUBLIC_FROM_EMAIL || 'noreply@orderlyflow.com'}>`,
+          from: `OrderlyFlow <${process.env.EXPO_PUBLIC_FROM_EMAIL || 'ahmad.ali.000507@gmail.com'}>`,
           to: [to],
           subject: `You're invited to join ${familyName} on OrderlyFlow`,
           html: this.createInvitationEmailHTML(data),
@@ -27,8 +33,12 @@ export class EmailService {
         }),
       });
 
+      console.log('EmailService: Response status:', response.status);
+      console.log('EmailService: Response ok:', response.ok);
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('EmailService: Error response data:', errorData);
         throw new Error(`Email sending failed: ${errorData.message || response.statusText}`);
       }
 
@@ -41,8 +51,90 @@ export class EmailService {
     }
   }
 
+  // Test function to verify Resend API key
+  static async testResendConnection() {
+    try {
+      console.log('Testing Resend connection...');
+      console.log('API Key:', process.env.EXPO_PUBLIC_RESEND_API_KEY ? 'Present' : 'Missing');
+      
+      // Since the API key is restricted, we'll test by sending a simple email
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.EXPO_PUBLIC_RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'onboarding@resend.dev',
+          to: ['test@example.com'], // This won't actually send, just tests the API
+          subject: 'API Test',
+          html: '<p>Test</p>',
+        }),
+      });
+
+      console.log('Test response status:', response.status);
+      
+      if (response.status === 400 && response.statusText.includes('validation')) {
+        // This means the API key is valid but the email is invalid (expected)
+        console.log('Resend API key is valid (validation error expected)');
+        return true;
+      } else if (response.status === 401) {
+        const error = await response.json();
+        console.error('Resend API key is invalid:', error);
+        return false;
+      } else if (response.ok) {
+        console.log('Resend connection successful');
+        return true;
+      } else {
+        const error = await response.json();
+        console.error('Resend connection failed:', error);
+        return false;
+      }
+    } catch (error) {
+      console.error('Resend test error:', error);
+      return false;
+    }
+  }
+
+  // Simple test email function
+  static async sendTestEmail(toEmail: string) {
+    try {
+      console.log('Sending test email to:', toEmail);
+      
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.EXPO_PUBLIC_RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: process.env.EXPO_PUBLIC_FROM_EMAIL || 'no-reply@orderlyflow.com', // Use Resend's default sender for testing
+          to: [toEmail],
+          subject: 'Test Email from OrderlyFlow',
+          html: '<h1>Test Email</h1><p>This is a test email to verify Resend is working.</p>',
+          text: 'Test Email\n\nThis is a test email to verify Resend is working.',
+        }),
+      });
+
+      console.log('Test email response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Test email error:', errorData);
+        throw new Error(`Test email failed: ${errorData.message || response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Test email sent successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Test email error:', error);
+      throw error;
+    }
+  }
+
   private static createInvitationEmailHTML(data: InvitationEmailData) {
-    const { familyName, inviterName, invitationUrl, expiresAt } = data;
+    const { familyName, inviterName, invitationUrl, expiresAt, userExists } = data;
 
     return `
       <!DOCTYPE html>
@@ -144,6 +236,15 @@ export class EmailService {
             text-align: center;
             color: #856404;
           }
+          .account-notice {
+            background-color: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            color: #1976d2;
+          }
         </style>
       </head>
       <body>
@@ -187,13 +288,17 @@ export class EmailService {
               </a>
             </div>
 
+            ${userExists ? 
+              '<div class="account-notice">You already have an OrderlyFlow account. Simply sign in to accept this invitation.</div>' :
+              '<div class="account-notice">Don\'t have an OrderlyFlow account? No problem! You can create one when you accept this invitation.</div>'
+            }
+
             <div class="expiry">
               ⏰ This invitation expires on ${new Date(expiresAt).toLocaleDateString()}
             </div>
           </div>
 
           <div class="footer">
-            <p>If you don't have an OrderlyFlow account, you'll be able to create one when you accept the invitation.</p>
             <p>If you received this email by mistake, you can safely ignore it.</p>
           </div>
         </div>
@@ -203,7 +308,7 @@ export class EmailService {
   }
 
   private static createInvitationEmailText(data: InvitationEmailData) {
-    const { familyName, inviterName, invitationUrl, expiresAt } = data;
+    const { familyName, inviterName, invitationUrl, expiresAt, userExists } = data;
 
     return `
 You're Invited!
@@ -222,9 +327,12 @@ What you'll be able to do:
 
 Accept your invitation here: ${invitationUrl}
 
-This invitation expires on ${new Date(expiresAt).toLocaleDateString()}.
+${userExists ? 
+  'You already have an OrderlyFlow account. Simply sign in to accept this invitation.' :
+  'Don\'t have an OrderlyFlow account? No problem! You can create one when you accept this invitation.'
+}
 
-If you don't have an OrderlyFlow account, you'll be able to create one when you accept the invitation.
+This invitation expires on ${new Date(expiresAt).toLocaleDateString()}.
 
 If you received this email by mistake, you can safely ignore it.
     `;
