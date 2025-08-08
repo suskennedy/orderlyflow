@@ -2,11 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Alert,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFamily } from '../lib/contexts/FamilyContext';
@@ -29,6 +29,17 @@ export default function InviteScreen() {
       console.log('Invitation token:', token);
       // For now, we'll assume user exists if they're authenticated
       setUserExists(!!user);
+      
+      // If accessed via web (not in Expo Go), show instructions
+      if (typeof window !== 'undefined' && !window.navigator.userAgent.includes('ExpoGo')) {
+        Alert.alert(
+          'Open in OrderlyFlow App',
+          'This invitation link needs to be opened in the OrderlyFlow app. Please open the link in Expo Go or the OrderlyFlow app.',
+          [
+            { text: 'OK' }
+          ]
+        );
+      }
     }
   }, [token, user]);
 

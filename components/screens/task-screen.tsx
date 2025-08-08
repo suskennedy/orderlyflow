@@ -210,7 +210,7 @@ export default function TasksScreen() {
                   <Ionicons 
                     name={item.status === 'completed' ? "checkmark-circle" : "ellipse-outline"} 
                     size={20} 
-                    color={item.status === 'completed' ? colors.primary : colors.textSecondary} 
+                    color="#7fbbdd" 
                   />
                 </TouchableOpacity>
               </View>

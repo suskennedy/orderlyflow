@@ -350,9 +350,12 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
 
       const inviterName = inviterProfile?.display_name || inviterProfile?.full_name || 'A family member';
 
-      // Create invitation URL
-      const appUrl = process.env.EXPO_PUBLIC_APP_URL || 'https://your-app-url.com';
-      const invitationUrl = `${appUrl}/invite?token=${invitationToken}`;
+      // Create invitation URL - use app scheme for Expo Go compatibility
+      const appScheme = 'orderlyflow';
+      const invitationUrl = `${appScheme}://invite?token=${invitationToken}`;
+      
+      // Also create a fallback URL for web/email clients that can't handle deep links
+      const fallbackUrl = `https://expo.dev/accounts/ahmadali507/projects/orderlyflow/invite?token=${invitationToken}`;
 
       // Check if user already has an account
       const { data: existingUsers } = await supabase.auth.admin.listUsers();
@@ -365,6 +368,7 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
           familyName: familyAccount.name,
           inviterName: inviterName,
           invitationUrl: invitationUrl,
+          fallbackUrl: fallbackUrl,
           expiresAt: invitationDetails.expires_at as string,
           userExists: userExists
         });
