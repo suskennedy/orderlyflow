@@ -20,6 +20,16 @@
       "ios": {
         "resourceClass": "m-medium",
         "buildConfiguration": "Release"
+      },
+      "android": {
+        "gradleCommand": ":app:bundleRelease"
+      },
+      "distribution": "store"
+    },
+    "android-apk": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
       }
     }
   },

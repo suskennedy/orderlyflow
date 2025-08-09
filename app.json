@@ -2,7 +2,7 @@
   "expo": {
     "name": "orderlyflow",
     "slug": "orderlyflow",
-    "version": "1.0.0",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "orderlyflow",
@@ -10,11 +10,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ahmadali507.orderlyflow",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "companyName": "Ahmad Ali"
+      "companyName": "Orderly FLow"
     },
     "android": {
       "adaptiveIcon": {
@@ -47,9 +47,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "e737ddc0-0ed8-4c72-a755-a6064f7b4945"
+        "projectId": "910308f9-b060-4227-a637-7d6a38e4f5a5"
       }
     },
-    "owner": "ahmadali507"
+    "owner": "orderlyflow"
   }
 }
