@@ -1,0 +1,535 @@
+import { Ionicons } from '@expo/vector-icons';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+    Alert,
+    Linking,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useVendors } from '../../../lib/contexts/VendorsContext';
+
+interface Vendor {
+  id: string;
+  name: string;
+  category?: string | null;
+  contact_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  address?: string | null;
+  notes?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  user_id?: string | null;
+}
+
+export default function VendorDetail() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { vendors, deleteVendor } = useVendors();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const [vendor, setVendor] = useState<Vendor | null>(null);
+
+  useEffect(() => {
+    if (id && vendors.length > 0) {
+      console.log('Looking for vendor with ID:', id);
+      console.log('Available vendors:', vendors.map(v => ({ id: v.id, name: v.name })));
+      const foundVendor = vendors.find(v => v.id === id);
+      console.log('Found vendor:', foundVendor);
+      setVendor(foundVendor || null);
+    } else if (id && vendors.length === 0) {
+      console.log('No vendors available, but looking for ID:', id);
+    }
+  }, [id, vendors]);
+
+  if (!vendor) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={[styles.backButton, { backgroundColor: colors.surface }]}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Vendor Not Found</Text>
+          <View style={styles.headerRight} />
+        </View>
+        <View style={styles.content}>
+          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
+            The vendor you're looking for doesn't exist.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  const handleCall = () => {
+    if (!vendor.phone) {
+      Alert.alert('No Phone Number', 'This vendor does not have a phone number.');
+      return;
+    }
+    
+    Alert.alert(
+      'Call Vendor',
+      `Call ${vendor.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Call', 
+          onPress: () => Linking.openURL(`tel:${vendor.phone}`)
+        }
+      ]
+    );
+  };
+
+  const handleEmail = () => {
+    if (!vendor.email) {
+      Alert.alert('No Email', 'This vendor does not have an email address.');
+      return;
+    }
+    
+    Alert.alert(
+      'Email Vendor',
+      `Send email to ${vendor.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Email', 
+          onPress: () => Linking.openURL(`mailto:${vendor.email}`)
+        }
+      ]
+    );
+  };
+
+  const handleWebsite = () => {
+    if (!vendor.website) {
+      Alert.alert('No Website', 'This vendor does not have a website.');
+      return;
+    }
+    
+    Alert.alert(
+      'Open Website',
+      `Open ${vendor.website}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Open', 
+          onPress: () => Linking.openURL(vendor.website!)
+        }
+      ]
+    );
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Vendor',
+      `Are you sure you want to delete ${vendor.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteVendor(vendor.id);
+              router.back();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete vendor.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const getCategoryIcon = (category?: string | null) => {
+    if (!category) return 'business';
+    
+    const categoryLower = category.toLowerCase();
+    if (categoryLower.includes('plumber')) return 'water';
+    if (categoryLower.includes('electrician')) return 'flash';
+    if (categoryLower.includes('cleaner') || categoryLower.includes('cleaning')) return 'sparkles';
+    if (categoryLower.includes('gardener') || categoryLower.includes('landscap')) return 'leaf';
+    if (categoryLower.includes('painter')) return 'color-palette';
+    if (categoryLower.includes('contractor')) return 'construct';
+    if (categoryLower.includes('organizer')) return 'grid';
+    if (categoryLower.includes('repair')) return 'build';
+    if (categoryLower.includes('maintenance')) return 'settings';
+    return 'business';
+  };
+
+  const getCategoryColor = (category?: string | null) => {
+    if (!category) return '#6B7280';
+    
+    const categoryLower = category.toLowerCase();
+    if (categoryLower.includes('plumber')) return '#3B82F6';
+    if (categoryLower.includes('electrician')) return '#F59E0B';
+    if (categoryLower.includes('cleaner') || categoryLower.includes('cleaning')) return '#10B981';
+    if (categoryLower.includes('gardener') || categoryLower.includes('landscap')) return '#059669';
+    if (categoryLower.includes('painter')) return '#8B5CF6';
+    if (categoryLower.includes('contractor')) return '#EF4444';
+    if (categoryLower.includes('organizer')) return '#EC4899';
+    if (categoryLower.includes('repair')) return '#F97316';
+    if (categoryLower.includes('maintenance')) return '#6366F1';
+    return '#6B7280';
+  };
+
+  const categoryIcon = getCategoryIcon(vendor.category);
+  const categoryColor = getCategoryColor(vendor.category);
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: colors.surface }]}>
+        <TouchableOpacity
+          style={[styles.backButton, { backgroundColor: colors.background }]}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Vendor Details</Text>
+        <TouchableOpacity
+          style={[styles.editButton, { backgroundColor: colors.primary }]}
+          onPress={() => router.push(`/(vendors)/${vendor.id}/edit` as any)}
+        >
+          <Ionicons name="create" size={20} color={colors.background} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Vendor Card */}
+        <View style={[styles.vendorCard, { backgroundColor: colors.surface }]}>
+          {/* Header Section */}
+          <View style={styles.vendorHeader}>
+            <View style={[styles.categoryIcon, { backgroundColor: categoryColor + '20' }]}>
+              <Ionicons name={categoryIcon as any} size={32} color={categoryColor} />
+            </View>
+            <View style={styles.vendorInfo}>
+              <Text style={[styles.vendorName, { color: colors.text }]}>{vendor.name}</Text>
+              {vendor.category && (
+                <View style={[styles.categoryBadge, { backgroundColor: categoryColor + '15' }]}>
+                  <Text style={[styles.categoryText, { color: categoryColor }]}>
+                    {vendor.category.toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Contact Information */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Contact Information</Text>
+            
+            {vendor.contact_name && (
+              <View style={styles.infoRow}>
+                <View style={[styles.iconContainer, { backgroundColor: colors.primary + '15' }]}>
+                  <Ionicons name="person" size={20} color={colors.primary} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Contact Person</Text>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>{vendor.contact_name}</Text>
+                </View>
+              </View>
+            )}
+
+            {vendor.phone && (
+              <View style={styles.infoRow}>
+                <View style={[styles.iconContainer, { backgroundColor: '#10B981' + '15' }]}>
+                  <Ionicons name="call" size={20} color="#10B981" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Phone</Text>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>{vendor.phone}</Text>
+                </View>
+              </View>
+            )}
+
+            {vendor.email && (
+              <View style={styles.infoRow}>
+                <View style={[styles.iconContainer, { backgroundColor: '#3B82F6' + '15' }]}>
+                  <Ionicons name="mail" size={20} color="#3B82F6" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Email</Text>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>{vendor.email}</Text>
+                </View>
+              </View>
+            )}
+
+            {vendor.website && (
+              <View style={styles.infoRow}>
+                <View style={[styles.iconContainer, { backgroundColor: '#8B5CF6' + '15' }]}>
+                  <Ionicons name="globe" size={20} color="#8B5CF6" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Website</Text>
+                  <Text style={[styles.infoValue, { color: colors.primary }]}>{vendor.website}</Text>
+                </View>
+              </View>
+            )}
+
+            {vendor.address && (
+              <View style={styles.infoRow}>
+                <View style={[styles.iconContainer, { backgroundColor: '#F59E0B' + '15' }]}>
+                  <Ionicons name="location" size={20} color="#F59E0B" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Address</Text>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>{vendor.address}</Text>
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* Notes Section */}
+          {vendor.notes && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Notes</Text>
+              <View style={[styles.notesContainer, { backgroundColor: colors.background }]}>
+                <Text style={[styles.notesText, { color: colors.text }]}>{vendor.notes}</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Action Buttons */}
+          <View style={styles.actionsSection}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+            
+            <View style={styles.actionButtons}>
+              {vendor.phone && (
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: '#10B981' }]}
+                  onPress={handleCall}
+                >
+                  <Ionicons name="call" size={24} color="white" />
+                  <Text style={styles.actionButtonText}>Call</Text>
+                </TouchableOpacity>
+              )}
+
+              {vendor.email && (
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+                  onPress={handleEmail}
+                >
+                  <Ionicons name="mail" size={24} color="white" />
+                  <Text style={styles.actionButtonText}>Email</Text>
+                </TouchableOpacity>
+              )}
+
+              {vendor.website && (
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
+                  onPress={handleWebsite}
+                >
+                  <Ionicons name="globe" size={24} color="white" />
+                  <Text style={styles.actionButtonText}>Website</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Delete Button */}
+            <TouchableOpacity
+              style={[styles.deleteButton, { backgroundColor: colors.error + '15' }]}
+              onPress={handleDelete}
+            >
+              <Ionicons name="trash" size={20} color={colors.error} />
+              <Text style={[styles.deleteButtonText, { color: colors.error }]}>Delete Vendor</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    flex: 1,
+    textAlign: 'center',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerRight: {
+    width: 40,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+  },
+  vendorCard: {
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  vendorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  categoryIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  vendorInfo: {
+    flex: 1,
+  },
+  vendorName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  categoryBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  categoryText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  infoValue: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  notesContainer: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  notesText: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  actionsSection: {
+    marginTop: 8,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+  },
+  actionButton: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    minWidth: 80,
+  },
+  actionButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+}); 

@@ -2,15 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Linking,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  FlatList,
+  Linking,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
   },
   vendorCard: {
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -447,15 +447,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     width: '100%',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 20,
     marginHorizontal: 5,
@@ -468,7 +467,7 @@ const styles = StyleSheet.create({
   deleteButton: {
     padding: 8,
     borderRadius: 20,
-    marginHorizontal: 5,
+    marginLeft: 10,
   },
   sectionHeader: {
     paddingVertical: 8,

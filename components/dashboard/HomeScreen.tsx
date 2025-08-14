@@ -21,14 +21,12 @@ export default function HomeScreen() {
   const { colors } = useTheme();
   const { onRefresh: homesRefresh, homes } = useHomes();
   const { tasks: allTasks, onRefresh: tasksRefresh, completeTask } = useTasks();
-  const { events, onRefresh: eventsRefresh } = useCalendar();
+  const { onRefresh: eventsRefresh } = useCalendar();
   const { onRefresh: vendorsRefresh } = useVendors();
   const [refreshing, setRefreshing] = useState(false);
+  const [tasksToShow, setTasksToShow] = useState<3 | 5>(3);
   const insets = useSafeAreaInsets();
 
-  // Get the latest 5 items from each context
-  const tasks = allTasks.slice(0, 5);
-  const recentEvents = events.slice(0, 5);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -426,11 +424,9 @@ export default function HomeScreen() {
     const renderTaskList = (groupedTasks: { [key: string]: any[] }) => {
       return Object.entries(groupedTasks).map(([category, tasks]) => (
         <View key={category}>
-          <View style={[styles.taskCategory, { backgroundColor: colors.secondary }]}>
-            <Text style={[styles.categoryTitle, { color: colors.textInverse }]}>{category}</Text>
-          </View>
+          <Text style={[styles.categoryHeading, { color: colors.text }]}>{category}</Text>
           <View style={styles.taskItems}>
-            {tasks.slice(0, 3).map((task, index) => (
+            {tasks.slice(0, tasksToShow).map((task, index) => (
               <View key={task.id || index} style={styles.taskItem}>
                 <TouchableOpacity 
                   onPress={() => handleTaskComplete(task.id)}
@@ -440,7 +436,7 @@ export default function HomeScreen() {
                   <Ionicons 
                     name={task.status === 'completed' ? "checkmark-circle" : "ellipse-outline"} 
                     size={20} 
-                    color={task.status === 'completed' ? colors.primary : colors.textSecondary} 
+                    color="#7fbbdd" 
                   />
                 </TouchableOpacity>
                 <Text style={[
@@ -468,49 +464,54 @@ export default function HomeScreen() {
       <View style={styles.tasksContainer}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Tasks</Text>
-          <TouchableOpacity onPress={() => router.push('/(dashboard)/tasks' as any)}>
-            <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
-          </TouchableOpacity>
+          <View style={styles.actionsRight}>
+            <View style={[styles.countToggle, { borderColor: colors.border }]}> 
+              <TouchableOpacity
+                style={[styles.countBtn, tasksToShow === 3 && { backgroundColor: colors.primary }]}
+                onPress={() => setTasksToShow(3 as 3)}
+              >
+                <Text style={[styles.countBtnText, { color: tasksToShow === 3 ? colors.background : colors.text }]}>3</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.countBtn, tasksToShow === 5 && { backgroundColor: colors.primary }]}
+                onPress={() => setTasksToShow(5 as 5)}
+              >
+                <Text style={[styles.countBtnText, { color: tasksToShow === 5 ? colors.background : colors.text }]}>5</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity onPress={() => router.push('/(dashboard)/tasks' as any)}>
+              <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
+            </TouchableOpacity>
           </View>
-        <View style={styles.tasksColumns}>
-          {/* This Week Column */}
+          </View>
+        <View style={styles.topRow}>
           <View style={styles.taskColumn}>
             <Text style={[styles.columnTitle, { color: colors.text }]}>This Week</Text>
             {Object.keys(thisWeekGrouped).length > 0 ? (
               renderTaskList(thisWeekGrouped)
             ) : (
-              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
-                No tasks due this week
-              </Text>
+              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks due this week</Text>
             )}
           </View>
-
-          {/* This Month Column */}
           <View style={styles.taskColumn}>
             <Text style={[styles.columnTitle, { color: colors.text }]}>This Month</Text>
             {Object.keys(thisMonthGrouped).length > 0 ? (
               renderTaskList(thisMonthGrouped)
             ) : (
-              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
-                No tasks due this month
-              </Text>
-            )}
-          </View>
-
-          {/* This Year Column */}
-          <View style={styles.taskColumn}>
-            <Text style={[styles.columnTitle, { color: colors.text }]}>This Year</Text>
-            {Object.keys(thisYearGrouped).length > 0 ? (
-              renderTaskList(thisYearGrouped)
-            ) : (
-              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
-                No tasks due this year
-              </Text>
+              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks due this month</Text>
             )}
           </View>
         </View>
+        <View style={styles.bottomRow}>
+          <Text style={[styles.columnTitle, { color: colors.text }]}>This Year</Text>
+          {Object.keys(thisYearGrouped).length > 0 ? (
+            renderTaskList(thisYearGrouped)
+          ) : (
+            <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks due this year</Text>
+          )}
       </View>
-    );
+    </View>
+  );
   };
 
   return (
@@ -608,6 +609,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 20,
   },
+  topRow: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+  bottomRow: {
+    marginTop: 20,
+  },
   taskColumn: {
     flex: 1,
   },
@@ -616,15 +624,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
   },
-  taskCategory: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  categoryTitle: {
+  categoryHeading: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    marginTop: 8,
+    marginBottom: 6,
   },
   taskItems: {
     marginBottom: 16,
@@ -650,8 +654,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  actionsRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   seeAllText: {
     fontSize: 14,
+    fontWeight: '600',
+  },
+  countToggle: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  countBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  countBtnText: {
+    fontSize: 12,
     fontWeight: '600',
   },
   taskCheckbox: {

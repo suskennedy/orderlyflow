@@ -21,6 +21,18 @@ export default function VendorsLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="[id]"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="[id]/edit"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 } 

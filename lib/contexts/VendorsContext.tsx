@@ -115,9 +115,47 @@ export const VendorsProvider = ({ children }: VendorsProviderProps) => {
   }, [user, fetchVendors]);
 
   // Add a new vendor
-  const addVendor = (vendor: VendorItem) => {
-    // Add locally for immediate UI update (the subscription will sync with server)
-    setVendors(current => [vendor, ...current]);
+  const addVendor = async (vendor: VendorItem) => {
+    try {
+      console.log('Adding vendor to database:', vendor);
+      
+      // Save to Supabase first
+      const { data, error } = await supabase
+        .from('vendors')
+        .insert([{
+          name: vendor.name,
+          category: vendor.category,
+          contact_name: vendor.contact_name,
+          phone: vendor.phone,
+          email: vendor.email,
+          website: vendor.website,
+          address: vendor.address,
+          notes: vendor.notes,
+          user_id: user?.id,
+        }])
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
+      console.log('Vendor added to database:', data);
+      
+      // Add to local state for immediate UI update
+      setVendors(current => {
+        console.log('Current vendors:', current);
+        const updated = [data, ...current];
+        console.log('Updated vendors:', updated);
+        return updated;
+      });
+      
+      return data;
+    } catch (error) {
+      console.error('Error adding vendor:', error);
+      throw error;
+    }
   };
 
   // Update an existing vendor

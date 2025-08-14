@@ -149,7 +149,7 @@ function ApplianceDetailScreen() {
         </View>
         <TouchableOpacity
           style={[styles.headerAction, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push(`/(tab)/(home)/${homeId}/appliances/${applianceId}/edit`)}
+          onPress={() => router.push(`/(tabs)/(home)/${homeId}/appliances/${applianceId}/edit`)}
         >
           <Ionicons name="create-outline" size={20} color={colors.primary} />
         </TouchableOpacity>

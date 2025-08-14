@@ -6,10 +6,10 @@ import {
     Animated,
     FlatList,
     RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTasks } from '../../../lib/contexts/TasksContext';
