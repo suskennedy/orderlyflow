@@ -46,7 +46,7 @@ export default function TaskDueDateModal({
     const suggestedDate = new Date(today);
     
     // Parse suggested frequency to set a reasonable default date
-    const frequency = suggestedFrequency.toLowerCase();
+    const frequency = suggestedFrequency?.toLowerCase() || '';
     
     if (frequency.includes('daily') || frequency.includes('day')) {
       suggestedDate.setDate(today.getDate() + 1);
@@ -69,7 +69,7 @@ export default function TaskDueDateModal({
   };
 
   const getSuggestedRecurrence = () => {
-    const frequency = suggestedFrequency.toLowerCase();
+    const frequency = suggestedFrequency?.toLowerCase() || '';
     
     if (frequency.includes('daily') || frequency.includes('day')) {
       return 'daily';

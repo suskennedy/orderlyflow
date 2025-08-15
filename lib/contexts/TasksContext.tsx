@@ -27,6 +27,7 @@ export interface TaskItem {
   status?: string | null;
   due_date?: string | null;
   completion_date?: string | null;
+  completed_at?: string | null;
   is_recurring?: boolean | null;
   recurrence_pattern?: string | null;
   recurrence_end_date?: string | null;
@@ -261,7 +262,7 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         eventCount++;
 
         // Calculate next occurrence based on pattern (case-insensitive)
-        const pattern = task.recurrence_pattern.toLowerCase();
+        const pattern = task.recurrence_pattern?.toLowerCase() || 'daily';
         switch (pattern) {
           case 'daily':
             currentDate.setDate(currentDate.getDate() + 1);
@@ -458,13 +459,17 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       
       setTasks(current => [taskWithHistory, ...current]);
       
-      // Create calendar event for new task - only create one type based on recurrence
-      if (taskWithHistory.is_recurring && taskWithHistory.recurrence_pattern) {
-        // For recurring tasks, only create recurring calendar events
-        createRecurringCalendarEvents(taskWithHistory);
+      // Create calendar event for new task - only if task is active
+      if (taskWithHistory.is_active !== false) {
+        if (taskWithHistory.is_recurring && taskWithHistory.recurrence_pattern) {
+          // For recurring tasks, only create recurring calendar events
+          createRecurringCalendarEvents(taskWithHistory);
+        } else {
+          // For non-recurring tasks, only create single calendar event
+          createCalendarEventFromTask(taskWithHistory);
+        }
       } else {
-        // For non-recurring tasks, only create single calendar event
-        createCalendarEventFromTask(taskWithHistory);
+        console.log('Task created as inactive, skipping calendar event creation');
       }
     } catch (error) {
       console.error('Error adding task:', error);
@@ -496,8 +501,16 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         )
       );
 
-      // Also update calendar events directly in the database
-      await updateCalendarEventsForTask(taskId, updateData);
+      // Handle task deactivation - remove calendar events when task is deactivated
+      if (updates.is_active === false) {
+        console.log('TasksContext: Task deactivated, removing calendar events for task:', taskId);
+        await removeEventsByTaskId(taskId);
+        // Refresh calendar events to ensure UI is updated
+        setTimeout(() => refreshEvents(), 200);
+      } else {
+        // Also update calendar events directly in the database for other changes
+        await updateCalendarEventsForTask(taskId, updateData);
+      }
     } catch (error) {
       console.error('Error updating task:', error);
       throw error;
@@ -546,15 +559,19 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       // Create new calendar events based on updated task data
       const taskWithUpdates = { ...updatedTask, ...taskUpdates };
       
-      if (taskWithUpdates.is_recurring && taskWithUpdates.recurrence_pattern) {
-        // For recurring tasks, create recurring calendar events
-        await createRecurringCalendarEvents(taskWithUpdates);
+      // Only create calendar events if task is active
+      if (taskWithUpdates.is_active !== false) {
+        if (taskWithUpdates.is_recurring && taskWithUpdates.recurrence_pattern) {
+          // For recurring tasks, create recurring calendar events
+          await createRecurringCalendarEvents(taskWithUpdates);
+        } else {
+          // For non-recurring tasks, create single calendar event
+          await createCalendarEventFromTask(taskWithUpdates);
+        }
+        console.log('Successfully updated calendar events for task:', taskId);
       } else {
-        // For non-recurring tasks, create single calendar event
-        await createCalendarEventFromTask(taskWithUpdates);
+        console.log('Task is inactive, skipping calendar event creation for task:', taskId);
       }
-
-      console.log('Successfully updated calendar events for task:', taskId);
     } catch (error) {
       console.error('Error updating calendar events for task:', error);
     }
@@ -644,19 +661,33 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       // For new tasks, we need to fetch to get the homes relationship
       fetchTasks();
       
-      // Create calendar event for new task - only create one type based on recurrence
-      if (payload.new.is_recurring && payload.new.recurrence_pattern) {
-        // For recurring tasks, only create recurring calendar events
-        createRecurringCalendarEvents(payload.new);
+      // Create calendar event for new task - only if task is active
+      if (payload.new.is_active !== false) {
+        if (payload.new.is_recurring && payload.new.recurrence_pattern) {
+          // For recurring tasks, only create recurring calendar events
+          createRecurringCalendarEvents(payload.new);
+        } else {
+          // For non-recurring tasks, only create single calendar event
+          createCalendarEventFromTask(payload.new);
+        }
       } else {
-        // For non-recurring tasks, only create single calendar event
-        createCalendarEventFromTask(payload.new);
+        console.log('Task created as inactive via real-time update, skipping calendar event creation');
       }
     } 
     else if (eventType === 'UPDATE') {
       console.log('TasksContext: Processing UPDATE event for task:', payload.new?.title);
       // For updates, we need to fetch to get the homes relationship
       fetchTasks();
+      
+      // Handle task deactivation - remove calendar events when task is deactivated
+      const taskDeactivated = payload.old.is_active !== false && payload.new.is_active === false;
+      if (taskDeactivated) {
+        console.log('TasksContext: Task deactivated via real-time update, removing calendar events for task:', payload.new.id);
+        removeEventsByTaskId(payload.new.id);
+        // Refresh calendar events to ensure UI is updated
+        setTimeout(() => refreshEvents(), 200);
+        return; // Skip other calendar updates for deactivated tasks
+      }
       
       // Update calendar events if due date changed, task became recurring, recurrence pattern changed, or title changed
       const dueDateChanged = payload.new.due_date !== payload.old.due_date;

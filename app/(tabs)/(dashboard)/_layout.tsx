@@ -1,5 +1,5 @@
-import { Redirect, Stack, router } from 'expo-router';
-import React, { useEffect } from 'react';
+import { Redirect, Stack } from 'expo-router';
+import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
@@ -7,12 +7,6 @@ import { useAuth } from '../../../lib/hooks/useAuth';
 export default function DashboardLayout() {
   const { user, loading } = useAuth();
   const { colors } = useTheme();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/(auth)/signin');
-    }
-  }, [user, loading]);
 
   if (loading) {
     return (

@@ -355,7 +355,7 @@ export const FamilyProvider = ({ children }: FamilyProviderProps) => {
       const invitationUrl = `${appScheme}://invite?token=${invitationToken}`;
       
       // Also create a fallback URL for web/email clients that can't handle deep links
-      const fallbackUrl = `https://expo.dev/accounts/ahmadali507/projects/orderlyflow/invite?token=${invitationToken}`;
+      const fallbackUrl = `https://expo.dev/accounts/orderlyflow/projects/orderlyflow/invite?token=${invitationToken}`;
 
       // Check if user already has an account
       const { data: existingUsers } = await supabase.auth.admin.listUsers();

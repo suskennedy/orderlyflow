@@ -57,10 +57,7 @@ export const routes = {
   // Task routes
   tasks: {
     index: '/(tabs)/(tasks)',
-    add: '/(tabs)/(tasks)/add',
     settings: '/(tabs)/(tasks)/settings',
-    edit: '/(tabs)/(tasks)/edit',
-    projects: '/(tabs)/(tasks)/projects',
   },
   
   // Vendor routes

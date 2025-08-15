@@ -83,11 +83,15 @@ export function useAuth() {
 
       if (createError) {
         console.error('Error creating user profile:', createError);
+        // Even if profile creation fails, we should still allow the user to proceed
+        setUserProfile(null);
       } else {
         setUserProfile(newProfile);
       }
     } catch (error) {
       console.error('Error ensuring profile exists:', error);
+      // Ensure loading is set to false even on unexpected errors
+      setUserProfile(null);
     } finally {
       setLoading(false);
     }

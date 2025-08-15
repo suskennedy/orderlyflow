@@ -33,18 +33,6 @@ export default function TasksLayout() {
           headerShown: false,
         }}
       />
-      <Stack.Screen
-        name="edit"
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="projects"
-        options={{
-          headerShown: false,
-        }}
-      />
     </Stack>
   );
 } 
