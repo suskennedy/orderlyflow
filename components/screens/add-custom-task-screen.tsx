@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTasks } from '../../lib/contexts/TasksContext';
@@ -17,6 +17,7 @@ import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
 import { useHomes } from '../../lib/hooks/useHomes';
+import DatePicker from '../DatePicker';
 
 const PRIORITY_OPTIONS = [
   { label: 'Low', value: 'low' },
@@ -36,12 +37,12 @@ const RECURRENCE_OPTIONS = [
   { label: 'Annually', value: 'annually' }
 ];
 
-const TASK_TYPE_OPTIONS = [
-  { label: 'Maintenance', value: 'maintenance' },
-  { label: 'Cleaning', value: 'cleaning' },
-  { label: 'Repair', value: 'repair' },
-  { label: 'Inspection', value: 'inspection' },
-  { label: 'Custom', value: 'custom' }
+const CATEGORY_OPTIONS = [
+  { label: 'Deep Cleaning', value: 'Deep Cleaning' },
+  { label: 'Health + Safety', value: 'Home + Safety' },
+  { label: 'Home Maintenance', value: 'Home Maintenance' },
+  { label: 'Repairs', value: 'Repairs' },
+  { label: 'Custom', value: 'Custom' }
 ];
 
 export default function AddCustomTaskScreen() {
@@ -56,19 +57,18 @@ export default function AddCustomTaskScreen() {
   const [showHomeModal, setShowHomeModal] = useState(false);
   const [showPriorityModal, setShowPriorityModal] = useState(false);
   const [showRecurrenceModal, setShowRecurrenceModal] = useState(false);
-  const [showTaskTypeModal, setShowTaskTypeModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     category: '',
-    subcategory: '',
     priority: 'medium',
-    due_date: '',
+    due_date: null as string | null,
     is_recurring: false,
     recurrence_pattern: null as string | null,
-    recurrence_end_date: '',
+    recurrence_end_date: null as string | null,
     home_id: '',
     notes: '',
     assigned_vendor_id: '',
@@ -79,7 +79,6 @@ export default function AddCustomTaskScreen() {
     equipment_required: '',
     safety_notes: '',
     estimated_duration_minutes: '',
-    task_type: 'custom',
     priority_level: 'medium'
   });
 
@@ -109,9 +108,9 @@ export default function AddCustomTaskScreen() {
     setShowRecurrenceModal(false);
   };
 
-  const handleTaskTypeSelection = (taskType: string) => {
-    updateFormData('task_type', taskType);
-    setShowTaskTypeModal(false);
+  const handleCategorySelection = (category: string) => {
+    updateFormData('category', category);
+    setShowCategoryModal(false);
   };
 
   const handleSubmit = async () => {
@@ -120,13 +119,36 @@ export default function AddCustomTaskScreen() {
       return;
     }
 
+    if (!formData.category.trim()) {
+      Alert.alert('Error', 'Category is required');
+      return;
+    }
+
     setLoading(true);
     try {
+      // Determine task_type based on category
+      const getTaskType = (category: string) => {
+        switch (category) {
+          case 'Deep Cleaning':
+            return 'deep_cleaning';
+          case 'Home + Safety':
+            return 'health_safety';
+          case 'Home Maintenance':
+            return 'home_maintenance';
+          case 'Repairs':
+            return 'repairs';
+          case 'Custom':
+            return 'custom';
+          default:
+            return 'custom';
+        }
+      };
+
       const taskData = {
         title: formData.title.trim(),
         description: formData.description.trim() || null,
-        category: formData.category.trim() || null,
-        subcategory: formData.subcategory.trim() || null,
+        category: formData.category.trim(),
+        subcategory: null,
         priority: formData.priority,
         priority_level: formData.priority_level,
         due_date: formData.due_date || null,
@@ -143,7 +165,7 @@ export default function AddCustomTaskScreen() {
         equipment_required: formData.equipment_required.trim() || null,
         safety_notes: formData.safety_notes.trim() || null,
         estimated_duration_minutes: formData.estimated_duration_minutes ? parseInt(formData.estimated_duration_minutes) : null,
-        task_type: formData.task_type,
+        task_type: getTaskType(formData.category),
         is_active: true,
         status: 'pending'
       };
@@ -215,7 +237,8 @@ export default function AddCustomTaskScreen() {
     onChangeText: (text: string) => void,
     placeholder: string,
     multiline: boolean = false,
-    keyboardType: 'default' | 'numeric' | 'email-address' = 'default'
+    keyboardType: 'default' | 'numeric' | 'email-address' = 'default',
+    readOnly: boolean = false
   ) => (
     <View style={styles.formField}>
       <Text style={[styles.formLabel, { color: colors.text }]}>{label}</Text>
@@ -226,7 +249,8 @@ export default function AddCustomTaskScreen() {
             backgroundColor: colors.background,
             color: colors.text,
             borderColor: colors.border,
-            height: multiline ? 80 : 48
+            height: multiline ? 80 : 48,
+            opacity: readOnly ? 0.6 : 1
           }
         ]}
         value={value}
@@ -236,6 +260,7 @@ export default function AddCustomTaskScreen() {
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
         keyboardType={keyboardType}
+        editable={!readOnly}
       />
     </View>
   );
@@ -280,7 +305,7 @@ export default function AddCustomTaskScreen() {
         >
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Add Custom Task</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Add Task</Text>
         <TouchableOpacity
           style={[styles.saveButton, { backgroundColor: colors.primary }]}
           onPress={handleSubmit}
@@ -318,26 +343,12 @@ export default function AddCustomTaskScreen() {
             true
           )}
           
-          {renderFormField(
+          {renderDropdownField(
             'Category',
             formData.category,
-            (text) => updateFormData('category', text),
-            'e.g., Maintenance, Cleaning'
-          )}
-          
-          {renderFormField(
-            'Subcategory',
-            formData.subcategory,
-            (text) => updateFormData('subcategory', text),
-            'e.g., Kitchen, Bathroom'
-          )}
-          
-          {renderDropdownField(
-            'Task Type',
-            formData.task_type,
-            () => setShowTaskTypeModal(true),
-            'Select task type',
-            TASK_TYPE_OPTIONS.find(opt => opt.value === formData.task_type)?.label
+            () => setShowCategoryModal(true),
+            'Select category',
+            CATEGORY_OPTIONS.find(opt => opt.value === formData.category)?.label
           )}
           
           {renderDropdownField(
@@ -353,12 +364,15 @@ export default function AddCustomTaskScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Scheduling</Text>
           
-          {renderFormField(
-            'Due Date',
-            formData.due_date,
-            (text) => updateFormData('due_date', text),
-            'MM/DD/YYYY'
-          )}
+          <View style={styles.formField}>
+            <Text style={[styles.formLabel, { color: colors.text }]}>Due Date</Text>
+            <DatePicker
+              label=""
+              value={formData.due_date}
+              onChange={(date) => updateFormData('due_date', date)}
+              placeholder="Select due date"
+            />
+          </View>
           
           {renderDropdownField(
             'Recurrence',
@@ -368,11 +382,16 @@ export default function AddCustomTaskScreen() {
             RECURRENCE_OPTIONS.find(opt => opt.value === formData.recurrence_pattern)?.label
           )}
           
-          {formData.is_recurring && renderFormField(
-            'Recurrence End Date',
-            formData.recurrence_end_date,
-            (text) => updateFormData('recurrence_end_date', text),
-            'MM/DD/YYYY (optional)'
+          {formData.is_recurring && (
+            <View style={styles.formField}>
+              <Text style={[styles.formLabel, { color: colors.text }]}>Recurrence End Date</Text>
+              <DatePicker
+                label=""
+                value={formData.recurrence_end_date}
+                onChange={(date) => updateFormData('recurrence_end_date', date)}
+                placeholder="Select end date (optional)"
+              />
+            </View>
           )}
         </View>
 
@@ -498,12 +517,12 @@ export default function AddCustomTaskScreen() {
       )}
       
       {renderModal(
-        showTaskTypeModal,
-        () => setShowTaskTypeModal(false),
-        'Select Task Type',
-        TASK_TYPE_OPTIONS,
-        handleTaskTypeSelection,
-        formData.task_type
+        showCategoryModal,
+        () => setShowCategoryModal(false),
+        'Select Category',
+        CATEGORY_OPTIONS,
+        handleCategorySelection,
+        formData.category
       )}
 
       {/* Toast */}

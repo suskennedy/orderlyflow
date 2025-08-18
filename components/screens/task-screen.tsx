@@ -32,13 +32,27 @@ export default function TasksScreen() {
 
   // Filter tasks: active tasks first, then completed tasks
   const activeTasks = tasks
-    .filter(task => 
-      task.is_active && task.status !== 'completed' && (
-        task.task_type === 'custom' || 
-        task.task_type === 'preset' || 
-        !task.task_type
-      )
-    )
+    .filter(task => {
+      const isActive = task.is_active && task.status !== 'completed';
+      const isValidType = task.task_type === 'custom' || task.task_type === 'preset' || !task.task_type;
+      const shouldInclude = isActive && isValidType;
+      
+      // Debug logging for recurring tasks
+      if (task.is_recurring && task.recurrence_pattern) {
+        console.log('Recurring task filter check:', {
+          title: task.title,
+          id: task.id,
+          is_active: task.is_active,
+          status: task.status,
+          task_type: task.task_type,
+          isActive,
+          isValidType,
+          shouldInclude
+        });
+      }
+      
+      return shouldInclude;
+    })
     .sort((a, b) => {
       const dateA = a.next_due || a.due_date;
       const dateB = b.next_due || b.due_date;
@@ -68,6 +82,55 @@ export default function TasksScreen() {
       
       return new Date(dateB).getTime() - new Date(dateA).getTime(); // Most recent first
     });
+
+  // Debug logging
+  useEffect(() => {
+    console.log('TasksScreen: Task counts:', {
+      total: tasks.length,
+      active: activeTasks.length,
+      completed: completedTasks.length,
+      recurring: tasks.filter(t => t.is_recurring && t.recurrence_pattern).length
+    });
+    
+    // Log recurring tasks specifically
+    const recurringTasks = tasks.filter(t => t.is_recurring && t.recurrence_pattern);
+    if (recurringTasks.length > 0) {
+      console.log('Recurring tasks:', recurringTasks.map(t => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        is_active: t.is_active,
+        due_date: t.due_date,
+        next_due: t.next_due,
+        recurrence_pattern: t.recurrence_pattern
+      })));
+    }
+
+    // Log active tasks to see what's being shown
+    console.log('Active tasks:', activeTasks.map(t => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      is_active: t.is_active,
+      due_date: t.due_date,
+      next_due: t.next_due,
+      is_recurring: t.is_recurring,
+      recurrence_pattern: t.recurrence_pattern
+    })));
+  }, [tasks, activeTasks, completedTasks]);
+
+  // Helper function to get the display date for a task
+  const getTaskDisplayDate = (task: any) => {
+    if (task.status === 'completed') {
+      return task.completed_at;
+    }
+    return task.next_due || task.due_date;
+  };
+
+  // Helper function to check if a task is recurring
+  const isRecurringTask = (task: any) => {
+    return task.is_recurring && task.recurrence_pattern;
+  };
 
   useEffect(() => {
     if (!loading) {
@@ -126,6 +189,7 @@ export default function TasksScreen() {
 
   const renderTaskDropdown = (task: any) => {
     const assignedVendor = getAssignedVendor(task);
+    const isRecurring = isRecurringTask(task);
     
     return (
       <View style={[styles.dropdownContainer, { backgroundColor: colors.surface }]}>
@@ -144,18 +208,32 @@ export default function TasksScreen() {
         </View>
         
         <View style={styles.dropdownRow}>
-          <Text style={[styles.dropdownLabel, { color: colors.textSecondary }]}>Next Due</Text>
+          <Text style={[styles.dropdownLabel, { color: colors.textSecondary }]}>
+            {task.status === 'completed' ? 'Completed Date' : 'Next Due'}
+          </Text>
           <Text style={[styles.dropdownValue, { color: colors.text }]}>
-            {formatDate(task.next_due || task.due_date)}
+            {task.status === 'completed' 
+              ? formatDate(task.completed_at)
+              : formatDate(task.next_due || task.due_date)
+            }
           </Text>
         </View>
         
         <View style={styles.dropdownRow}>
           <Text style={[styles.dropdownLabel, { color: colors.textSecondary }]}>Frequency</Text>
           <Text style={[styles.dropdownValue, { color: colors.text }]}>
-            {task.recurrence_pattern ? `Every ${task.recurrence_pattern}` : 'One-time'}
+            {isRecurring ? `Every ${task.recurrence_pattern}` : 'One-time'}
           </Text>
         </View>
+        
+        {isRecurring && task.status !== 'completed' && (
+          <View style={styles.dropdownRow}>
+            <Text style={[styles.dropdownLabel, { color: colors.textSecondary }]}>Next Occurrence</Text>
+            <Text style={[styles.dropdownValue, { color: colors.text }]}>
+              {formatDate(task.next_due || task.due_date)}
+            </Text>
+          </View>
+        )}
         
         {task.notes && (
           <View style={styles.dropdownRow}>
@@ -213,6 +291,8 @@ export default function TasksScreen() {
   const renderTaskItem = ({ item, index }: { item: any; index: number }) => {
     const isCompleted = item.status === 'completed';
     const isExpanded = expandedTask === item.id;
+    const isRecurring = isRecurringTask(item);
+    const displayDate = getTaskDisplayDate(item);
     
     return (
       <Animated.View
@@ -258,6 +338,11 @@ export default function TasksScreen() {
                   Completed: {formatDate(item.completed_at)}
                 </Text>
               )}
+              {isRecurring && !isCompleted && (
+                <Text style={[styles.recurrenceInfo, { color: colors.textSecondary }]}>
+                  Recurring: {item.recurrence_pattern}
+                </Text>
+              )}
             </View>
             
             <View style={styles.taskActions}>
@@ -268,7 +353,7 @@ export default function TasksScreen() {
                 }
               ]}>
                 <Text style={[styles.dateText, { color: '#FFFFFF' }]}>
-                  {item.next_due ? formatDate(item.next_due) : formatDate(item.due_date)}
+                  {isCompleted ? formatDate(item.completed_at) : formatDate(displayDate)}
                 </Text>
               </View>
               
@@ -681,5 +766,9 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: '700',
+  },
+  recurrenceInfo: {
+    fontSize: 12,
+    marginTop: 4,
   },
 });

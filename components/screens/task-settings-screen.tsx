@@ -17,42 +17,12 @@ import { useToast } from '../../lib/contexts/ToastContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
 import { useHomes } from '../../lib/hooks/useHomes';
 
-const TASK_CATEGORIES = [
-  {
-    name: 'Maintenance',
-    tasks: [
-      { name: 'Fridge filter', suggestedFrequency: '6 months' },
-      { name: 'Change air filter', suggestedFrequency: '3 months' },
-      { name: 'Clean dishwasher', suggestedFrequency: 'Monthly' },
-      { name: 'Test smoke detectors', suggestedFrequency: 'Monthly' },
-      { name: 'Clean garbage disposal', suggestedFrequency: 'Monthly' },
-      { name: 'Vacuum refrigerator coils', suggestedFrequency: 'Yearly' },
-      { name: 'Flush water heater', suggestedFrequency: 'Yearly' },
-    ]
-  },
-  {
-    name: 'Deep Cleaning',
-    tasks: [
-      { name: 'Deep clean carpets', suggestedFrequency: 'Yearly' },
-      { name: 'Window cleaning', suggestedFrequency: '6 months' },
-      { name: 'Clean pantry', suggestedFrequency: '3 months' },
-      { name: 'Bathtub caulking', suggestedFrequency: 'As needed' },
-    ]
-  },
-  {
-    name: 'Repairs',
-    tasks: [
-      { name: 'General repairs', suggestedFrequency: 'As needed' },
-    ]
-  },
-  {
-    name: 'Projects',
-    tasks: [
-      { name: 'Kitchen renovation', suggestedFrequency: 'As needed' },
-      { name: 'Bathroom remodel', suggestedFrequency: 'As needed' },
-      { name: 'Deck construction', suggestedFrequency: 'As needed' },
-    ]
-  }
+// Define the four main categories from the database
+const DATABASE_CATEGORIES = [
+  'Deep Cleaning',
+  'Home + Safety', 
+  'Home Maintenance',
+  'Repairs'
 ];
 
 const QUICK_OPTIONS = [
@@ -150,11 +120,100 @@ export default function TaskSettingsScreen() {
     (task.task_type === 'preset' || !task.task_type) && task.is_active
   );
 
+  // Get tasks for each category from the database
+  const getTasksForCategory = (categoryName: string) => {
+    return tasks.filter(task => 
+      task.category === categoryName && task.is_active
+    );
+  };
+
+  // Get predefined tasks that should be shown for all users
+  const getPresetTasksForCategory = (categoryName: string) => {
+    const presetTasks: { [key: string]: { name: string; suggestedFrequency: string }[] } = {
+      'Deep Cleaning': [
+        { name: 'Deep clean carpets', suggestedFrequency: 'Yearly' },
+        { name: 'Window cleaning', suggestedFrequency: '6 months' },
+        { name: 'Clean pantry', suggestedFrequency: '3 months' },
+        { name: 'Bathtub caulking', suggestedFrequency: 'As needed' },
+        { name: 'Clean refrigerator coils', suggestedFrequency: 'Yearly' },
+        { name: 'Deep clean oven', suggestedFrequency: '6 months' }
+      ],
+      'Home + Safety': [
+        { name: 'Test smoke detectors', suggestedFrequency: 'Monthly' },
+        { name: 'Check carbon monoxide detectors', suggestedFrequency: 'Monthly' },
+        { name: 'Test fire extinguishers', suggestedFrequency: '6 months' },
+        { name: 'Check emergency lights', suggestedFrequency: '3 months' },
+        { name: 'Inspect electrical outlets', suggestedFrequency: '6 months' }
+      ],
+      'Home Maintenance': [
+        { name: 'Fridge filter', suggestedFrequency: '6 months' },
+        { name: 'Change air filter', suggestedFrequency: '3 months' },
+        { name: 'Clean dishwasher', suggestedFrequency: 'Monthly' },
+        { name: 'Clean garbage disposal', suggestedFrequency: 'Monthly' },
+        { name: 'Flush water heater', suggestedFrequency: 'Yearly' },
+        { name: 'Clean dryer vent', suggestedFrequency: '6 months' },
+        { name: 'Inspect roof gutters', suggestedFrequency: '6 months' }
+      ],
+      'Repairs': [
+        { name: 'General repairs', suggestedFrequency: 'As needed' },
+        { name: 'Fix leaky faucets', suggestedFrequency: 'As needed' },
+        { name: 'Repair broken tiles', suggestedFrequency: 'As needed' },
+        { name: 'Fix squeaky doors', suggestedFrequency: 'As needed' },
+        { name: 'Repair window screens', suggestedFrequency: 'As needed' }
+      ]
+    };
+
+    return presetTasks[categoryName] || [];
+  };
+
+  // Combine preset tasks with database tasks for each category
+  const getCombinedTasksForCategory = (categoryName: string) => {
+    const databaseTasks = getTasksForCategory(categoryName);
+    const presetTasks = getPresetTasksForCategory(categoryName);
+    
+    // Create a map of existing database tasks by title to avoid duplicates
+    const existingTaskTitles = new Set(databaseTasks.map(task => task.title));
+    
+    // Filter out preset tasks that already exist in database
+    const uniquePresetTasks = presetTasks.filter((presetTask: { name: string; suggestedFrequency: string }) => 
+      !existingTaskTitles.has(presetTask.name)
+    );
+    
+    // Convert database tasks to the format expected by renderTaskItem
+    const formattedDatabaseTasks = databaseTasks.map(task => ({
+      name: task.title,
+      suggestedFrequency: task.recurrence_pattern ? `Every ${task.recurrence_pattern}` : 'One-time',
+      category: task.category || 'General',
+      subcategory: task.subcategory || null,
+      isPreset: task.task_type === 'preset',
+      databaseTask: task // Keep reference to original task
+    }));
+    
+    // Convert preset tasks to the same format
+    const formattedPresetTasks = uniquePresetTasks.map((presetTask: { name: string; suggestedFrequency: string }) => ({
+      name: presetTask.name,
+      suggestedFrequency: presetTask.suggestedFrequency,
+      category: categoryName,
+      subcategory: null,
+      isPreset: true,
+      databaseTask: null // No database task for preset
+    }));
+    
+    return [...formattedDatabaseTasks, ...formattedPresetTasks];
+  };
+
   // Initialize selectedTasks based on existing active tasks
   useEffect(() => {
     const activeTaskNames = new Set(activeTasks.map(t => t.title));
-    setSelectedTasks(activeTaskNames);
-    console.log('Initialized selectedTasks with active tasks:', Array.from(activeTaskNames));
+    
+    // Also include preset tasks that have been activated (exist in database)
+    const activePresetTasks = tasks.filter(t => 
+      t.task_type === 'preset' && t.is_active
+    ).map(t => t.title);
+    
+    const allActiveTaskNames = new Set([...activeTaskNames, ...activePresetTasks]);
+    setSelectedTasks(allActiveTaskNames);
+    console.log('Initialized selectedTasks with active tasks:', Array.from(allActiveTaskNames));
   }, [tasks]);
 
   const toggleCategory = (categoryName: string) => {
@@ -209,7 +268,7 @@ export default function TaskSettingsScreen() {
     const existingTask = tasks.find(t => t.title === taskName);
     
     if (existingTask) {
-      // Task exists - toggle its active status
+      // Task exists in database - toggle its active status
       try {
         const newActiveStatus = !existingTask.is_active;
         console.log(`Updating task ${taskName} active status from ${existingTask.is_active} to ${newActiveStatus}`);
@@ -235,7 +294,7 @@ export default function TaskSettingsScreen() {
         showToast('Failed to update task status. Please try again.', 'error');
       }
     } else {
-      // Task doesn't exist - create it as active
+      // Task doesn't exist - create it as active (for preset tasks or new custom tasks)
       console.log('Creating new task:', taskName);
       try {
         const taskData = {
@@ -246,7 +305,7 @@ export default function TaskSettingsScreen() {
           is_recurring: false,
           recurrence_pattern: null,
           is_active: true,
-          task_type: 'preset',
+          task_type: task.isPreset ? 'preset' : 'custom',
           suggested_frequency: task.suggestedFrequency
         };
 
@@ -634,35 +693,42 @@ export default function TaskSettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Category Cards with Inline Task Sections */}
-        {TASK_CATEGORIES.map((category) => (
-          <View key={category.name}>
+        {DATABASE_CATEGORIES.map((category) => (
+          <View key={category}>
             <TouchableOpacity
               style={[
                 styles.categoryCard,
                 { backgroundColor: colors.surface },
-                expandedCategory === category.name && { backgroundColor: colors.primary }
+                expandedCategory === category && { backgroundColor: colors.primary }
               ]}
-              onPress={() => toggleCategory(category.name)}
+              onPress={() => toggleCategory(category)}
             >
               <Text style={[
                 styles.categoryCardTitle,
                 { 
-                  color: expandedCategory === category.name ? colors.background : colors.text 
+                  color: expandedCategory === category ? colors.background : colors.text 
                 }
               ]}>
-                {category.name}
+                {category} ({getCombinedTasksForCategory(category).length})
               </Text>
               <Ionicons 
                 name="chevron-down" 
                 size={20} 
-                color={expandedCategory === category.name ? colors.background : colors.textSecondary} 
+                color={expandedCategory === category ? colors.background : colors.textSecondary} 
               />
             </TouchableOpacity>
             
             {/* Task Cards - Show directly under category when expanded */}
-            {expandedCategory === category.name && (
+            {expandedCategory === category && (
               <View style={styles.taskCardsContainer}>
-                {category.tasks.map((task) => renderTaskItem(task, category.name))}
+                {getCombinedTasksForCategory(category).map((task) => renderTaskItem({
+                  name: task.name,
+                  suggestedFrequency: task.suggestedFrequency,
+                  category: task.category || 'General',
+                  subcategory: task.subcategory || null,
+                  isPreset: task.isPreset,
+                  databaseTask: task.databaseTask
+                }, category))}
               </View>
             )}
           </View>
@@ -712,10 +778,11 @@ export default function TaskSettingsScreen() {
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.primary }]}
-            onPress={() => toggleCategory('Projects')}
+            onPress={() => router.push('/(tabs)/(tasks)/add' as any)}
           >
+            <Ionicons name="add" size={16} color={colors.background} />
             <Text style={[styles.actionButtonText, { color: colors.background }]}>
-              Projects
+               Add Task
             </Text>
           </TouchableOpacity>
           

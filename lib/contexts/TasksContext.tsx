@@ -590,10 +590,19 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
   // Complete a task
   const completeTask = async (taskId: string, completionData: any) => {
     try {
+      // Get the current task to check if it's recurring
+      const currentTask = tasks.find(task => task.id === taskId);
+      if (!currentTask) {
+        throw new Error('Task not found');
+      }
+
+      console.log('Completing task:', currentTask.title, 'Recurring:', currentTask.is_recurring, 'Pattern:', currentTask.recurrence_pattern);
+
       // Determine if we're completing or uncompleting the task
       const isCompleting = completionData.status !== 'pending';
       
       let taskUpdates;
+      let newTaskToAdd = null;
       
       if (isCompleting) {
         // Completing the task
@@ -608,6 +617,80 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
           last_completed: new Date().toISOString(),
           completion_date: new Date().toISOString()
         };
+
+        // If this is a recurring task, create the next occurrence
+        if (currentTask.is_recurring && currentTask.recurrence_pattern) {
+          console.log('Creating next occurrence for recurring task:', currentTask.title);
+          
+          const nextDueDate = calculateNextDueDate(
+            currentTask.due_date || currentTask.next_due,
+            currentTask.recurrence_pattern
+          );
+
+          console.log('Next due date calculated:', nextDueDate);
+
+          if (nextDueDate) {
+            // Create the next occurrence directly in the database
+            const nextTaskData = {
+              title: currentTask.title,
+              description: currentTask.description,
+              category: currentTask.category,
+              subcategory: currentTask.subcategory,
+              priority: currentTask.priority,
+              priority_level: currentTask.priority_level,
+              due_date: nextDueDate,
+              is_recurring: currentTask.is_recurring,
+              recurrence_pattern: currentTask.recurrence_pattern,
+              recurrence_end_date: currentTask.recurrence_end_date,
+              home_id: currentTask.home_id,
+              notes: currentTask.notes,
+              assigned_vendor_id: currentTask.assigned_vendor_id,
+              assigned_user_id: currentTask.assigned_user_id,
+              instructions: currentTask.instructions,
+              estimated_cost: currentTask.estimated_cost,
+              room_location: currentTask.room_location,
+              equipment_required: currentTask.equipment_required,
+              safety_notes: currentTask.safety_notes,
+              estimated_duration_minutes: currentTask.estimated_duration_minutes,
+              task_type: currentTask.task_type,
+              is_active: true,
+              status: 'pending',
+              next_due: nextDueDate,
+              user_id: user?.id,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+
+            console.log('Creating next occurrence with data:', nextTaskData);
+
+            // Insert the next occurrence directly
+            const { data: newTask, error: insertError } = await supabase
+              .from('tasks')
+              .insert(nextTaskData)
+              .select('*')
+              .single();
+
+            if (insertError) {
+              console.error('Error creating next occurrence:', insertError);
+              throw insertError;
+            }
+
+            console.log('Successfully created next occurrence:', newTask);
+
+            // Prepare the new task for state update
+            newTaskToAdd = {
+              ...newTask,
+              task_history: []
+            } as unknown as TaskItem;
+
+            // Create calendar event for the next occurrence
+            if (newTaskToAdd.is_recurring && newTaskToAdd.recurrence_pattern) {
+              createRecurringCalendarEvents(newTaskToAdd);
+            } else {
+              createCalendarEventFromTask(newTaskToAdd);
+            }
+          }
+        }
       } else {
         // Uncompleting the task
         taskUpdates = {
@@ -624,21 +707,92 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
 
       await updateTask(taskId, taskUpdates);
 
-      // Update local state for immediate UI update
-      setTasks(current => 
-        current.map(task => 
+      // Update local state for immediate UI update - combine both updates
+      setTasks(current => {
+        console.log('Updating tasks state. Current count:', current.length);
+        
+        // First, update the completed task
+        const updatedTasks = current.map(task => 
           task.id === taskId 
             ? { 
                 ...task, 
                 ...taskUpdates
               }
             : task
-        )
-      );
+        );
+        
+        // Then, add the new task if it exists
+        if (newTaskToAdd) {
+          console.log('Adding new task to state:', newTaskToAdd.title, 'New task ID:', newTaskToAdd.id);
+          const finalTasks = [newTaskToAdd, ...updatedTasks];
+          console.log('Final task count after adding new task:', finalTasks.length);
+          return finalTasks;
+        }
+        
+        console.log('No new task to add, final count:', updatedTasks.length);
+        return updatedTasks;
+      });
+
+      // Add a small delay to ensure state updates are processed
+      setTimeout(() => {
+        console.log('State update completed. Current tasks count:', tasks.length);
+      }, 100);
     } catch (error) {
       console.error('Error completing task:', error);
       throw error;
     }
+  };
+
+  // Helper function to calculate the next due date for recurring tasks
+  const calculateNextDueDate = (currentDueDate: string | null, recurrencePattern: string): string | null => {
+    if (!currentDueDate) {
+      console.log('No current due date provided for next due date calculation');
+      return null;
+    }
+
+    console.log('Calculating next due date:', { currentDueDate, recurrencePattern });
+
+    const currentDate = new Date(currentDueDate);
+    const nextDate = new Date(currentDate);
+
+    // Handle invalid date
+    if (isNaN(currentDate.getTime())) {
+      console.log('Invalid current due date:', currentDueDate);
+      return null;
+    }
+
+    switch (recurrencePattern.toLowerCase()) {
+      case 'daily':
+        nextDate.setDate(currentDate.getDate() + 1);
+        break;
+      case 'weekly':
+        nextDate.setDate(currentDate.getDate() + 7);
+        break;
+      case 'bi-weekly':
+      case 'biweekly':
+        nextDate.setDate(currentDate.getDate() + 14);
+        break;
+      case 'monthly':
+        nextDate.setMonth(currentDate.getMonth() + 1);
+        break;
+      case 'quarterly':
+        nextDate.setMonth(currentDate.getMonth() + 3);
+        break;
+      case 'semi-annually':
+        nextDate.setMonth(currentDate.getMonth() + 6);
+        break;
+      case 'annually':
+      case 'yearly':
+        nextDate.setFullYear(currentDate.getFullYear() + 1);
+        break;
+      default:
+        console.log('Unknown recurrence pattern:', recurrencePattern);
+        return null;
+    }
+
+    const result = nextDate.toISOString().split('T')[0];
+    console.log('Next due date calculated:', result);
+    return result;
   };
 
   // Get task history
