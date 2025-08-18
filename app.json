@@ -2,7 +2,8 @@
   "expo": {
     "name": "OrderlyFlow",
     "slug": "orderlyflow",
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "buildNumber": "4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -17,7 +18,10 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.orderlyflow.app"
+      "bundleIdentifier": "com.orderlyflow.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -34,6 +38,12 @@
       "expo-router",
       "expo-dev-client"
     ],
-    "scheme": "orderlyflow"
+    "scheme": "orderlyflow",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "910308f9-b060-4227-a637-7d6a38e4f5a5"
+      }
+    }
   }
 }

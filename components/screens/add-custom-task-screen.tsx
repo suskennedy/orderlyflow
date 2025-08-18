@@ -305,7 +305,7 @@ export default function AddCustomTaskScreen() {
         >
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Add Task</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Project</Text>
         <TouchableOpacity
           style={[styles.saveButton, { backgroundColor: colors.primary }]}
           onPress={handleSubmit}

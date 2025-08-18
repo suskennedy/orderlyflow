@@ -681,9 +681,9 @@ export default function TaskSettingsScreen() {
         <Text style={[styles.headerTitle, { color: colors.text }]}>Tasks</Text>
         <TouchableOpacity
           style={[styles.quickOptionsButton, { backgroundColor: colors.primary }]}
-          onPress={() => setShowQuickOptions(true)}
+          onPress={() => router.push('/(tabs)/(tasks)/add' as any)}
         >
-          <Ionicons name="time" size={20} color={colors.background} />
+          <Ionicons name="add" size={20} color={colors.background} />
         </TouchableOpacity>
       </View>
 
@@ -782,7 +782,7 @@ export default function TaskSettingsScreen() {
           >
             <Ionicons name="add" size={16} color={colors.background} />
             <Text style={[styles.actionButtonText, { color: colors.background }]}>
-               Add Task
+               Project
             </Text>
           </TouchableOpacity>
           
