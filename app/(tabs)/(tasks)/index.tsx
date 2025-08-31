@@ -1,11 +1,11 @@
 import React from 'react';
 import AppLayout from '../../../components/layouts/AppLayout';
-import TasksScreen from '../../../components/screens/task-screen';
+import HomeSelectorScreen from '../../../components/screens/home-selector-screen';
 
 export default function Tasks() {
   return (
     <AppLayout showFooter={true}>
-      <TasksScreen />
+      <HomeSelectorScreen />
     </AppLayout>
   );
 } 

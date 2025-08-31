@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
     RefreshControl,
     ScrollView,
@@ -16,6 +16,7 @@ import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
 import { routes } from '../../lib/navigation';
+import TaskCompletionModal from '../ui/TaskCompletionModal';
 
 export default function HomeScreen() {
   const { colors } = useTheme();
@@ -25,6 +26,9 @@ export default function HomeScreen() {
   const { onRefresh: vendorsRefresh } = useVendors();
   const [refreshing, setRefreshing] = useState(false);
   const [tasksToShow, setTasksToShow] = useState<3 | 5>(3);
+  const [completionModalVisible, setCompletionModalVisible] = useState(false);
+  const [selectedTaskForCompletion, setSelectedTaskForCompletion] = useState<any>(null);
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
 
@@ -41,39 +45,80 @@ export default function HomeScreen() {
     });
   };
 
-  const handleTaskComplete = async (taskId: string) => {
+  const handleTaskClick = useCallback((task: any) => {
+    if (task.status === 'completed') {
+      // If already completed, uncomplete it
+      handleTaskUncomplete(task.id);
+    } else {
+      // If not completed, show completion modal
+      setSelectedTaskForCompletion(task);
+      setCompletionModalVisible(true);
+    }
+  }, []);
+
+  const handleTaskUncomplete = useCallback(async (taskId: string) => {
     try {
-      // Find the task to get current status
-      const task = allTasks.find(t => t.id === taskId);
-      if (!task) {
-        console.error('Task not found:', taskId);
-        return;
+      setCompletingTaskId(taskId);
+      await completeTask(taskId, {
+        status: 'pending',
+        completed_by_type: null,
+        completed_at: null,
+        completion_verification_status: null,
+        completion_notes: null,
+        last_completed: null,
+        completion_date: null
+      });
+    } catch (error) {
+      console.error('Error uncompleting task:', error);
+    } finally {
+      setCompletingTaskId(null);
+    }
+  }, [completeTask]);
+
+  const handleTaskComplete = useCallback(async (completionData: {
+    notes: string;
+    completedBy: 'user' | 'vendor' | 'external';
+    externalName?: string;
+    vendorId?: string;
+  }) => {
+    if (!selectedTaskForCompletion) return;
+
+    try {
+      setCompletingTaskId(selectedTaskForCompletion.id);
+      
+      const completionPayload: any = {
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        completion_verification_status: 'verified',
+        completion_notes: completionData.notes || 'Completed from home screen',
+        completed_by_type: completionData.completedBy,
+      };
+
+      // Add specific completion details based on who completed it
+      if (completionData.completedBy === 'vendor' && completionData.vendorId) {
+        completionPayload.completed_by_vendor_id = completionData.vendorId;
+      } else if (completionData.completedBy === 'external' && completionData.externalName) {
+        completionPayload.completed_by_external_name = completionData.externalName;
+      } else {
+        completionPayload.completed_by_user_id = null; // Will be set by backend
       }
 
-      // If task is already completed, uncomplete it
-      if (task.status === 'completed') {
-        await completeTask(taskId, {
-          status: 'pending',
-          completed_by_type: null,
-          completed_at: null,
-          completion_verification_status: null,
-          completion_notes: null,
-          last_completed: null,
-          completion_date: null
-        });
-      } else {
-        // Complete the task
-        await completeTask(taskId, {
-          completed_by_type: 'user',
-          completed_at: new Date().toISOString(),
-          completion_verification_status: 'verified',
-          completion_notes: 'Completed from home screen'
-        });
-      }
+      await completeTask(selectedTaskForCompletion.id, completionPayload);
+      
+      // Close modal and reset state
+      setCompletionModalVisible(false);
+      setSelectedTaskForCompletion(null);
     } catch (error) {
       console.error('Error completing task:', error);
+    } finally {
+      setCompletingTaskId(null);
     }
-  };
+  }, [completeTask, selectedTaskForCompletion]);
+
+  const handleCancelCompletion = useCallback(() => {
+    setCompletionModalVisible(false);
+    setSelectedTaskForCompletion(null);
+  }, []);
 
   // Helper function to get the start and end of current week
   const getCurrentWeekRange = () => {
@@ -211,9 +256,13 @@ export default function HomeScreen() {
           {tasks.slice(0, tasksToShow).map((task, index) => (
             <View key={task.id || index} style={styles.taskItem}>
               <TouchableOpacity 
-                onPress={() => handleTaskComplete(task.id)}
-                style={styles.taskCheckbox}
+                onPress={() => handleTaskClick(task)}
+                style={[
+                  styles.taskCheckbox,
+                  { opacity: completingTaskId === task.id ? 0.6 : 1 }
+                ]}
                 activeOpacity={0.7}
+                disabled={completingTaskId === task.id}
               >
                 <Ionicons 
                   name={task.status === 'completed' ? "checkmark-circle" : "ellipse-outline"} 
@@ -309,7 +358,7 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={[styles.quickLinkButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push(routes.tasks.settings as any)}
+          onPress={() => router.push(routes.tasks.selector as any)}
         >
           <Ionicons name="checkbox" size={24} color={colors.text} />
           <Text style={[styles.quickLinkText, { color: colors.text }]}>Add Task</Text>
@@ -406,6 +455,15 @@ export default function HomeScreen() {
         </View>
       </View>
     </ScrollView>
+    
+    {/* Task Completion Modal */}
+    <TaskCompletionModal
+      visible={completionModalVisible}
+      task={selectedTaskForCompletion}
+      onComplete={handleTaskComplete}
+      onCancel={handleCancelCompletion}
+      isLoading={!!completingTaskId}
+    />
   </View>
 );
 }

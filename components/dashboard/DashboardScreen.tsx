@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalendar } from '../../lib/contexts/CalendarContext';
@@ -22,6 +22,7 @@ import { useAuth } from '../../lib/hooks/useAuth';
 import { routes } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 import { CalendarEvent } from '../../types/database';
+import TaskCompletionModal from '../ui/TaskCompletionModal';
 
 interface Task {
   id: string;
@@ -56,13 +57,16 @@ export default function DashboardScreen() {
   const { vendors, loading: vendorsLoading, onRefresh: vendorsRefresh } = useVendors();
   const { items: inventory, loading: inventoryLoading, onRefresh: inventoryRefresh } = useInventory();
   const [refreshing, setRefreshing] = useState(false);
+  const [completionModalVisible, setCompletionModalVisible] = useState(false);
+  const [selectedTaskForCompletion, setSelectedTaskForCompletion] = useState<any>(null);
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
-  // Get the latest 5 items from each context
-  const tasks = allTasks.slice(0, 5);
-  const recentEvents = events.slice(0, 5);
-  const recentVendors = vendors.slice(0, 5);
-  const recentInventory = inventory.slice(0, 5);
+  // Get the latest 5 items from each context - memoized for performance
+  const tasks = useMemo(() => allTasks.slice(0, 5), [allTasks]);
+  const recentEvents = useMemo(() => events.slice(0, 5), [events]);
+  const recentVendors = useMemo(() => vendors.slice(0, 5), [vendors]);
+  const recentInventory = useMemo(() => inventory.slice(0, 5), [inventory]);
 
   // Track task updates for real-time debugging
   useEffect(() => {
@@ -330,24 +334,90 @@ export default function DashboardScreen() {
     return grouped;
   };
 
-  const handleTaskComplete = async (taskId: string) => {
+  const handleTaskClick = useCallback((task: any) => {
+    if (task.status === 'completed') {
+      // If already completed, uncomplete it
+      handleTaskUncomplete(task.id);
+    } else {
+      // If not completed, show completion modal
+      setSelectedTaskForCompletion(task);
+      setCompletionModalVisible(true);
+    }
+  }, []);
+
+  const handleTaskUncomplete = useCallback(async (taskId: string) => {
     try {
+      setCompletingTaskId(taskId);
       await completeTask(taskId, {
-        completed_by_type: 'user',
-        completed_at: new Date().toISOString(),
-        completion_verification_status: 'verified',
-        completion_notes: 'Completed from dashboard'
+        status: 'pending',
+        completed_by_type: null,
+        completed_at: null,
+        completion_verification_status: null,
+        completion_notes: null
       });
     } catch (error) {
-      console.error('Error completing task:', error);
+      console.error('Error uncompleting task:', error);
+      Alert.alert('Error', 'Failed to uncomplete task. Please try again.');
+    } finally {
+      setCompletingTaskId(null);
     }
-  };
+  }, [completeTask]);
 
-  const renderTaskWithCheckbox = (task: any) => (
+  const handleTaskComplete = useCallback(async (completionData: {
+    notes: string;
+    completedBy: 'user' | 'vendor' | 'external';
+    externalName?: string;
+    vendorId?: string;
+  }) => {
+    if (!selectedTaskForCompletion) return;
+
+    try {
+      setCompletingTaskId(selectedTaskForCompletion.id);
+      
+      const completionPayload: any = {
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        completion_verification_status: 'verified',
+        completion_notes: completionData.notes || 'Completed from dashboard',
+        completed_by_type: completionData.completedBy,
+      };
+
+      // Add specific completion details based on who completed it
+      if (completionData.completedBy === 'vendor' && completionData.vendorId) {
+        completionPayload.completed_by_vendor_id = completionData.vendorId;
+      } else if (completionData.completedBy === 'external' && completionData.externalName) {
+        completionPayload.completed_by_external_name = completionData.externalName;
+      } else {
+        completionPayload.completed_by_user_id = null; // Will be set by backend
+      }
+
+      await completeTask(selectedTaskForCompletion.id, completionPayload);
+      
+      // Close modal and reset state
+      setCompletionModalVisible(false);
+      setSelectedTaskForCompletion(null);
+    } catch (error) {
+      console.error('Error completing task:', error);
+      Alert.alert('Error', 'Failed to complete task. Please try again.');
+    } finally {
+      setCompletingTaskId(null);
+    }
+  }, [completeTask, selectedTaskForCompletion]);
+
+  const handleCancelCompletion = useCallback(() => {
+    setCompletionModalVisible(false);
+    setSelectedTaskForCompletion(null);
+  }, []);
+
+  const renderTaskWithCheckbox = useCallback((task: any) => (
     <TouchableOpacity
       key={task.id}
-      style={styles.taskCheckboxItem}
-      onPress={() => handleTaskComplete(task.id)}
+      style={[
+        styles.taskCheckboxItem,
+        { opacity: completingTaskId === task.id ? 0.6 : 1 }
+      ]}
+      onPress={() => handleTaskClick(task)}
+      disabled={completingTaskId === task.id}
     >
       <View style={[
         styles.checkbox,
@@ -371,9 +441,9 @@ export default function DashboardScreen() {
         {task.title}
       </Text>
     </TouchableOpacity>
-  );
+  ), [colors, completingTaskId, handleTaskClick]);
 
-  const renderTaskCategory = (category: string, tasks: any[]) => (
+  const renderTaskCategory = useCallback((category: string, tasks: any[]) => (
     <View key={category} style={styles.taskCategorySection}>
       <View style={[styles.taskCategoryTitleContainer, { backgroundColor: colors.primaryLight }]}>
         <Text style={[styles.taskCategoryTitle, { color: colors.primary }]}>
@@ -382,7 +452,7 @@ export default function DashboardScreen() {
       </View>
       {tasks.map(renderTaskWithCheckbox)}
     </View>
-  );
+  ), [colors, renderTaskWithCheckbox]);
 
   const renderTasksSection = () => {
     const weekTasks = getTasksForThisWeek();
@@ -394,7 +464,7 @@ export default function DashboardScreen() {
       <View style={styles.tasksContainer}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Tasks</Text>
-          <TouchableOpacity onPress={() => router.push(routes.tasks.index as any)}>
+          <TouchableOpacity onPress={() => router.push(routes.tasks.selector as any)}>
             <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
           </TouchableOpacity>
         </View>
@@ -925,6 +995,15 @@ export default function DashboardScreen() {
           {renderRecentActivity()}
         </View>
       </ScrollView>
+      
+      {/* Task Completion Modal */}
+      <TaskCompletionModal
+        visible={completionModalVisible}
+        task={selectedTaskForCompletion}
+        onComplete={handleTaskComplete}
+        onCancel={handleCancelCompletion}
+        isLoading={!!completingTaskId}
+      />
     </View>
   );
 }

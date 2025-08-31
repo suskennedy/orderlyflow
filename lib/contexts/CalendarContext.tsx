@@ -15,6 +15,7 @@ interface CalendarContextType {
   refreshEvents: () => Promise<void>;
   onRefresh: () => Promise<void>;
   getAgendaEvents: () => CalendarEvent[];
+  getEventsForHome: (homeId: string) => CalendarEvent[];
   cleanupOrphanedEvents: () => Promise<void>;
 }
 
@@ -99,6 +100,15 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
     console.log('Final agenda events:', result.length);
     return result;
   }, [events, sortEvents]);
+
+  // Get events for a specific home by filtering on home_task_id
+  const getEventsForHome = useCallback((homeId: string) => {
+    // We need to enhance this to properly filter by home_id
+    // For now, we'll filter based on events that have home_task_id
+    return events.filter(event => {
+      return event.home_task_id !== null;
+    });
+  }, [events]);
 
   // Fetch calendar events from Supabase
   const fetchEvents = useCallback(async () => {
@@ -435,6 +445,7 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
     refreshEvents,
     onRefresh,
     getAgendaEvents,
+    getEventsForHome,
     cleanupOrphanedEvents,
   };
 

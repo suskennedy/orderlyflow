@@ -15,7 +15,7 @@ import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
-import { useHomes } from '../../lib/hooks/useHomes';
+
 
 // Define the four main categories from the database
 const DATABASE_CATEGORIES = [
@@ -44,11 +44,14 @@ const RECURRENCE_OPTIONS = [
   { label: 'Annually', value: 'annually' }
 ];
 
-export default function TaskSettingsScreen() {
+interface TaskSettingsScreenProps {
+  homeId?: string;
+}
+
+export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { tasks, addTask, updateTask } = useTasks();
-  const { homes } = useHomes();
+  const { tasks, addTask, updateTask, getTasksForHome, activateTaskForHome, deactivateTaskForHome } = useTasks();
   const { vendors } = useVendors();
   const { showToast } = useToast();
   
@@ -73,13 +76,11 @@ export default function TaskSettingsScreen() {
   }}>({});
 
   // Filter tasks: active tasks first, then completed tasks
-  const activeTasks = tasks
+  const homeSpecificTasks = homeId ? getTasksForHome(homeId) : [];
+  
+  const activeTasks = homeSpecificTasks
     .filter(task => 
-      task.is_active && task.status !== 'completed' && (
-        task.task_type === 'custom' || 
-        task.task_type === 'preset' || 
-        !task.task_type
-      )
+      task.is_active && task.status !== 'completed' && task.status !== 'template'
     )
     .sort((a, b) => {
       const dateA = a.next_due || a.due_date;
@@ -92,13 +93,9 @@ export default function TaskSettingsScreen() {
       return new Date(dateA).getTime() - new Date(dateB).getTime();
     });
 
-  const completedTasks = tasks
+  const completedTasks = homeSpecificTasks
     .filter(task => 
-      task.is_active && task.status === 'completed' && (
-        task.task_type === 'custom' || 
-        task.task_type === 'preset' || 
-        !task.task_type
-      )
+      task.status === 'completed'
     )
     .sort((a, b) => {
       const dateA = a.completed_at;
@@ -114,10 +111,6 @@ export default function TaskSettingsScreen() {
   // Separate custom tasks from predefined tasks
   const customTasks = tasks.filter(task => 
     task.task_type === 'custom' && task.is_active
-  );
-
-  const predefinedTasks = tasks.filter(task => 
-    (task.task_type === 'preset' || !task.task_type) && task.is_active
   );
 
   // Get tasks for each category from the database
@@ -164,6 +157,47 @@ export default function TaskSettingsScreen() {
     };
 
     return presetTasks[categoryName] || [];
+  };
+
+  // Helper function to remove duplicate tasks from database
+  const removeDuplicateTasks = async () => {
+    try {
+      // Group tasks by title to find duplicates
+      const tasksByTitle = tasks.reduce((acc, task) => {
+        if (!acc[task.title]) {
+          acc[task.title] = [];
+        }
+        acc[task.title].push(task);
+        return acc;
+      }, {} as {[key: string]: any[]});
+
+      // Find titles that have more than one task
+      const duplicateTitles = Object.keys(tasksByTitle).filter(title => tasksByTitle[title].length > 1);
+      
+      if (duplicateTitles.length > 0) {
+        console.log('Found duplicate task titles:', duplicateTitles);
+        
+        for (const title of duplicateTitles) {
+          const duplicateTasks = tasksByTitle[title];
+          // Keep the most recently created one, remove the rest
+          const sortedTasks = duplicateTasks.sort((a, b) => 
+            new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime()
+          );
+          const tasksToRemove = sortedTasks.slice(1); // Remove all but the first (most recent)
+          
+          console.log(`Removing ${tasksToRemove.length} duplicate(s) of "${title}"`);
+          
+          for (const task of tasksToRemove) {
+            await updateTask(task.id, { is_active: false });
+          }
+        }
+        
+        showToast(`Cleaned up ${duplicateTitles.length} duplicate task(s)`, 'success');
+      }
+    } catch (error) {
+      console.error('Error removing duplicate tasks:', error);
+      showToast('Failed to clean up duplicate tasks', 'error');
+    }
   };
 
   // Combine preset tasks with database tasks for each category
@@ -214,7 +248,7 @@ export default function TaskSettingsScreen() {
     const allActiveTaskNames = new Set([...activeTaskNames, ...activePresetTasks]);
     setSelectedTasks(allActiveTaskNames);
     console.log('Initialized selectedTasks with active tasks:', Array.from(allActiveTaskNames));
-  }, [tasks]);
+  }, [tasks, activeTasks]);
 
   const toggleCategory = (categoryName: string) => {
     setExpandedCategory(expandedCategory === categoryName ? null : categoryName);
@@ -265,27 +299,36 @@ export default function TaskSettingsScreen() {
   const toggleTask = async (task: any) => {
     console.log('Toggling task:', task);
     const taskName = task.name;
-    const existingTask = tasks.find(t => t.title === taskName);
+    const existingHomeTask = homeSpecificTasks.find(t => t.title === taskName);
+    const isCurrentlySelected = selectedTasks.has(taskName);
     
-    if (existingTask) {
-      // Task exists in database - toggle its active status
+    // Validate homeId is required
+    if (!homeId) {
+      showToast('Please select a home before managing tasks', 'error');
+      return;
+    }
+    
+    if (existingHomeTask) {
+      // Home task exists - toggle its active status
       try {
-        const newActiveStatus = !existingTask.is_active;
-        console.log(`Updating task ${taskName} active status from ${existingTask.is_active} to ${newActiveStatus}`);
-        
-        await updateTask(existingTask.id, { is_active: newActiveStatus });
-        
-        // Update local state to reflect the change immediately
-        if (newActiveStatus) {
-          setSelectedTasks(prev => new Set([...prev, taskName]));
-          showToast(`Task "${taskName}" activated successfully!`, 'success');
-        } else {
+        if (existingHomeTask.is_active) {
+          // Deactivate the home task
+          console.log(`Deactivating home task ${taskName}`);
+          await deactivateTaskForHome(homeId, existingHomeTask.id);
+          
           setSelectedTasks(prev => {
             const newSet = new Set(prev);
             newSet.delete(taskName);
             return newSet;
           });
           showToast(`Task "${taskName}" deactivated successfully!`, 'success');
+        } else {
+          // Reactivate the home task
+          console.log(`Reactivating home task ${taskName}`);
+          await activateTaskForHome(homeId, existingHomeTask.id);
+          
+          setSelectedTasks(prev => new Set([...prev, taskName]));
+          showToast(`Task "${taskName}" activated successfully!`, 'success');
         }
         
         console.log('Task status updated successfully');
@@ -294,28 +337,43 @@ export default function TaskSettingsScreen() {
         showToast('Failed to update task status. Please try again.', 'error');
       }
     } else {
-      // Task doesn't exist - create it as active (for preset tasks or new custom tasks)
-      console.log('Creating new task:', taskName);
-      try {
-        const taskData = {
-          title: task.name,
-          category: task.category || 'General',
-          subcategory: task.subcategory || null,
-          due_date: new Date().toISOString().split('T')[0],
-          is_recurring: false,
-          recurrence_pattern: null,
-          is_active: true,
-          task_type: task.isPreset ? 'preset' : 'custom',
-          suggested_frequency: task.suggestedFrequency
-        };
-
-        await addTask(taskData);
+      // Task doesn't exist in database - handle visual toggle and dropdown
+      if (isCurrentlySelected) {
+        // Task is currently selected but not saved - deactivate it
+        console.log('Deactivating unsaved task:', taskName);
+        setSelectedTasks(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(taskName);
+          return newSet;
+        });
+        
+        // Close the dropdown if open
+        setExpandedTasks(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(taskName);
+          return newSet;
+        });
+        
+        // Clear form data
+        setTaskForms(prev => {
+          const newForms = { ...prev };
+          delete newForms[taskName];
+          return newForms;
+        });
+        
+        showToast(`"${taskName}" deactivated`, 'info');
+      } else {
+        // Task is not selected - show dropdown for configuration before creating
+        console.log('Showing configuration dropdown for new task:', taskName);
+        
+        // Toggle the task to be selected (visually active)
         setSelectedTasks(prev => new Set([...prev, taskName]));
-        console.log('Task created successfully');
-        showToast(`Task "${taskName}" created successfully!`, 'success');
-      } catch (error) {
-        console.error('Error creating task:', error);
-        showToast('Failed to add task. Please try again.', 'error');
+        
+        // Open the dropdown for configuration
+        toggleTaskExpansion(taskName);
+        
+        // Show a helpful message
+        showToast(`Configure "${taskName}" settings and click Save to activate`, 'info');
       }
     }
   };
@@ -327,6 +385,12 @@ export default function TaskSettingsScreen() {
     
     if (!taskForm) {
       showToast('Task form not found', 'error');
+      return;
+    }
+    
+    // Validate homeId is required for new tasks
+    if (!existingTask && !homeId) {
+      showToast('Please select a home before adding tasks', 'error');
       return;
     }
 
@@ -352,10 +416,11 @@ export default function TaskSettingsScreen() {
           category: task.category || 'General',
           subcategory: task.subcategory || null,
           due_date: taskForm.due_date,
+          home_id: homeId, // Ensure home_id is set for the task
           is_recurring: taskForm.is_recurring,
           recurrence_pattern: taskForm.recurrence_pattern,
           is_active: taskForm.is_active,
-          task_type: 'preset',
+          task_type: task.isPreset ? 'preset' : 'custom',
           suggested_frequency: task.suggestedFrequency,
           assigned_vendor_id: taskForm.assigned_vendor_id || null,
           assigned_user_id: taskForm.assigned_user_id || null,
@@ -364,10 +429,26 @@ export default function TaskSettingsScreen() {
 
         await addTask(taskData);
         showToast('Task created successfully!', 'success');
+        
+        // Close the dropdown after successful creation
+        setExpandedTasks(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(taskName);
+          return newSet;
+        });
       }
     } catch (error) {
       console.error('Error saving task:', error);
       showToast('Failed to save task. Please try again.', 'error');
+      
+      // If task creation failed, remove from selected tasks
+      if (!existingTask) {
+        setSelectedTasks(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(taskName);
+          return newSet;
+        });
+      }
     }
   };
 
@@ -451,7 +532,7 @@ export default function TaskSettingsScreen() {
     setShowQuickOptions(false);
   };
 
-  const renderTaskItem = (task: any, category: string) => {
+  const renderTaskItem = (task: any, category: string, index: number) => {
     const isSelected = selectedTasks.has(task.name);
     const isExpanded = expandedTasks.has(task.name);
     const existingTask = tasks.find(t => t.title === task.name);
@@ -463,8 +544,11 @@ export default function TaskSettingsScreen() {
     // Determine if task is active (either in selectedTasks or existingTask.is_active is true)
     const isTaskActive = isSelected || (existingTask?.is_active === true);
     
+    // Create unique key using category, task name, and index to avoid duplicates
+    const uniqueKey = existingTask?.id || `${category}-${task.name}-${index}`;
+    
     return (
-      <View key={task.name} style={styles.taskItem}>
+      <View key={uniqueKey} style={styles.taskItem}>
         <TouchableOpacity
           style={[styles.taskCard, { backgroundColor: colors.surface }]}
           onPress={() => toggleTaskExpansion(task.name)}
@@ -681,7 +765,7 @@ export default function TaskSettingsScreen() {
         <Text style={[styles.headerTitle, { color: colors.text }]}>Tasks</Text>
         <TouchableOpacity
           style={[styles.quickOptionsButton, { backgroundColor: colors.primary }]}
-          onPress={() => router.push('/(tabs)/(tasks)/add' as any)}
+          onPress={() => router.push(homeId ? `/(tabs)/(home)/${homeId}/tasks/add` : '/(tabs)/(tasks)' as any)}
         >
           <Ionicons name="add" size={20} color={colors.background} />
         </TouchableOpacity>
@@ -721,14 +805,14 @@ export default function TaskSettingsScreen() {
             {/* Task Cards - Show directly under category when expanded */}
             {expandedCategory === category && (
               <View style={styles.taskCardsContainer}>
-                {getCombinedTasksForCategory(category).map((task) => renderTaskItem({
+                {getCombinedTasksForCategory(category).map((task, index) => renderTaskItem({
                   name: task.name,
                   suggestedFrequency: task.suggestedFrequency,
                   category: task.category || 'General',
                   subcategory: task.subcategory || null,
                   isPreset: task.isPreset,
                   databaseTask: task.databaseTask
-                }, category))}
+                }, category, index))}
               </View>
             )}
           </View>
@@ -763,12 +847,14 @@ export default function TaskSettingsScreen() {
             {/* Custom Task Cards - Show directly under category when expanded */}
             {expandedCategory === 'Custom Tasks' && (
               <View style={styles.taskCardsContainer}>
-                {customTasks.map((task) => renderTaskItem({
+                {customTasks.map((task, index) => renderTaskItem({
                   name: task.title,
                   suggestedFrequency: task.recurrence_pattern ? `Every ${task.recurrence_pattern}` : 'One-time',
                   category: task.category || 'Custom',
-                  subcategory: task.subcategory || null
-                }, 'Custom Tasks'))}
+                  subcategory: task.subcategory || null,
+                  isPreset: false,
+                  databaseTask: task
+                }, 'Custom Tasks', index))}
               </View>
             )}
           </View>
@@ -799,6 +885,7 @@ export default function TaskSettingsScreen() {
               + Make a List
             </Text>
           </TouchableOpacity>
+        
         </View>
       </ScrollView>
 

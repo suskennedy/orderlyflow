@@ -72,10 +72,7 @@ export interface HomeTask {
 }
 
 // Combined type for UI that includes template data with home-specific data
-export interface TaskItem extends Omit<TaskTemplate, 'status'> {
-  // Override status to allow both template and home task statuses
-  status: 'template' | 'pending' | 'completed' | 'in_progress' | 'cancelled' | string | null;
-  
+export interface TaskItem extends TaskTemplate {
   // Home-specific task data from junction table
   home_task_id?: string;
   home_id?: string;
@@ -149,7 +146,84 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Helper function to create recurring calendar events
+  // Helper function to create calendar events from tasks
+  const createCalendarEventFromTask = useCallback(async (task: TaskItem, homeTaskId?: string) => {
+    if (!user?.id) {
+      console.log('Skipping calendar event creation - no user ID');
+      return;
+    }
+
+    try {
+      // Use due_date if available, otherwise use created_at as fallback
+      const eventDate = task.due_date || task.created_at?.split('T')[0];
+      if (!eventDate) {
+        console.log('Skipping calendar event creation - no due date or created date');
+        return;
+      }
+      
+      console.log('Creating calendar event for task:', task.title, 'on date:', eventDate);
+      
+      // Check if calendar event already exists for this home task
+      const { data: existingEvents } = await supabase
+        .from('calendar_events')
+        .select('id')
+        .eq('home_task_id', homeTaskId)
+        .eq('user_id', user.id);
+
+      if (existingEvents && existingEvents.length > 0) {
+        console.log('Calendar event already exists for home task:', homeTaskId);
+        return;
+      }
+      
+      // Determine event color based on priority
+      const getEventColor = (priority: string | null) => {
+        switch (priority?.toLowerCase()) {
+          case 'urgent': return 'red';
+          case 'high': return 'orange';
+          case 'medium': return 'blue';
+          case 'low': return 'green';
+          default: return 'gray';
+        }
+      };
+
+      const eventColor = getEventColor(task.priority as string);
+
+      // Create the base calendar event
+      const calendarEvent = {
+        title: `Task: ${task.title}`,
+        description: task.description || `Task: ${task.title}${task.notes ? `\n\nNotes: ${task.notes}` : ''}`,
+        start_time: `${eventDate}T09:00:00`, // Default to 9 AM
+        end_time: `${eventDate}T10:00:00`,   // Default to 10 AM
+        location: null,
+        color: eventColor,
+        all_day: false,
+        task_id: task.id,
+        home_task_id: homeTaskId,
+        user_id: user.id,
+        is_recurring: task.is_recurring || false,
+        recurrence_pattern: task.recurrence_pattern || null,
+        recurrence_end_date: task.recurrence_end_date || null,
+      };
+
+      // Insert the calendar event
+      const { error } = await supabase
+        .from('calendar_events')
+        .insert([calendarEvent]);
+
+      if (error) {
+        console.error('Error creating calendar event for task:', error);
+      }
+
+      // If it's a recurring task, create recurring events
+      if (task.is_recurring && task.recurrence_pattern) {
+        await createRecurringCalendarEvents(task, eventColor, homeTaskId);
+      }
+    } catch (error) {
+      console.error('Error creating calendar events for task:', error);
+    }
+  }, [user]);
+
+  // Helper function to create recurring calendar events  
   const createRecurringCalendarEvents = useCallback(async (task: TaskItem, eventColor: string, homeTaskId?: string) => {
     if (!task.is_recurring || !task.recurrence_pattern || !user?.id) {
       return;
@@ -233,83 +307,6 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
     }
   }, [user]);
 
-  // Helper function to create calendar events from tasks
-  const createCalendarEventFromTask = useCallback(async (task: TaskItem, homeTaskId?: string) => {
-    if (!user?.id) {
-      console.log('Skipping calendar event creation - no user ID');
-      return;
-    }
-
-    try {
-      // Use due_date if available, otherwise use created_at as fallback
-      const eventDate = task.due_date || task.created_at?.split('T')[0];
-      if (!eventDate) {
-        console.log('Skipping calendar event creation - no due date or created date');
-        return;
-      }
-      
-      console.log('Creating calendar event for task:', task.title, 'on date:', eventDate);
-      
-      // Check if calendar event already exists for this home task
-      const { data: existingEvents } = await supabase
-        .from('calendar_events')
-        .select('id')
-        .eq('home_task_id', homeTaskId as string)
-        .eq('user_id', user.id);
-
-      if (existingEvents && existingEvents.length > 0) {
-        console.log('Calendar event already exists for home task:', homeTaskId);
-        return;
-      }
-      
-      // Determine event color based on priority
-      const getEventColor = (priority: string | null) => {
-        switch (priority?.toLowerCase()) {
-          case 'urgent': return 'red';
-          case 'high': return 'orange';
-          case 'medium': return 'blue';
-          case 'low': return 'green';
-          default: return 'gray';
-        }
-      };
-
-      const eventColor = getEventColor(task.priority as string);
-
-      // Create the base calendar event
-      const calendarEvent = {
-        title: `Task: ${task.title}`,
-        description: task.description || `Task: ${task.title}${task.notes ? `\n\nNotes: ${task.notes}` : ''}`,
-        start_time: `${eventDate}T09:00:00`, // Default to 9 AM
-        end_time: `${eventDate}T10:00:00`,   // Default to 10 AM
-        location: null,
-        color: eventColor,
-        all_day: false,
-        task_id: task.id,
-        home_task_id: homeTaskId,
-        user_id: user.id,
-        is_recurring: task.is_recurring || false,
-        recurrence_pattern: task.recurrence_pattern || null,
-        recurrence_end_date: task.recurrence_end_date || null,
-      };
-
-      // Insert the calendar event
-      const { error } = await supabase
-        .from('calendar_events')
-        .insert([calendarEvent]);
-
-      if (error) {
-        console.error('Error creating calendar event for task:', error);
-      }
-
-      // If it's a recurring task, create recurring events
-      if (task.is_recurring && task.recurrence_pattern) {
-        await createRecurringCalendarEvents(task, eventColor, homeTaskId);
-      }
-    } catch (error) {
-      console.error('Error creating calendar events for task:', error);
-    }
-  }, [user, createRecurringCalendarEvents]);
-
   // Fetch tasks with home-specific data
   const fetchTasks = useCallback(async () => {
     if (!user?.id) return;
@@ -343,31 +340,27 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       }
       
       // Combine template and home task data
-      const combinedTasks: TaskItem[] = (homeTasksData || []).map(homeTask => {
-        const taskTemplate = homeTask.tasks;
-        return {
-          ...taskTemplate,
-          // Override with home-specific data
-          home_task_id: homeTask.id,
-          home_id: homeTask.home_id,
-          is_active: homeTask.is_active,
-          assigned_vendor_id: homeTask.assigned_vendor_id,
-          assigned_user_id: homeTask.assigned_user_id,
-          due_date: homeTask.due_date,
-          next_due: homeTask.next_due,
-          notes: homeTask.notes || taskTemplate.notes, // Use home task notes if available, fallback to template
-          status: homeTask.status || 'pending', // Use home task status, fallback to pending
-          completed_at: homeTask.completed_at,
-          completion_notes: homeTask.completion_notes,
-          completed_by_type: homeTask.completed_by_type,
-          completed_by_vendor_id: homeTask.completed_by_vendor_id,
-          completed_by_user_id: homeTask.completed_by_user_id,
-          completed_by_external_name: homeTask.completed_by_external_name,
-          completion_verification_status: homeTask.completion_verification_status,
-          last_completed: homeTask.last_completed,
-          task_history: []
-        } as TaskItem;
-      });
+      const combinedTasks: TaskItem[] = (homeTasksData || []).map(homeTask => ({
+        ...homeTask.tasks,
+        home_task_id: homeTask.id,
+        home_id: homeTask.home_id,
+        is_active: homeTask.is_active,
+        assigned_vendor_id: homeTask.assigned_vendor_id,
+        assigned_user_id: homeTask.assigned_user_id,
+        due_date: homeTask.due_date,
+        next_due: homeTask.next_due,
+        notes: homeTask.notes,
+        status: homeTask.status,
+        completed_at: homeTask.completed_at,
+        completion_notes: homeTask.completion_notes,
+        completed_by_type: homeTask.completed_by_type,
+        completed_by_vendor_id: homeTask.completed_by_vendor_id,
+        completed_by_user_id: homeTask.completed_by_user_id,
+        completed_by_external_name: homeTask.completed_by_external_name,
+        completion_verification_status: homeTask.completion_verification_status,
+        last_completed: homeTask.last_completed,
+        task_history: []
+      }));
       
       setTasks(combinedTasks);
       
@@ -419,15 +412,12 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       // Create calendar event for the activated task
       const template = templates.find(t => t.id === taskId);
       if (template) {
-        // Create a TaskItem from template and homeTaskData for calendar creation
-        const taskItem: TaskItem = {
+        await createCalendarEventFromTask({
           ...template,
           ...homeTaskData,
           home_task_id: data.id,
-          home_id: homeId,
-          status: 'template' as const // Ensure status is properly typed
-        };
-        await createCalendarEventFromTask(taskItem, data.id);
+          home_id: homeId
+        }, data.id);
       }
     } catch (error) {
       console.error('Error activating task for home:', error);
@@ -527,12 +517,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
 
       if (error) throw error;
 
-      // Add to templates (ensure the data matches TaskTemplate type)
-      const newTemplate: TaskTemplate = {
-        ...data,
-        status: 'template' as const
-      };
-      setTemplates(current => [newTemplate, ...current]);
+      // Add to templates
+      setTemplates(current => [data, ...current]);
     } catch (error) {
       console.error('Error adding task:', error);
       throw error;
@@ -554,19 +540,9 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
 
       if (error) throw error;
 
-      // Update templates (ensure type compatibility)
+      // Update templates
       setTemplates(current =>
-        current.map(template => {
-          if (template.id === taskId) {
-            const updatedTemplate: TaskTemplate = {
-              ...template,
-              ...updates,
-              status: 'template' as const // Ensure status remains 'template'
-            };
-            return updatedTemplate;
-          }
-          return template;
-        })
+        current.map(template => template.id === taskId ? { ...template, ...updates } : template)
       );
       
       // Update tasks array
@@ -613,10 +589,10 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         completed_at: completionData.completed_at || new Date().toISOString(),
         completion_notes: completionData.completion_notes || completionData.notes,
         completed_by_type: completionData.completed_by_type,
-          completed_by_vendor_id: completionData.completed_by_vendor_id || null,
+        completed_by_vendor_id: completionData.completed_by_vendor_id || null,
         completed_by_user_id: completionData.completed_by_user_id || null,
-          completed_by_external_name: completionData.completed_by_external_name || null,
-          completion_verification_status: completionData.completion_verification_status || 'verified',
+        completed_by_external_name: completionData.completed_by_external_name || null,
+        completion_verification_status: completionData.completion_verification_status || 'verified',
         last_completed: completionData.completed_at || new Date().toISOString(),
         is_active: completionData.is_active !== undefined ? completionData.is_active : false,
       };
@@ -627,11 +603,11 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       const task = tasks.find(t => t.home_task_id === homeTaskId);
       if (task && task.is_recurring && task.recurrence_pattern && updates.status === 'completed') {
         // Create next occurrence
-        const nextDueDate = calculateNextDueDate(task.due_date || null, task.recurrence_pattern);
-          if (nextDueDate) {
+        const nextDueDate = calculateNextDueDate(task.due_date, task.recurrence_pattern);
+        if (nextDueDate) {
           await activateTaskForHome(task.home_id!, task.id, {
-              due_date: nextDueDate,
-              next_due: nextDueDate,
+            due_date: nextDueDate,
+            next_due: nextDueDate,
             assigned_vendor_id: task.assigned_vendor_id,
             assigned_user_id: task.assigned_user_id,
             notes: task.notes,
@@ -703,8 +679,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
   }, [user?.id, fetchTasks, fetchTemplates]);
 
   // Set up real-time subscriptions
-  useRealTimeSubscription({ table: 'home_tasks' }, fetchTasks);
-  useRealTimeSubscription({ table: 'tasks' }, fetchTemplates);
+  useRealTimeSubscription('home_tasks', fetchTasks);
+  useRealTimeSubscription('tasks', fetchTemplates);
 
   const value = {
     tasks,
@@ -729,4 +705,4 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       {children}
     </TasksContext.Provider>
   );
-}; 
+};

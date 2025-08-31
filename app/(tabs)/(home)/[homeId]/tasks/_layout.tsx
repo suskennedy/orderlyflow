@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import React from 'react';
-import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useTheme } from '../../../../../lib/contexts/ThemeContext';
 
 export default function TasksLayout() {
   const { colors } = useTheme();
@@ -21,6 +21,18 @@ export default function TasksLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="settings"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="add"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
-} 
+}

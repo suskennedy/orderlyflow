@@ -20,6 +20,7 @@ export default function HomeDetailLayout() {
       <Stack.Screen name="warranties" />
       <Stack.Screen name="materials" />
       <Stack.Screen name="filters" />
+      <Stack.Screen name="tasks" />
     </Stack>
   );
 } 

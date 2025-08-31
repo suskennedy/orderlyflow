@@ -52,12 +52,18 @@ export const routes = {
     warranties: (homeId: string) => `/(tabs)/(home)/${homeId}/warranties`,
     addWarranty: (homeId: string) => `/(tabs)/(home)/${homeId}/warranties/add`,
     editWarranty: (homeId: string, warrantyId: string) => `/(tabs)/(home)/${homeId}/warranties/${warrantyId}/edit`,
+    // Task routes within home
+    tasks: (homeId: string) => `/(tabs)/(home)/${homeId}/tasks`,
+    addTask: (homeId: string) => `/(tabs)/(home)/${homeId}/tasks/add`,
+    taskSettings: (homeId: string) => `/(tabs)/(home)/${homeId}/tasks/settings`,
   },
   
-  // Task routes
+  // Task routes - now home-specific
   tasks: {
-    index: '/(tabs)/(tasks)',
-    settings: '/(tabs)/(tasks)/settings',
+    selector: '/(tabs)/(tasks)', // Home selector screen
+    homeIndex: (homeId: string) => `/(tabs)/(home)/${homeId}/tasks`,
+    add: (homeId: string) => `/(tabs)/(home)/${homeId}/tasks/add`,
+    settings: (homeId: string) => `/(tabs)/(home)/${homeId}/tasks/settings`,
   },
   
   // Vendor routes

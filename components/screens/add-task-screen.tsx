@@ -1,25 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import DatePicker from '../DatePicker';
+import TaskSpinner from '../ui/TaskSpinner';
 
 const TASK_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'];
 const TASK_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
@@ -34,17 +36,16 @@ const TASK_CATEGORIES = [
   'Other',
 ];
 
-interface Home {
-  id: string;
-  name: string;
+interface AddTaskScreenProps {
+  homeId?: string;
 }
 
-export default function AddTaskScreen() {
+export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const { addTask } = useTasks();
+  const { homes } = useHomes();
   const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
-  const [homes, setHomes] = useState<Home[]>([]);
   
   // Redirect if not authenticated
   useEffect(() => {
@@ -61,120 +62,56 @@ export default function AddTaskScreen() {
     priority: 'Medium',
     status: 'Pending',
     due_date: '',
-    home_id: '',
+    home_id: homeId || '',
     is_recurring: false,
     recurrence_pattern: '',
     recurrence_end_date: '',
     notes: '',
   });
+
+  // Validation states
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
   
-  const fetchHomes = async () => {
-    try {
-      // Make sure we have a valid user ID
-      if (!user?.id) {
-        console.log('No user ID available, skipping homes fetch');
-        return;
-      }
-      
-      console.log('Fetching homes for user:', user.id);
-      const { data, error } = await supabase
-      .from('homes')
-      .select('id, name')
-      .eq('user_id', user.id)
-      .order('name');
-      
-      if (error) throw error;
-      setHomes(data || []);
-    } catch (error) {
-      console.error('Error fetching homes:', error);
+  // Memoized validation
+  const validateForm = useCallback(() => {
+    const newErrors: {[key: string]: string} = {};
+
+    if (!formData.title.trim()) {
+      newErrors.title = 'Task title is required';
     }
-  };
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchHomes();
+    if (!formData.home_id) {
+      newErrors.home_id = 'Please select a home for this task';
     }
-  }, [user]);
 
-  // Helper function to create calendar events for tasks
-  const createCalendarEventsForTask = async (taskData: {
-    id: string;
-    title: string;
-    description?: string | null;
-    priority: string | null;
-    due_date?: string | null;
-    is_recurring?: boolean | null;
-    recurrence_pattern?: string | null;
-    recurrence_end_date?: string | null;
-    notes?: string | null;
-  }) => {
-    if (!user?.id) return;
+    if (formData.is_recurring && !formData.recurrence_pattern.trim()) {
+      newErrors.recurrence_pattern = 'Please specify recurrence pattern';
+    }
 
-    try {
-      // Use today's date if no due date is provided
-      const eventDate = taskData.due_date || new Date().toISOString().split('T')[0];
+    if (formData.due_date && formData.recurrence_end_date) {
+      const dueDate = new Date(formData.due_date);
+      const endDate = new Date(formData.recurrence_end_date);
       
-      // Check if calendar event already exists for this task
-      const { data: existingEvents } = await supabase
-        .from('calendar_events')
-        .select('id')
-        .eq('task_id', taskData.id)
-        .eq('user_id', user.id);
-
-      if (existingEvents && existingEvents.length > 0) {
-        console.log('Calendar event already exists for task:', taskData.id);
-        return;
+      if (endDate < dueDate) {
+        newErrors.recurrence_end_date = 'End date must be after due date';
       }
-
-      // Determine event color based on priority
-      const getEventColor = (priority: string | null) => {
-        switch (priority?.toLowerCase()) {
-          case 'urgent': return 'red';
-          case 'high': return 'orange';
-          case 'medium': return 'blue';
-          case 'low': return 'green';
-          default: return 'gray';
-        }
-      };
-
-      const eventColor = getEventColor(taskData.priority);
-
-      // Create the base calendar event
-      const calendarEvent = {
-        title: `Task: ${taskData.title}`,
-        description: taskData.description || `Task: ${taskData.title}${taskData.notes ? `\n\nNotes: ${taskData.notes}` : ''}`,
-        start_time: `${eventDate}T09:00:00`, // Default to 9 AM
-        end_time: `${eventDate}T10:00:00`,   // Default to 10 AM
-        location: null,
-        color: eventColor,
-        all_day: false,
-        task_id: taskData.id,
-        user_id: user.id,
-        is_recurring: taskData.is_recurring || false,
-        recurrence_pattern: taskData.recurrence_pattern || null,
-        recurrence_end_date: taskData.recurrence_end_date || null,
-      };
-
-      // Insert the calendar event
-      const { error } = await supabase
-        .from('calendar_events')
-        .insert([calendarEvent]);
-
-      if (error) {
-        console.error('Error creating calendar event for task:', error);
-      }
-
-      // If it's a recurring task, create recurring events
-      if (taskData.is_recurring && taskData.recurrence_pattern) {
-        await createRecurringCalendarEvents(taskData, eventColor);
-      }
-    } catch (error) {
-      console.error('Error creating calendar events for task:', error);
     }
-  };
 
-  // Helper function to create recurring calendar events
-  const createRecurringCalendarEvents = async (taskData: {
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [formData]);
+
+  // Memoized form field updater
+  const updateFormField = useCallback((field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error for this field when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  }, [errors]);
+
+  // Helper function to create recurring calendar events  
+  const createRecurringCalendarEvents = useCallback(async (taskData: {
     id: string;
     title: string;
     description?: string | null;
@@ -294,107 +231,163 @@ export default function AddTaskScreen() {
     } catch (error) {
       console.error('Error creating recurring calendar events:', error);
     }
-  };
+  }, [user]);
 
-  const handleSave = async () => {
+  // Helper function to create calendar events for tasks
+  const createCalendarEventsForTask = useCallback(async (taskData: {
+    id: string;
+    title: string;
+    description?: string | null;
+    priority: string | null;
+    due_date?: string | null;
+    is_recurring?: boolean | null;
+    recurrence_pattern?: string | null;
+    recurrence_end_date?: string | null;
+    notes?: string | null;
+  }) => {
+    if (!user?.id) return;
+
+    try {
+      // Use today's date if no due date is provided
+      const eventDate = taskData.due_date || new Date().toISOString().split('T')[0];
+      
+      // Check if calendar event already exists for this task
+      const { data: existingEvents } = await supabase
+        .from('calendar_events')
+        .select('id')
+        .eq('task_id', taskData.id)
+        .eq('user_id', user.id);
+
+      if (existingEvents && existingEvents.length > 0) {
+        console.log('Calendar event already exists for task:', taskData.id);
+        return;
+      }
+
+      // Determine event color based on priority
+      const getEventColor = (priority: string | null) => {
+        switch (priority?.toLowerCase()) {
+          case 'urgent': return 'red';
+          case 'high': return 'orange';
+          case 'medium': return 'blue';
+          case 'low': return 'green';
+          default: return 'gray';
+        }
+      };
+
+      const eventColor = getEventColor(taskData.priority);
+
+      // Create the base calendar event
+      const calendarEvent = {
+        title: `Task: ${taskData.title}`,
+        description: taskData.description || `Task: ${taskData.title}${taskData.notes ? `\n\nNotes: ${taskData.notes}` : ''}`,
+        start_time: `${eventDate}T09:00:00`, // Default to 9 AM
+        end_time: `${eventDate}T10:00:00`,   // Default to 10 AM
+        location: null,
+        color: eventColor,
+        all_day: false,
+        task_id: taskData.id,
+        user_id: user.id,
+        is_recurring: taskData.is_recurring || false,
+        recurrence_pattern: taskData.recurrence_pattern || null,
+        recurrence_end_date: taskData.recurrence_end_date || null,
+      };
+
+      // Insert the calendar event
+      const { error } = await supabase
+        .from('calendar_events')
+        .insert([calendarEvent]);
+
+      if (error) {
+        console.error('Error creating calendar event for task:', error);
+      }
+
+      // If it's a recurring task, create recurring events
+      if (taskData.is_recurring && taskData.recurrence_pattern) {
+        await createRecurringCalendarEvents(taskData, eventColor);
+      }
+    } catch (error) {
+      console.error('Error creating calendar events for task:', error);
+    }
+  }, [user, createRecurringCalendarEvents]);
+
+  const handleSave = useCallback(async () => {
     // Check if user is authenticated
     if (!user?.id) {
       Alert.alert('Error', 'You must be logged in to add tasks');
       return;
     }
-    
-    if (!formData.title.trim()) {
-      Alert.alert('Error', 'Please enter a task title');
+
+    // Validate form
+    if (!validateForm()) {
+      const firstError = Object.values(errors)[0];
+      if (firstError) {
+        Alert.alert('Validation Error', firstError);
+      }
       return;
     }
-    
-    // Only validate recurrence pattern if recurring
-    if (formData.is_recurring) {
-      if (!formData.recurrence_pattern || formData.recurrence_pattern.trim() === '') {
-        Alert.alert('Error', 'Please specify a recurrence pattern for recurring tasks');
-        return;
-      }
-      
-      // If due date and recurrence end date are provided, make sure end date is after due date
-      if (formData.due_date && formData.recurrence_end_date) {
-        const dueDate = new Date(formData.due_date);
-        const endDate = new Date(formData.recurrence_end_date);
-        
-        if (endDate < dueDate) {
-          Alert.alert('Error', 'Recurrence end date must be after the due date');
-          return;
-        }
-      }
-    }
-    
+
     setLoading(true);
     try {
-      // Create the task object
-      const newTask = {
-        id: Date.now().toString(), // Temporary ID, will be replaced by Supabase
+      // Create the task object for database
+      const taskData = {
         title: formData.title.trim(),
         description: formData.description ? formData.description.trim() : null,
         category: formData.category || null,
         priority: formData.priority,
-        status: formData.status,
+        status: 'pending', // Always start as pending
         due_date: formData.due_date || null,
-        home_id: formData.home_id || null,
+        home_id: formData.home_id, // This is now required and validated
         is_recurring: formData.is_recurring,
         recurrence_pattern: formData.is_recurring && formData.recurrence_pattern ? formData.recurrence_pattern.trim() : null,
         recurrence_end_date: formData.is_recurring && formData.recurrence_end_date ? formData.recurrence_end_date : null,
         notes: formData.notes ? formData.notes.trim() : null,
-        user_id: user?.id,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        user_id: user.id,
+        created_by: user.id,
+        is_active: true,
+        next_due: formData.due_date || null,
       };
 
-      // Immediately add to local state for UI update
-      addTask(newTask);
+      // Save to database first
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert([taskData])
+        .select()
+        .single();
 
-      // Then save to Supabase
-      const { data, error } = await supabase.from('tasks').insert([
-        {
-          title: formData.title.trim(),
-          description: formData.description ? formData.description.trim() : null,
-          category: formData.category || null,
-          priority: formData.priority,
-          status: formData.status,
-          due_date: formData.due_date || null,
-          home_id: formData.home_id || null,
-          is_recurring: formData.is_recurring,
-          recurrence_pattern: formData.is_recurring && formData.recurrence_pattern ? formData.recurrence_pattern.trim() : null,
-          recurrence_end_date: formData.is_recurring && formData.recurrence_end_date ? formData.recurrence_end_date : null,
-          notes: formData.notes ? formData.notes.trim() : null,
-          user_id: user?.id,
-        },
-      ]).select();
-
-      if (error) throw error;
-
-      // Create calendar events for the new task
-      if (data && data[0]) {
-        await createCalendarEventsForTask(data[0]);
+      if (error) {
+        console.error('Database error:', error);
+        throw new Error(error.message || 'Failed to save task to database');
       }
 
-      // Navigate back - note we don't need to alert since UI already updated
-      router.back();
+      // If successful, add to local state
+      if (data) {
+        // Convert the database response to match TaskItem interface
+        const taskItem = {
+          ...data,
+          is_active: data.is_active ?? true, // Convert null to boolean
+        };
+        addTask(taskItem);
+        
+        // Create calendar events for the new task
+        try {
+          await createCalendarEventsForTask(data);
+        } catch (calendarError) {
+          console.warn('Failed to create calendar events:', calendarError);
+          // Don't fail the whole operation for calendar errors
+        }
+
+        // Show success and navigate back
+        Alert.alert('Success', 'Task created successfully!', [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
+      }
     } catch (error: any) {
       console.error('Error adding task:', error);
-      Alert.alert('Error', `Failed to add task: ${error.message || 'Unknown error'}`);
+      Alert.alert('Error', `Failed to create task: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'Low': return '#10B981';
-      case 'Medium': return '#F59E0B';
-      case 'High': return '#EF4444';
-      case 'Urgent': return '#DC2626';
-      default: return '#6B7280';
-    }
-  };
+  }, [user, formData, validateForm, errors, addTask, createCalendarEventsForTask]);
 
   return (
     <KeyboardAvoidingView 
@@ -443,9 +436,14 @@ export default function AddTaskScreen() {
               }]}
               placeholder="e.g., Fix leaky faucet in kitchen"
               value={formData.title}
-              onChangeText={(text) => setFormData({ ...formData, title: text })}
+              onChangeText={(text) => updateFormField('title', text)}
               placeholderTextColor={colors.textTertiary}
             />
+            {errors.title && (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {errors.title}
+              </Text>
+            )}
           </View>
           
           <View style={styles.inputGroup}>
@@ -458,7 +456,7 @@ export default function AddTaskScreen() {
               }]}
               placeholder="Detailed description of the task..."
               value={formData.description}
-              onChangeText={(text) => setFormData({ ...formData, description: text })}
+              onChangeText={(text) => updateFormField('description', text)}
               placeholderTextColor={colors.textTertiary}
               multiline
               numberOfLines={3}
@@ -473,7 +471,7 @@ export default function AddTaskScreen() {
             }]}>
               <Picker
                 selectedValue={formData.category}
-                onValueChange={(itemValue) => setFormData({ ...formData, category: itemValue })}
+                onValueChange={(itemValue) => updateFormField('category', itemValue)}
                 style={[styles.picker, { color: colors.text }]}
               >
                 <Picker.Item label="Select a category..." value="" />
@@ -496,7 +494,7 @@ export default function AddTaskScreen() {
               }]}>
                 <Picker
                   selectedValue={formData.priority}
-                  onValueChange={(itemValue) => setFormData({ ...formData, priority: itemValue })}
+                  onValueChange={(itemValue) => updateFormField('priority', itemValue)}
                   style={[styles.picker, { color: colors.text }]}
                 >
                   {TASK_PRIORITIES.map((priority) => (
@@ -513,7 +511,7 @@ export default function AddTaskScreen() {
               }]}>
                 <Picker
                   selectedValue={formData.status}
-                  onValueChange={(itemValue) => setFormData({ ...formData, status: itemValue })}
+                  onValueChange={(itemValue) => updateFormField('status', itemValue)}
                   style={[styles.picker, { color: colors.text }]}
                 >
                   {TASK_STATUSES.map((status) => (
@@ -528,7 +526,7 @@ export default function AddTaskScreen() {
               label="Due Date"
               value={formData.due_date}
               placeholder="Select a due date"
-              onChange={(dateString: string | null) => setFormData({ ...formData, due_date: dateString || '' })}
+              onChange={(dateString: string | null) => updateFormField('due_date', dateString || '')}
               helperText="When this task should be completed (will appear in calendar)"
               isOptional={true}
               testID="due-date-picker"
@@ -543,7 +541,7 @@ export default function AddTaskScreen() {
             }]}>
               <Picker
                 selectedValue={formData.home_id}
-                onValueChange={(itemValue) => setFormData({ ...formData, home_id: itemValue })}
+                onValueChange={(itemValue) => updateFormField('home_id', itemValue)}
                 style={[styles.picker, { color: colors.text }]}
               >
                 <Picker.Item label="Select a home..." value="" />
@@ -552,6 +550,11 @@ export default function AddTaskScreen() {
                 ))}
               </Picker>
             </View>
+            {errors.home_id && (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {errors.home_id}
+              </Text>
+            )}
           </View>
         </View>
 
@@ -561,7 +564,7 @@ export default function AddTaskScreen() {
             <Text style={[styles.switchLabel, { color: colors.textSecondary }]}>Make this a recurring task</Text>
             <Switch
               value={formData.is_recurring}
-              onValueChange={(value) => setFormData({ ...formData, is_recurring: value })}
+              onValueChange={(value) => updateFormField('is_recurring', value)}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={formData.is_recurring ? colors.textInverse : colors.surface}
             />
@@ -577,7 +580,7 @@ export default function AddTaskScreen() {
                 }]}>
                   <Picker
                     selectedValue={formData.recurrence_pattern}
-                    onValueChange={(itemValue) => setFormData({ ...formData, recurrence_pattern: itemValue })}
+                    onValueChange={(itemValue) => updateFormField('recurrence_pattern', itemValue)}
                     style={[styles.picker, { color: colors.text }]}
                   >
                     <Picker.Item label="Select a recurrence pattern..." value="" />
@@ -590,13 +593,18 @@ export default function AddTaskScreen() {
                     <Picker.Item label="Annually" value="Annually" />
                   </Picker>
                 </View>
+                {errors.recurrence_pattern && (
+                  <Text style={[styles.errorText, { color: colors.error }]}>
+                    {errors.recurrence_pattern}
+                  </Text>
+                )}
               </View>
               <View style={styles.inputGroup}>
                 <DatePicker
                   label="Recurrence End Date"
                   value={formData.recurrence_end_date}
                   placeholder="Select an end date (optional)"
-                  onChange={(dateString: string | null) => setFormData({ ...formData, recurrence_end_date: dateString || '' })}
+                  onChange={(dateString: string | null) => updateFormField('recurrence_end_date', dateString || '')}
                   helperText="When recurring task should stop"
                   isOptional={true}
                   testID="recurrence-end-date-picker"
@@ -617,7 +625,7 @@ export default function AddTaskScreen() {
               }]}
               placeholder="Any additional notes, instructions, or reminders..."
               value={formData.notes}
-              onChangeText={(text) => setFormData({ ...formData, notes: text })}
+              onChangeText={(text) => updateFormField('notes', text)}
               placeholderTextColor={colors.textTertiary}
               multiline
               numberOfLines={4}
@@ -626,10 +634,17 @@ export default function AddTaskScreen() {
         </View>
         
         <View style={styles.bottomSpacing} />
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-}
+              </ScrollView>
+        
+        {/* Task Spinner */}
+        <TaskSpinner 
+          visible={loading} 
+          message="Creating task..." 
+          type="saving" 
+        />
+      </KeyboardAvoidingView>
+    );
+  }
 
 const styles = StyleSheet.create({
   container: {
@@ -735,5 +750,10 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 120,
+  },
+  errorText: {
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '500',
   },
 });
