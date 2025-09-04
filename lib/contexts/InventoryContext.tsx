@@ -153,7 +153,7 @@ export const InventoryProvider = ({ children }: InventoryProviderProps) => {
     return () => {
       subscriptions.forEach(subscription => subscription.unsubscribe());
     };
-  }, [user?.id]);
+  }, [user?.id, fetchItems]);
 
   // Refresh data
   const onRefresh = async () => {
@@ -164,7 +164,7 @@ export const InventoryProvider = ({ children }: InventoryProviderProps) => {
   // Initial data fetch
   useEffect(() => {
     fetchItems();
-  }, [user]);
+  }, [fetchItems]);
 
   const value = {
     items,

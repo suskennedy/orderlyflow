@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { AppState, Platform } from 'react-native'
 import 'react-native-url-polyfill/auto'
-import { Database } from '../supabase'
+import { Database } from '../supabase-types'
 
 
 const supabaseUrl =  'https://bdseoponzbedfpkpacqd.supabase.co'

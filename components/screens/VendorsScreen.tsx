@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Contacts from 'expo-contacts';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
   Linking,
+  Modal,
   RefreshControl,
   StyleSheet,
   Text,
@@ -13,6 +15,7 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
 
@@ -35,12 +38,35 @@ interface GroupedVendors {
   [key: string]: Vendor[];
 }
 
+// Contact interface removed - using direct phone book integration
+
+// Comprehensive vendor categories (for future dropdown implementation)
+// const VENDOR_CATEGORIES = [
+//   'HVAC', 'Plumbing', 'Electrical', 'Landscaping', 'Cleaning', 'Pest Control',
+//   'Roofing', 'Painting', 'Flooring', 'Appliance Repair', 'Security Systems',
+//   'Pool/Spa Service', 'General Contractor', 'Handyman', 'Window/Door',
+//   'Concrete/Masonry', 'Tree Service', 'Carpet Cleaning', 'Gutter Cleaning',
+//   'Snow Removal', 'Other'
+// ];
+
 export default function VendorsScreen() {
   const { vendors, loading, refreshing, onRefresh, deleteVendor } = useVendors();
+  const { homeTasks } = useTasks();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchByCategory, setSearchByCategory] = useState(false);
+  
+  // Phone book integration states
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [showContactsModal, setShowContactsModal] = useState(false);
+  const [contacts, setContacts] = useState<any[]>([]);
+  
+  // Category dropdown state (for future use)
+  // const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  // const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  
+  // Removed flatListRef - no longer needed without alphabet index
 
   // Filter vendors based on search query
   const filteredVendors = useMemo(() => {
@@ -73,68 +99,177 @@ export default function VendorsScreen() {
     return grouped;
   }, [filteredVendors]);
 
-  // Get alphabet for index
-  const alphabet = useMemo(() => {
-    // Return complete alphabet instead of just the letters that have vendors
-    return 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-  }, []);
+  // Get tasks assigned to a specific vendor
+  const getVendorTasks = useCallback((vendorId: string) => {
+    return homeTasks.filter(task => task.assigned_vendor_id === vendorId);
+  }, [homeTasks]);
 
-  const handleCall = (vendor: Vendor) => {
-    if (!vendor.phone) {
-      Alert.alert('No Phone Number', 'This vendor does not have a phone number.');
-      return;
+  // Load contacts using Expo Contacts API
+  const loadContactsFromPhoneBook = async () => {
+    try {
+      setLoadingContacts(true);
+      
+      // Request permission using Expo Contacts API
+      console.log('Requesting contacts permission...');
+      const { status } = await Contacts.requestPermissionsAsync();
+      console.log('Permission status:', status);
+      
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required', 
+          'Please allow access to contacts to use this feature. You can enable this in your device settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => {
+              Linking.openURL('app-settings:');
+            }}
+          ]
+        );
+        return;
+      }
+
+      // Permission granted, load contacts with required fields
+      console.log('Loading contacts with Expo API...');
+      const { data } = await Contacts.getContactsAsync({
+        fields: [
+          Contacts.Fields.Name,
+          Contacts.Fields.PhoneNumbers,
+          Contacts.Fields.Emails,
+          Contacts.Fields.Company
+        ],
+      });
+      
+      console.log('Raw contacts loaded:', data.length);
+      console.log('Sample contact structure:', data.length > 0 ? JSON.stringify(data[0], null, 2) : 'No contacts');
+      processExpoContacts(data);
+      
+    } catch (error) {
+      console.error('Error loading contacts:', error);
+      Alert.alert(
+        'Error', 
+        'Failed to access contacts. Please try again.'
+      );
+    } finally {
+      setLoadingContacts(false);
     }
-    
-    Alert.alert(
-      'Call Vendor',
-      `Call ${vendor.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Call', 
-          onPress: () => Linking.openURL(`tel:${vendor.phone}`)
-        }
-      ]
-    );
   };
 
-  const handleEmail = (vendor: Vendor) => {
-    if (!vendor.email) {
-      Alert.alert('No Email', 'This vendor does not have an email address.');
-      return;
+  // Process Expo contacts and show selection
+  const processExpoContacts = (allContacts: any[]) => {
+    try {
+      console.log('Processing contacts...');
+      
+      // Filter contacts that have phone numbers or emails and names
+      const validContacts = allContacts
+        .filter(contact => {
+          // Check for phone numbers
+          const hasPhone = contact.phoneNumbers && Array.isArray(contact.phoneNumbers) && contact.phoneNumbers.length > 0;
+          // Check for emails - note: expo-contacts uses 'emails' not 'emailAddresses'
+          const hasEmail = contact.emails && Array.isArray(contact.emails) && contact.emails.length > 0;
+          // Check for name
+          const hasName = contact.name || contact.firstName || contact.lastName;
+          
+          const isValid = (hasPhone || hasEmail) && hasName;
+          if (!isValid) {
+            console.log('Filtered out contact:', {
+              hasPhone,
+              hasEmail,
+              hasName,
+              name: contact.name,
+              firstName: contact.firstName,
+              lastName: contact.lastName
+            });
+          }
+          
+          return isValid;
+        })
+        .map((contact, index) => {
+          // Build display name
+          const displayName = contact.name || 
+            `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
+            'Unknown Contact';
+          
+          // Get phone number
+          let phone = '';
+          if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
+            const phoneObj = contact.phoneNumbers[0];
+            phone = phoneObj.number || phoneObj.digits || '';
+          }
+          
+          // Get email
+          let email = '';
+          if (contact.emails && contact.emails.length > 0) {
+            const emailObj = contact.emails[0];
+            email = emailObj.email || emailObj.address || '';
+          }
+          
+          const processedContact = {
+            name: contact.company || displayName,
+            contact_name: displayName,
+            phone: phone,
+            email: email,
+            company: contact.company || null
+          };
+          
+          if (index < 3) {
+            console.log(`Processed contact ${index}:`, processedContact);
+          }
+          
+          return processedContact;
+        })
+        .filter(contact => contact.name && contact.name.trim() !== '');
+      
+      console.log('Valid contacts found:', validContacts.length);
+      console.log('First 3 valid contacts:', validContacts.slice(0, 3));
+      
+      if (validContacts.length === 0) {
+        Alert.alert(
+          'No Contacts Found',
+          'No contacts with phone numbers or email addresses were found in your phone book.'
+        );
+        return;
+      }
+
+      // Show contact selection in modal
+      setContacts(validContacts);
+      setShowContactsModal(true);
+      
+    } catch (error) {
+      console.error('Error processing contacts:', error);
+      Alert.alert(
+        'Error', 
+        'Failed to process contacts. Please try again.'
+      );
     }
-    
-    Alert.alert(
-      'Email Vendor',
-      `Send email to ${vendor.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Email', 
-          onPress: () => Linking.openURL(`mailto:${vendor.email}`)
-        }
-      ]
-    );
   };
 
-  const handleSchedule = (vendor: Vendor) => {
-    if (!vendor.website) {
-      Alert.alert('No Website', 'This vendor does not have a website for online scheduling.');
-      return;
-    }
-    
-    Alert.alert(
-      'Schedule Appointment',
-      `Open ${vendor.name}'s website for scheduling?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Open Website', 
-          onPress: () => Linking.openURL(vendor.website!)
+  // Handle contact selection from modal
+  const handleContactSelection = (contact: any) => {
+    try {
+      console.log('Selected contact:', contact);
+      setShowContactsModal(false);
+      
+      // Navigate to add vendor with pre-filled data
+      router.push({
+        pathname: '/(vendors)/add',
+        params: {
+          name: contact.name || '',
+          contact_name: contact.contact_name || '',
+          phone: contact.phone || '',
+          email: contact.email || '',
+          company: contact.company || ''
         }
-      ]
-    );
+      });
+      
+    } catch (error) {
+      console.error('Error handling contact selection:', error);
+      Alert.alert('Error', 'Failed to select contact. Please try again.');
+    }
   };
+
+  // Removed old selectContact function - using direct phone book integration now
+
+  // Removed old action handlers - contact info is now directly clickable
 
   const handleDelete = (vendor: Vendor) => {
     Alert.alert(
@@ -151,62 +286,97 @@ export default function VendorsScreen() {
     );
   };
 
-  const renderVendorItem = ({ item }: { item: Vendor }) => (
-    <View style={[styles.vendorCard, { backgroundColor: colors.surface }]}>
-      <TouchableOpacity
-        style={styles.vendorHeader}
-        onPress={() => router.push(`/(vendors)/${item.id}`)}
-      >
-        <View style={styles.vendorInfo}>
-          <Text style={[styles.vendorName, { color: colors.text }]}>{item.name}</Text>
-          {item.contact_name && (
-            <Text style={[styles.vendorContact, { color: colors.textSecondary }]}>
-              {item.contact_name}
-            </Text>
-          )}
-          {item.category && (
-            <Text style={[styles.vendorCategory, { color: colors.textTertiary }]}>
-              {item.category}
-            </Text>
-          )}
-        </View>
-      </TouchableOpacity>
-      
-      {/* Action Buttons */}
-      <View style={styles.vendorActions}>
+  const renderVendorItem = ({ item }: { item: Vendor }) => {
+    const vendorTasks = getVendorTasks(item.id);
+    
+    return (
+      <View style={[styles.vendorCard, { backgroundColor: colors.surface }]}>
+        {/* Delete button in top right corner */}
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => handleCall(item)}
-        >
-          <Ionicons name="call" size={16} color={colors.primary} />
-          <Text style={[styles.actionButtonText, { color: colors.primary }]}>Call</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => handleSchedule(item)}
-        >
-          <Ionicons name="calendar" size={16} color={colors.primary} />
-          <Text style={[styles.actionButtonText, { color: colors.primary }]}>Schedule</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => handleEmail(item)}
-        >
-          <Ionicons name="mail" size={16} color={colors.primary} />
-          <Text style={[styles.actionButtonText, { color: colors.primary }]}>Email</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.deleteButton, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
+          style={[styles.deleteButtonTopRight, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
           onPress={() => handleDelete(item)}
         >
           <Ionicons name="trash" size={16} color="#EF4444" />
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.vendorHeader}
+          onPress={() => router.push(`/(vendors)/${item.id}`)}
+        >
+          <View style={styles.vendorInfo}>
+            <Text style={[styles.vendorName, { color: colors.text }]}>{item.name}</Text>
+            {item.contact_name && (
+              <Text style={[styles.vendorContact, { color: colors.textSecondary }]}>
+                {item.contact_name}
+              </Text>
+            )}
+            {item.category && (
+              <Text style={[styles.vendorCategory, { color: colors.textTertiary }]}>
+                {item.category}
+              </Text>
+            )}
+          </View>
+        </TouchableOpacity>
+        
+        {/* Contact Information - Clickable */}
+        <View style={styles.contactInfo}>
+          {item.phone && (
+            <TouchableOpacity 
+              style={styles.contactItem}
+              onPress={() => Linking.openURL(`tel:${item.phone}`)}
+            >
+              <Ionicons name="call" size={16} color={colors.primary} />
+              <Text style={[styles.contactText, { color: colors.primary }]}>{item.phone}</Text>
+            </TouchableOpacity>
+          )}
+          {item.email && (
+            <TouchableOpacity 
+              style={styles.contactItem}
+              onPress={() => Linking.openURL(`mailto:${item.email}`)}
+            >
+              <Ionicons name="mail" size={16} color={colors.primary} />
+              <Text style={[styles.contactText, { color: colors.primary }]}>{item.email}</Text>
+            </TouchableOpacity>
+          )}
+          {item.website && (
+            <TouchableOpacity 
+              style={styles.contactItem}
+              onPress={() => Linking.openURL(item.website!)}
+            >
+              <Ionicons name="globe" size={16} color={colors.primary} />
+              <Text style={[styles.contactText, { color: colors.primary }]}>{item.website}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        
+        {/* Assigned Tasks */}
+        {vendorTasks.length > 0 && (
+          <View style={styles.assignedTasks}>
+            <Text style={[styles.assignedTasksTitle, { color: colors.text }]}>
+              Assigned Tasks ({vendorTasks.length})
+            </Text>
+            {vendorTasks.slice(0, 3).map((task: any, index: number) => (
+              <View key={task.id} style={styles.taskItem}>
+                <Ionicons 
+                  name={task.status === 'completed' ? 'checkmark-circle' : 'ellipse-outline'} 
+                  size={14} 
+                  color={task.status === 'completed' ? colors.success : colors.textSecondary} 
+                />
+                <Text style={[styles.taskTitle, { color: colors.textSecondary }]}>
+                  {task.title}
+                </Text>
+              </View>
+            ))}
+            {vendorTasks.length > 3 && (
+              <Text style={[styles.moreTasks, { color: colors.textTertiary }]}>
+                +{vendorTasks.length - 3} more tasks
+              </Text>
+            )}
+          </View>
+        )}
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderSectionHeader = ({ section }: { section: { title: string } }) => (
     <View style={[styles.sectionHeader, { backgroundColor: colors.background }]}>
@@ -214,21 +384,7 @@ export default function VendorsScreen() {
     </View>
   );
 
-  const renderAlphabetIndex = () => (
-    <View style={styles.alphabetIndex}>
-      {alphabet.map(letter => (
-        <TouchableOpacity
-          key={letter}
-          style={styles.alphabetButton}
-          onPress={() => {
-            // Scroll to section logic would go here
-          }}
-        >
-          <Text style={[styles.alphabetText, { color: colors.textSecondary }]}>{letter}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
+  // Removed alphabet sidebar - was causing UI issues
 
   if (loading) {
     return (
@@ -252,12 +408,31 @@ export default function VendorsScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Vendors</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => router.push('/(vendors)/add')}
-        >
-          <Ionicons name="add" size={20} color={colors.text} />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={[styles.contactsButton, { 
+              backgroundColor: colors.surface,
+              marginRight: 8 
+            }]}
+            onPress={() => {
+              console.log('Loading contacts from phone book...');
+              loadContactsFromPhoneBook();
+            }}
+            disabled={loadingContacts}
+          >
+            <Ionicons 
+              name={loadingContacts ? "refresh" : "people"} 
+              size={20} 
+              color={loadingContacts ? colors.primary : colors.text} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: colors.primary }]}
+            onPress={() => router.push('/(vendors)/add')}
+          >
+            <Ionicons name="add" size={20} color={colors.textInverse} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search Bar */}
@@ -310,7 +485,7 @@ export default function VendorsScreen() {
             renderItem={({ item, index }) => (
               <View key={`section_${item.title}_${index}`}>
                 {renderSectionHeader({ section: { title: item.title } })}
-                {item.data.map((vendor, vendorIndex) => (
+                {item.data.map((vendor: any, vendorIndex: number) => (
                   <View key={`vendor_${vendor.id}_${vendorIndex}`}>
                     {renderVendorItem({ item: vendor })}
                   </View>
@@ -327,12 +502,71 @@ export default function VendorsScreen() {
             }
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContainer}
+            style={styles.flatListStyle}
           />
         )}
       </View>
 
-      {/* Alphabet Index */}
-      {filteredVendors.length > 0 && renderAlphabetIndex()}
+      {/* Contacts Selection Modal */}
+      <Modal
+        visible={showContactsModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowContactsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Select Contact ({contacts.length} found)
+              </Text>
+              <TouchableOpacity onPress={() => setShowContactsModal(false)}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={contacts}
+              keyExtractor={(item, index) => `contact-${index}`}
+              renderItem={({ item: contact }) => (
+                <TouchableOpacity
+                  style={[styles.modalContactItem, { borderBottomColor: colors.border }]}
+                  onPress={() => handleContactSelection(contact)}
+                >
+                  <View style={styles.modalContactInfo}>
+                    <Text style={[styles.contactName, { color: colors.text }]}>
+                      {contact.name}
+                    </Text>
+                    {contact.contact_name !== contact.name && (
+                      <Text style={[styles.contactPersonName, { color: colors.textSecondary }]}>
+                        Contact: {contact.contact_name}
+                      </Text>
+                    )}
+                    {contact.phone && (
+                      <Text style={[styles.contactPhone, { color: colors.textTertiary }]}>
+                        📞 {contact.phone}
+                      </Text>
+                    )}
+                    {contact.email && (
+                      <Text style={[styles.contactEmail, { color: colors.textTertiary }]}>
+                        ✉️ {contact.email}
+                      </Text>
+                    )}
+                    {contact.company && (
+                      <Text style={[styles.contactCompany, { color: colors.textSecondary }]}>
+                        🏢 {contact.company}
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+                </TouchableOpacity>
+              )}
+              style={styles.contactsList}
+              showsVerticalScrollIndicator={true}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -362,12 +596,33 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  contactsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
   addButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   backButton: {
     width: 40,
@@ -410,6 +665,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  flatListStyle: {
+    flex: 1,
+  },
   listContainer: {
     padding: 16,
   },
@@ -443,31 +701,59 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-  vendorActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    marginHorizontal: 5,
-  },
-  actionButtonText: {
-    marginLeft: 5,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  deleteButton: {
+  deleteButtonTopRight: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
     padding: 8,
     borderRadius: 20,
-    marginLeft: 10,
+    zIndex: 1,
+  },
+  contactInfo: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    marginBottom: 4,
+  },
+  modalContactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  contactText: {
+    marginLeft: 8,
+    fontSize: 14,
+    textDecorationLine: 'underline',
+  },
+  assignedTasks: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  assignedTasksTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  taskItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  taskTitle: {
+    marginLeft: 8,
+    fontSize: 12,
+  },
+  moreTasks: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
   sectionHeader: {
     paddingVertical: 8,
@@ -479,33 +765,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  alphabetIndex: {
-    position: 'absolute',
-    right: 8,
-    top: '50%',
-    transform: [{ translateY: -50 }],
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 15,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  alphabetButton: {
-    paddingVertical: 3,
-    paddingHorizontal: 6,
-    borderRadius: 10,
-    marginBottom: 2,
-    minWidth: 20,
-    alignItems: 'center',
-  },
-  alphabetText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
+  // Alphabet index styles removed
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -544,5 +804,56 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  // Contacts Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    minHeight: '50%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  contactsList: {
+    flex: 1,
+  },
+  modalContactInfo: {
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  contactPersonName: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  contactPhone: {
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  contactEmail: {
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  contactCompany: {
+    fontSize: 13,
+    fontStyle: 'italic',
   },
 });

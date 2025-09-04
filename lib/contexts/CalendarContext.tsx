@@ -101,14 +101,34 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
     return result;
   }, [events, sortEvents]);
 
-  // Get events for a specific home by filtering on home_task_id
-  const getEventsForHome = useCallback((homeId: string) => {
-    // We need to enhance this to properly filter by home_id
-    // For now, we'll filter based on events that have home_task_id
-    return events.filter(event => {
-      return event.home_task_id !== null;
-    });
-  }, [events]);
+  // Get events for a specific home by filtering on task_id with home_id
+  const getEventsForHome = useCallback(async (homeId: string) => {
+    if (!user?.id || !homeId) return [];
+
+    try {
+      // Fetch events that belong to this specific home using the home_calendar_events junction table
+      const { data, error } = await supabase
+        .from('home_calendar_events')
+        .select(`
+          event_id,
+          calendar_events!inner (*)
+        `)
+        .eq('home_id', homeId)
+        .order('calendar_events.start_time', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching events for home:', error);
+        return [];
+      }
+
+      // Extract the calendar events from the joined data
+      const homeEvents = data?.map(item => item.calendar_events).filter(Boolean) || [];
+      return homeEvents;
+    } catch (error) {
+      console.error('Error fetching events for home:', error);
+      return [];
+    }
+  }, [user?.id]);
 
   // Fetch calendar events from Supabase
   const fetchEvents = useCallback(async () => {
@@ -266,7 +286,7 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
     } else {
       setEvents([]);
     }
-  }, [user, fetchEvents]);
+  }, [user?.id, fetchEvents]);
 
   // Add a new calendar event (for immediate UI update)
   const addEvent = (newEvent: Partial<CalendarEvent>) => {

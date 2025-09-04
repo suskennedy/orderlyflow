@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     Modal,
@@ -39,6 +39,7 @@ export default function AddVendorScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { addVendor } = useVendors();
+  const params = useLocalSearchParams();
   
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
@@ -48,6 +49,25 @@ export default function AddVendorScreen() {
   const [website, setWebsite] = useState('');
   const [address, setAddress] = useState('');
   const [priority, setPriority] = useState('Primary');
+
+  // Pre-fill form with contact data if provided
+  useEffect(() => {
+    if (params.name) {
+      setName(String(params.name));
+    }
+    if (params.contact_name) {
+      setContactName(String(params.contact_name));
+    }
+    if (params.phone) {
+      setPhone(String(params.phone));
+    }
+    if (params.email) {
+      setEmail(String(params.email));
+    }
+    if (params.company) {
+      setName(String(params.company));
+    }
+  }, [params]);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);

@@ -21,7 +21,7 @@ import TaskCompletionModal from '../ui/TaskCompletionModal';
 export default function HomeScreen() {
   const { colors } = useTheme();
   const { onRefresh: homesRefresh, homes } = useHomes();
-  const { tasks: allTasks, onRefresh: tasksRefresh, completeTask } = useTasks();
+  const { templateTasks, homeTasks, onRefresh: tasksRefresh, completeTask } = useTasks();
   const { onRefresh: eventsRefresh } = useCalendar();
   const { onRefresh: vendorsRefresh } = useVendors();
   const [refreshing, setRefreshing] = useState(false);
@@ -30,6 +30,9 @@ export default function HomeScreen() {
   const [selectedTaskForCompletion, setSelectedTaskForCompletion] = useState<any>(null);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+
+  // Use templateTasks as allTasks for now, or combine with homeTasks if needed
+  const allTasks = templateTasks || [];
 
 
   const onRefresh = () => {
@@ -179,7 +182,7 @@ export default function HomeScreen() {
       yearEnd: endOfYear.toISOString()
     });
 
-    const userTasks = allTasks.filter(task => 
+    const userTasks = (allTasks || []).filter(task => 
       task.task_type === 'custom' || 
       task.task_type === 'preset' || 
       !task.task_type
@@ -294,7 +297,7 @@ export default function HomeScreen() {
   const { thisWeekTasks, thisMonthTasks, thisYearTasks } = filterTasksByTimePeriod();
 
   // Simple test to show all tasks if none are being displayed
-  const showAllTasks = allTasks.length > 0 && allTasks.filter(task => 
+  const showAllTasks = (allTasks || []).length > 0 && (allTasks || []).filter(task => 
     task.task_type === 'custom' || 
     task.task_type === 'preset' || 
     !task.task_type

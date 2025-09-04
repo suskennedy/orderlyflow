@@ -1,115 +1,99 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHomes } from '../../lib/contexts/HomesContext';
-import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { useAuth } from '../../lib/hooks/useAuth';
 
+// Home card component that uses pre-calculated task counts from context
+const HomeCard = ({ home, colors }: { home: any; colors: any }) => {
+  const { taskCounts } = home;
 
+  return (
+    <TouchableOpacity
+      style={[styles.homeCard, { backgroundColor: colors.surface }]}
+      onPress={() => router.push(`/(tabs)/(home)/${home.id}/tasks` as any)}
+      activeOpacity={0.7}
+    >
+      {/* Home Icon and Name */}
+      <View style={styles.homeHeader}>
+        <View style={[styles.homeIcon, { backgroundColor: colors.primary + '20' }]}>
+          <Ionicons name="home" size={24} color={colors.primary} />
+        </View>
+        <View style={styles.homeInfo}>
+          <Text style={[styles.homeName, { color: colors.text }]} numberOfLines={1}>
+            {home.name}
+          </Text>
+          {home.address && (
+            <Text style={[styles.homeAddress, { color: colors.textSecondary }]} numberOfLines={1}>
+              {home.address}
+            </Text>
+          )}
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+      </View>
+
+      {/* Task Stats */}
+      <View style={styles.taskStats}>
+        <View style={styles.statItem}>
+          <View style={[styles.statIcon, { backgroundColor: colors.warning + '20' }]}>
+            <Ionicons name="list" size={16} color={colors.warning} />
+          </View>
+          <Text style={[styles.statNumber, { color: colors.text }]}>{taskCounts.active}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Active</Text>
+        </View>
+
+        <View style={styles.statItem}>
+          <View style={[styles.statIcon, { backgroundColor: colors.success + '20' }]}>
+            <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+          </View>
+          <Text style={[styles.statNumber, { color: colors.text }]}>{taskCounts.completed}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Done</Text>
+        </View>
+
+        <View style={styles.statItem}>
+          <View style={[styles.statIcon, { backgroundColor: colors.info + '20' }]}>
+            <Ionicons name="trending-up" size={16} color={colors.info} />
+          </View>
+          <Text style={[styles.statNumber, { color: colors.text }]}>{taskCounts.completionRate}%</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Complete</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+// Add display name for the component
+HomeCard.displayName = 'HomeCard';
 
 export default function HomeSelectorScreen() {
-  const { homes, loading, refreshing, onRefresh } = useHomes();
-  const { tasks } = useTasks();
+  const { homesWithTaskCounts, loading, refreshing, onRefresh } = useHomes();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
 
-  // Count tasks per home
-  const getTasksCountForHome = (homeId: string) => {
-    return tasks.filter(task => task.home_id === homeId && task.is_active && task.status !== 'completed').length;
-  };
+  // Debug logging
+  console.log('HomeSelectorScreen - homesWithTaskCounts:', homesWithTaskCounts);
+  console.log('HomeSelectorScreen - loading:', loading);
+  console.log('HomeSelectorScreen - user:', user?.id);
 
-  const getTotalTasksForHome = (homeId: string) => {
-    return tasks.filter(task => task.home_id === homeId).length;
-  };
+  // Memoized render function for better performance
+  const renderHomeCard = useCallback(({ item: home }: { item: any }) => (
+    <HomeCard home={home} colors={colors} />
+  ), [colors]);
 
-  const renderHomeCard = ({ item: home }: { item: any }) => {
-    const activeTasks = getTasksCountForHome(home.id);
-    const totalTasks = getTotalTasksForHome(home.id);
-    const completedTasks = totalTasks - activeTasks;
-    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-    return (
-      <TouchableOpacity
-        style={[styles.homeCard, { backgroundColor: colors.surface }]}
-        onPress={() => router.push(`/(tabs)/(home)/${home.id}/tasks` as any)}
-        activeOpacity={0.7}
-      >
-        {/* Home Icon and Name */}
-        <View style={styles.homeHeader}>
-          <View style={[styles.homeIcon, { backgroundColor: colors.primary + '20' }]}>
-            <Ionicons name="home" size={24} color={colors.primary} />
-          </View>
-          <View style={styles.homeInfo}>
-            <Text style={[styles.homeName, { color: colors.text }]} numberOfLines={1}>
-              {home.name}
-            </Text>
-            {home.address && (
-              <Text style={[styles.homeAddress, { color: colors.textSecondary }]} numberOfLines={1}>
-                {home.address}
-              </Text>
-            )}
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-        </View>
-
-        {/* Task Stats */}
-        <View style={styles.taskStats}>
-          <View style={styles.statItem}>
-            <View style={[styles.statIcon, { backgroundColor: colors.warning + '20' }]}>
-              <Ionicons name="list" size={16} color={colors.warning} />
-            </View>
-            <Text style={[styles.statNumber, { color: colors.text }]}>{activeTasks}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Active</Text>
-          </View>
-
-          <View style={styles.statItem}>
-            <View style={[styles.statIcon, { backgroundColor: colors.success + '20' }]}>
-              <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-            </View>
-            <Text style={[styles.statNumber, { color: colors.text }]}>{completedTasks}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Done</Text>
-          </View>
-
-          <View style={styles.statItem}>
-            <View style={[styles.statIcon, { backgroundColor: colors.info + '20' }]}>
-              <Ionicons name="trending-up" size={16} color={colors.info} />
-            </View>
-            <Text style={[styles.statNumber, { color: colors.text }]}>{completionRate}%</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Complete</Text>
-          </View>
-        </View>
-
-        {/* Progress Bar */}
-        {totalTasks > 0 && (
-          <View style={styles.progressContainer}>
-            <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    backgroundColor: completionRate === 100 ? colors.success : colors.primary,
-                    width: `${completionRate}%`,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
-
-  const renderEmptyState = () => (
+  // Memoized empty state renderer
+  const renderEmptyState = useCallback(() => (
     <View style={styles.emptyContainer}>
       <View style={[styles.emptyIconContainer, { backgroundColor: colors.primary + '15' }]}>
         <Ionicons name="home-outline" size={80} color={colors.primary} />
@@ -126,7 +110,7 @@ export default function HomeSelectorScreen() {
         <Text style={[styles.addButtonText, { color: colors.textInverse }]}>Add Your First Home</Text>
       </TouchableOpacity>
     </View>
-  );
+  ), [colors]);
 
   if (loading) {
     return (
@@ -156,11 +140,11 @@ export default function HomeSelectorScreen() {
         </Text>
       </View>
 
-      {homes.length === 0 ? (
+      {homesWithTaskCounts.length === 0 ? (
         renderEmptyState()
       ) : (
         <FlatList
-          data={homes}
+          data={homesWithTaskCounts}
           renderItem={renderHomeCard}
           keyExtractor={item => item.id}
           contentContainerStyle={[
@@ -175,6 +159,11 @@ export default function HomeSelectorScreen() {
               colors={[colors.primary]}
             />
           }
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={5}
+          windowSize={10}
+          initialNumToRender={5}
         />
       )}
     </View>

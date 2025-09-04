@@ -20,7 +20,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.orderlyflow.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSContactsUsageDescription": "This app needs access to your contacts to help you quickly add vendors from your phone book."
       }
     },
     "android": {
@@ -28,7 +29,10 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.orderlyflow.app"
+      "package": "com.orderlyflow.app",
+      "permissions": [
+        "android.permission.READ_CONTACTS"
+      ]
     },
     "web": {
       "favicon": "./assets/images/favicon.png",
@@ -36,7 +40,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-dev-client"
+      "expo-dev-client",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow OrderlyFlow to access your contacts to help you quickly add vendors from your phone book."
+        }
+      ]
     ],
     "scheme": "orderlyflow",
     "extra": {

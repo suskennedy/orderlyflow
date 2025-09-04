@@ -36,11 +36,14 @@ export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { events, loading: calendarLoading, refreshing, deleteEvent, onRefresh } = useCalendar();
-  const { tasks, loading: tasksLoading } = useTasks();
+  const { templateTasks, homeTasks, loading: tasksLoading } = useTasks();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [calendarView, setCalendarView] = useState<'month' | 'agenda'>('month');
+
+  // Use templateTasks as tasks for now
+  const tasks = templateTasks || [];
 
   // Convert tasks to calendar events
   const taskEvents = useMemo(() => {

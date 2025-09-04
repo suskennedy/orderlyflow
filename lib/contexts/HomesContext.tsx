@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useRealTimeSubscription } from '../hooks/useRealTimeSubscription';
 import { supabase } from '../supabase';
 
-// Define the Home interface
+// Define the Home interface based on the current schema
 export interface Home {
   id: string;
   name: string;
@@ -19,10 +19,25 @@ export interface Home {
   notes?: string | null;
   user_id?: string | null;
   image_url?: string | null;
+  foundation_type?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  warranty_info?: string | null;
+}
+
+// Enhanced home interface with task counts
+export interface HomeWithTaskCounts extends Home {
+  taskCounts: {
+    total: number;
+    active: number;
+    completed: number;
+    completionRate: number;
+  };
 }
 
 interface HomesContextType {
   homes: Home[];
+  homesWithTaskCounts: HomeWithTaskCounts[];
   loading: boolean;
   refreshing: boolean;
   createHome: (homeData: Omit<Home, 'id' | 'user_id'>) => Promise<void>;
@@ -30,6 +45,8 @@ interface HomesContextType {
   deleteHome: (homeId: string) => Promise<void>;
   onRefresh: () => Promise<void>;
   getHomeById: (homeId?: string) => Home | undefined;
+  getHomeWithTaskCounts: (homeId?: string) => HomeWithTaskCounts | undefined;
+  refreshTaskCounts: (homeId?: string) => Promise<void>;
 }
 
 const HomesContext = createContext<HomesContextType | undefined>(undefined);
@@ -49,15 +66,57 @@ interface HomesProviderProps {
 export const HomesProvider = ({ children }: HomesProviderProps) => {
   const { user } = useAuth();
   const [homes, setHomes] = useState<Home[]>([]);
+  const [homesWithTaskCounts, setHomesWithTaskCounts] = useState<HomeWithTaskCounts[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch homes from Supabase
+  // Fetch task counts for all homes in a single query
+  const fetchTaskCountsForHomes = useCallback(async (homeIds: string[]) => {
+    if (homeIds.length === 0) return {};
+    
+    try {
+      const { data, error } = await supabase
+        .from('home_tasks')
+        .select('home_id, status, is_active')
+        .in('home_id', homeIds);
+        
+      if (error) throw error;
+      
+      // Calculate counts for each home
+      const counts: Record<string, { total: number; active: number; completed: number }> = {};
+      
+      homeIds.forEach(homeId => {
+        counts[homeId] = { total: 0, active: 0, completed: 0 };
+      });
+      
+      data?.forEach(task => {
+        if (counts[task.home_id]) {
+          counts[task.home_id].total++;
+          if (task.status === 'completed') {
+            counts[task.home_id].completed++;
+          } else if (task.is_active !== false) {
+            counts[task.home_id].active++;
+          }
+        }
+      });
+      
+      return counts;
+    } catch (error) {
+      console.error('Error fetching task counts:', error);
+      return {};
+    }
+  }, []);
+
+  // Fetch homes from Supabase using user_id
   const fetchHomes = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log('fetchHomes: No user ID');
+      return;
+    }
     
     try {
       setLoading(true);
+      console.log('fetchHomes: Starting fetch for user:', user.id);
       
       const { data, error } = await supabase
         .from('homes')
@@ -67,17 +126,42 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
         
       if (error) throw error;
       
+      console.log('fetchHomes: Homes data:', data);
       setHomes(data || []);
+      
+      // Fetch task counts for all homes
+      if (data && data.length > 0) {
+        const homeIds = data.map(home => home.id);
+        const taskCounts = await fetchTaskCountsForHomes(homeIds);
+        
+        // Create enhanced homes with task counts
+        const enhancedHomes: HomeWithTaskCounts[] = data.map(home => {
+          const counts = taskCounts[home.id] || { total: 0, active: 0, completed: 0 };
+          const completionRate = counts.total > 0 ? Math.round((counts.completed / counts.total) * 100) : 0;
+          
+          return {
+            ...home,
+            taskCounts: {
+              ...counts,
+              completionRate
+            }
+          };
+        });
+        
+        setHomesWithTaskCounts(enhancedHomes);
+      } else {
+        setHomesWithTaskCounts([]);
+      }
     } catch (error) {
       console.error('Error fetching homes:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?.id]);
+  }, [user?.id, fetchTaskCountsForHomes]);
 
   // Set up real-time subscription for homes table
-  const handleHomeChange = useCallback((payload: any) => {
+  const handleHomeChange = useCallback(async (payload: any) => {
     // Only process changes relevant to the current user
     if (payload.new?.user_id === user?.id || payload.old?.user_id === user?.id) {
       const eventType = payload.eventType;
@@ -93,6 +177,22 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
           console.log('Adding new home to state:', newHome.id);
           return [...current, newHome];
         });
+        
+        // Fetch task counts for the new home
+        const taskCounts = await fetchTaskCountsForHomes([newHome.id]);
+        const counts = taskCounts[newHome.id] || { total: 0, active: 0, completed: 0 };
+        const completionRate = counts.total > 0 ? Math.round((counts.completed / counts.total) * 100) : 0;
+        
+        setHomesWithTaskCounts(current => [
+          ...current,
+          {
+            ...newHome,
+            taskCounts: {
+              ...counts,
+              completionRate
+            }
+          }
+        ]);
       } 
       else if (eventType === 'UPDATE') {
         setHomes(current => 
@@ -100,14 +200,38 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
             home.id === payload.new.id ? payload.new : home
           )
         );
+        
+        // Only update task counts if the home data actually changed
+        const existingHome = homes.find(h => h.id === payload.new.id);
+        if (existingHome && (
+          existingHome.name !== payload.new.name ||
+          existingHome.address !== payload.new.address
+        )) {
+          // Update task counts for the updated home
+          const taskCounts = await fetchTaskCountsForHomes([payload.new.id]);
+          const counts = taskCounts[payload.new.id] || { total: 0, active: 0, completed: 0 };
+          const completionRate = counts.total > 0 ? Math.round((counts.completed / counts.total) * 100) : 0;
+          
+          setHomesWithTaskCounts(current => 
+            current.map(home => 
+              home.id === payload.new.id 
+                ? { ...payload.new, taskCounts: { ...counts, completionRate } }
+                : home
+            )
+          );
+        }
       } 
       else if (eventType === 'DELETE') {
         setHomes(current => 
           current.filter(home => home.id !== payload.old.id)
         );
+        
+        setHomesWithTaskCounts(current => 
+          current.filter(home => home.id !== payload.old.id)
+        );
       }
     }
-  }, [user?.id]);
+  }, [user?.id, fetchTaskCountsForHomes, homes]);
 
   // Set up the real-time subscription
   useRealTimeSubscription(
@@ -118,18 +242,73 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
     handleHomeChange
   );
 
+  // Set up real-time subscription for home_tasks to update counts
+  const handleHomeTaskChange = useCallback(async (payload: any) => {
+    if (payload.new?.home_id || payload.old?.home_id) {
+      const homeId = payload.new?.home_id || payload.old?.home_id;
+      
+      // Check if this home belongs to the current user
+      const home = homes.find(h => h.id === homeId);
+      if (home && home.user_id === user?.id) {
+        // Add a small delay to prevent rapid updates
+        const timeoutId = setTimeout(async () => {
+          // Refresh task counts for this home
+          const taskCounts = await fetchTaskCountsForHomes([homeId]);
+          const counts = taskCounts[homeId] || { total: 0, active: 0, completed: 0 };
+          const completionRate = counts.total > 0 ? Math.round((counts.completed / counts.total) * 100) : 0;
+          
+          setHomesWithTaskCounts(current => 
+            current.map(h => 
+              h.id === homeId 
+                ? { ...h, taskCounts: { ...counts, completionRate } }
+                : h
+            )
+          );
+        }, 100); // 100ms debounce
+        
+        // Cleanup timeout on component unmount
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [homes, user?.id, fetchTaskCountsForHomes]);
+
+  // Set up the home_tasks real-time subscription
+  useRealTimeSubscription(
+    { 
+      table: 'home_tasks',
+      filter: user?.id ? `home_id=in.(${homes.map(h => h.id).join(',')})` : undefined
+    },
+    handleHomeTaskChange
+  );
+
   // Initial data fetch
   useEffect(() => {
+    let isMounted = true;
+    
     if (user?.id) {
-      fetchHomes();
+      fetchHomes().then(() => {
+        if (!isMounted) return;
+      });
     } else {
-      setHomes([]);
+      if (isMounted) {
+        setHomes([]);
+        setHomesWithTaskCounts([]);
+      }
     }
+    
+    return () => {
+      isMounted = false;
+    };
   }, [user, fetchHomes]);
 
   const getHomeById = (homeId?: string) => {
     if (!homeId) return undefined;
     return homes.find(home => home.id === homeId);
+  };
+
+  const getHomeWithTaskCounts = (homeId?: string) => {
+    if (!homeId) return undefined;
+    return homesWithTaskCounts.find(home => home.id === homeId);
   };
 
   // Create a new home
@@ -168,6 +347,12 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
           home.id === homeId ? { ...home, ...updates } : home
         )
       );
+      
+      setHomesWithTaskCounts(current => 
+        current.map(home => 
+          home.id === homeId ? { ...home, ...updates } : home
+        )
+      );
     } catch (error) {
       console.error('Error updating home:', error);
       throw error;
@@ -187,6 +372,7 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
       
       // Remove from local state for immediate UI update
       setHomes(current => current.filter(home => home.id !== homeId));
+      setHomesWithTaskCounts(current => current.filter(home => home.id !== homeId));
     } catch (error) {
       console.error('Error deleting home:', error);
       throw error;
@@ -199,8 +385,24 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
     await fetchHomes();
   };
 
+  const refreshTaskCounts = async (homeId?: string) => {
+    if (!homeId) return;
+    const taskCounts = await fetchTaskCountsForHomes([homeId]);
+    const counts = taskCounts[homeId] || { total: 0, active: 0, completed: 0 };
+    const completionRate = counts.total > 0 ? Math.round((counts.completed / counts.total) * 100) : 0;
+
+    setHomesWithTaskCounts(current =>
+      current.map(home =>
+        home.id === homeId
+          ? { ...home, taskCounts: { ...counts, completionRate } }
+          : home
+      )
+    );
+  };
+
   const value = {
     homes,
+    homesWithTaskCounts,
     loading,
     refreshing,
     createHome,
@@ -208,6 +410,8 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
     deleteHome,
     onRefresh,
     getHomeById,
+    getHomeWithTaskCounts,
+    refreshTaskCounts,
   };
 
   return (

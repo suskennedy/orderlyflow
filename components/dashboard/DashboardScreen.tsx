@@ -52,7 +52,7 @@ export default function DashboardScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const { homes, loading: homesLoading, onRefresh: homesRefresh } = useHomes();
-  const { tasks: allTasks, loading: tasksLoading, syncTasksToCalendar, onRefresh: tasksRefresh, completeTask } = useTasks();
+  const { templateTasks, homeTasks, loading: tasksLoading, onRefresh: tasksRefresh, completeTask } = useTasks();
   const { events, loading: eventsLoading, onRefresh: eventsRefresh } = useCalendar();
   const { vendors, loading: vendorsLoading, onRefresh: vendorsRefresh } = useVendors();
   const { items: inventory, loading: inventoryLoading, onRefresh: inventoryRefresh } = useInventory();
@@ -62,11 +62,14 @@ export default function DashboardScreen() {
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
+  // Use templateTasks as allTasks for now, or combine with homeTasks if needed
+  const allTasks = templateTasks || [];
+
   // Get the latest 5 items from each context - memoized for performance
-  const tasks = useMemo(() => allTasks.slice(0, 5), [allTasks]);
-  const recentEvents = useMemo(() => events.slice(0, 5), [events]);
-  const recentVendors = useMemo(() => vendors.slice(0, 5), [vendors]);
-  const recentInventory = useMemo(() => inventory.slice(0, 5), [inventory]);
+  const tasks = useMemo(() => (allTasks || []).slice(0, 5), [allTasks]);
+  const recentEvents = useMemo(() => (events || []).slice(0, 5), [events]);
+  const recentVendors = useMemo(() => (vendors || []).slice(0, 5), [vendors]);
+  const recentInventory = useMemo(() => (inventory || []).slice(0, 5), [inventory]);
 
   // Track task updates for real-time debugging
   useEffect(() => {
@@ -92,8 +95,8 @@ export default function DashboardScreen() {
 
   const handleSyncTasksToCalendar = async () => {
     try {
-      await syncTasksToCalendar();
-      Alert.alert('Success', 'Tasks synced to calendar successfully!');
+      // TODO: Implement task to calendar sync functionality
+      Alert.alert('Info', 'Task to calendar sync functionality coming soon!');
     } catch (error) {
       console.error('Error syncing tasks to calendar:', error);
       Alert.alert('Error', 'Failed to sync tasks to calendar');

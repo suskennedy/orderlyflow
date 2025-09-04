@@ -19,9 +19,11 @@ import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useAuth } from '../../lib/hooks/useAuth';
-import { supabase } from '../../lib/supabase';
+import { Database } from '../../supabase-types';
 import DatePicker from '../DatePicker';
 import TaskSpinner from '../ui/TaskSpinner';
+
+type TaskInsert = Database['public']['Tables']['tasks']['Insert'];
 
 const TASK_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'];
 const TASK_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
@@ -42,7 +44,7 @@ interface AddTaskScreenProps {
 
 export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
-  const { addTask } = useTasks();
+  const { addTask, activateTaskForHome } = useTasks();
   const { homes } = useHomes();
   const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
@@ -68,7 +70,7 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
     recurrence_end_date: '',
     notes: '',
   });
-
+  
   // Validation states
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   
@@ -110,205 +112,7 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
     }
   }, [errors]);
 
-  // Helper function to create recurring calendar events  
-  const createRecurringCalendarEvents = useCallback(async (taskData: {
-    id: string;
-    title: string;
-    description?: string | null;
-    priority: string | null;
-    due_date?: string | null;
-    is_recurring?: boolean | null;
-    recurrence_pattern?: string | null;
-    recurrence_end_date?: string | null;
-    notes?: string | null;
-  }, eventColor: string) => {
-    if (!taskData.is_recurring || !taskData.recurrence_pattern || !user?.id) {
-      console.log('Skipping recurring calendar events - missing required fields:', {
-        is_recurring: taskData.is_recurring,
-        recurrence_pattern: taskData.recurrence_pattern,
-        user_id: user?.id
-      });
-      return;
-    }
 
-    try {
-      console.log('Creating recurring calendar events for task:', taskData.title, 'pattern:', taskData.recurrence_pattern);
-      
-      // Use today's date if no due date is provided
-      const startDate = new Date(taskData.due_date || new Date().toISOString().split('T')[0]);
-      const endDate = taskData.recurrence_end_date ? new Date(taskData.recurrence_end_date) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year default
-      
-      console.log('Recurring task date range:', {
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        pattern: taskData.recurrence_pattern
-      });
-      
-      // Check if recurring events already exist for this task
-      const { data: existingEvents } = await supabase
-        .from('calendar_events')
-        .select('id')
-        .eq('task_id', taskData.id)
-        .eq('user_id', user.id);
-
-      if (existingEvents && existingEvents.length > 0) {
-        console.log('Recurring calendar events already exist for task:', taskData.id, 'count:', existingEvents.length);
-        return;
-      }
-      
-      const events = [];
-      let currentDate = new Date(startDate);
-      let eventCount = 0;
-      
-      while (currentDate <= endDate && eventCount < 100) { // Limit to 100 events to prevent infinite loops
-        const eventDate = currentDate.toISOString().split('T')[0];
-        
-        const calendarEvent = {
-          title: `Task: ${taskData.title}`,
-          description: taskData.description || `Recurring Task: ${taskData.title}${taskData.notes ? `\n\nNotes: ${taskData.notes}` : ''}`,
-          start_time: `${eventDate}T09:00:00`,
-          end_time: `${eventDate}T10:00:00`,
-          location: null,
-          color: eventColor,
-          all_day: false,
-          task_id: taskData.id,
-          user_id: user.id,
-          is_recurring: taskData.is_recurring || false,
-          recurrence_pattern: taskData.recurrence_pattern || null,
-          recurrence_end_date: taskData.recurrence_end_date || null,
-        };
-
-        events.push(calendarEvent);
-        eventCount++;
-
-        // Calculate next occurrence based on pattern (case-insensitive)
-        const pattern = taskData.recurrence_pattern.toLowerCase();
-        switch (pattern) {
-          case 'daily':
-            currentDate.setDate(currentDate.getDate() + 1);
-            break;
-          case 'weekly':
-            currentDate.setDate(currentDate.getDate() + 7);
-            break;
-          case 'bi-weekly':
-          case 'biweekly':
-            currentDate.setDate(currentDate.getDate() + 14);
-            break;
-          case 'monthly':
-            currentDate.setMonth(currentDate.getMonth() + 1);
-            break;
-          case 'quarterly':
-            currentDate.setMonth(currentDate.getMonth() + 3);
-            break;
-          case 'semi-annually':
-            currentDate.setMonth(currentDate.getMonth() + 6);
-            break;
-          case 'annually':
-          case 'yearly':
-            currentDate.setFullYear(currentDate.getFullYear() + 1);
-            break;
-          default:
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
-      }
-
-      console.log(`Creating ${events.length} recurring calendar events for task: ${taskData.title}`);
-
-      // Insert all recurring events
-      if (events.length > 0) {
-        const { error } = await supabase
-          .from('calendar_events')
-          .insert(events);
-
-        if (error) {
-          console.error('Error creating recurring calendar events:', error);
-        } else {
-          console.log('Successfully created recurring calendar events:', events.length);
-        }
-      } else {
-        console.log('No recurring events to create for task:', taskData.title);
-      }
-    } catch (error) {
-      console.error('Error creating recurring calendar events:', error);
-    }
-  }, [user]);
-
-  // Helper function to create calendar events for tasks
-  const createCalendarEventsForTask = useCallback(async (taskData: {
-    id: string;
-    title: string;
-    description?: string | null;
-    priority: string | null;
-    due_date?: string | null;
-    is_recurring?: boolean | null;
-    recurrence_pattern?: string | null;
-    recurrence_end_date?: string | null;
-    notes?: string | null;
-  }) => {
-    if (!user?.id) return;
-
-    try {
-      // Use today's date if no due date is provided
-      const eventDate = taskData.due_date || new Date().toISOString().split('T')[0];
-      
-      // Check if calendar event already exists for this task
-      const { data: existingEvents } = await supabase
-        .from('calendar_events')
-        .select('id')
-        .eq('task_id', taskData.id)
-        .eq('user_id', user.id);
-
-      if (existingEvents && existingEvents.length > 0) {
-        console.log('Calendar event already exists for task:', taskData.id);
-        return;
-      }
-
-      // Determine event color based on priority
-      const getEventColor = (priority: string | null) => {
-        switch (priority?.toLowerCase()) {
-          case 'urgent': return 'red';
-          case 'high': return 'orange';
-          case 'medium': return 'blue';
-          case 'low': return 'green';
-          default: return 'gray';
-        }
-      };
-
-      const eventColor = getEventColor(taskData.priority);
-
-      // Create the base calendar event
-      const calendarEvent = {
-        title: `Task: ${taskData.title}`,
-        description: taskData.description || `Task: ${taskData.title}${taskData.notes ? `\n\nNotes: ${taskData.notes}` : ''}`,
-        start_time: `${eventDate}T09:00:00`, // Default to 9 AM
-        end_time: `${eventDate}T10:00:00`,   // Default to 10 AM
-        location: null,
-        color: eventColor,
-        all_day: false,
-        task_id: taskData.id,
-        user_id: user.id,
-        is_recurring: taskData.is_recurring || false,
-        recurrence_pattern: taskData.recurrence_pattern || null,
-        recurrence_end_date: taskData.recurrence_end_date || null,
-      };
-
-      // Insert the calendar event
-      const { error } = await supabase
-        .from('calendar_events')
-        .insert([calendarEvent]);
-
-      if (error) {
-        console.error('Error creating calendar event for task:', error);
-      }
-
-      // If it's a recurring task, create recurring events
-      if (taskData.is_recurring && taskData.recurrence_pattern) {
-        await createRecurringCalendarEvents(taskData, eventColor);
-      }
-    } catch (error) {
-      console.error('Error creating calendar events for task:', error);
-    }
-  }, [user, createRecurringCalendarEvents]);
 
   const handleSave = useCallback(async () => {
     // Check if user is authenticated
@@ -316,7 +120,7 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
       Alert.alert('Error', 'You must be logged in to add tasks');
       return;
     }
-
+    
     // Validate form
     if (!validateForm()) {
       const firstError = Object.values(errors)[0];
@@ -325,69 +129,55 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
       }
       return;
     }
-
+    
     setLoading(true);
     try {
-      // Create the task object for database
-      const taskData = {
+      // Create the task data using database types
+      const taskData: TaskInsert = {
         title: formData.title.trim(),
         description: formData.description ? formData.description.trim() : null,
         category: formData.category || null,
         priority: formData.priority,
-        status: 'pending', // Always start as pending
+        status: 'pending',
         due_date: formData.due_date || null,
-        home_id: formData.home_id, // This is now required and validated
+        // Remove home_id as tasks are now templates
         is_recurring: formData.is_recurring,
         recurrence_pattern: formData.is_recurring && formData.recurrence_pattern ? formData.recurrence_pattern.trim() : null,
         recurrence_end_date: formData.is_recurring && formData.recurrence_end_date ? formData.recurrence_end_date : null,
         notes: formData.notes ? formData.notes.trim() : null,
-        user_id: user.id,
-        created_by: user.id,
-        is_active: true,
         next_due: formData.due_date || null,
+        is_active: true,
+        task_type: 'custom',
+        // Add user context
+        created_by: user.id,
+        last_modified_by: user.id,
       };
 
-      // Save to database first
-      const { data, error } = await supabase
-        .from('tasks')
-        .insert([taskData])
-        .select()
-        .single();
+      // Create the task as a template
+      const newTask = await addTask(taskData);
 
-      if (error) {
-        console.error('Database error:', error);
-        throw new Error(error.message || 'Failed to save task to database');
-      }
-
-      // If successful, add to local state
-      if (data) {
-        // Convert the database response to match TaskItem interface
-        const taskItem = {
-          ...data,
-          is_active: data.is_active ?? true, // Convert null to boolean
-        };
-        addTask(taskItem);
-        
-        // Create calendar events for the new task
+      // If a home was selected, activate this task for that home
+      if (formData.home_id) {
         try {
-          await createCalendarEventsForTask(data);
-        } catch (calendarError) {
-          console.warn('Failed to create calendar events:', calendarError);
-          // Don't fail the whole operation for calendar errors
+          await activateTaskForHome(newTask.id, formData.home_id);
+          console.log('Task activated for home successfully');
+        } catch (error) {
+          console.error('Error activating task for home:', error);
+          // Don't fail the whole operation if activation fails
         }
-
-        // Show success and navigate back
-        Alert.alert('Success', 'Task created successfully!', [
-          { text: 'OK', onPress: () => router.back() }
-        ]);
       }
+
+      // Show success and navigate back
+      Alert.alert('Success', 'Task created successfully!', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
     } catch (error: any) {
       console.error('Error adding task:', error);
       Alert.alert('Error', `Failed to create task: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
-  }, [user, formData, validateForm, errors, addTask, createCalendarEventsForTask]);
+  }, [user, formData, validateForm, errors, addTask, activateTaskForHome]);
 
   return (
     <KeyboardAvoidingView 
@@ -634,7 +424,7 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
         </View>
         
         <View style={styles.bottomSpacing} />
-              </ScrollView>
+      </ScrollView>
         
         {/* Task Spinner */}
         <TaskSpinner 
@@ -642,9 +432,9 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
           message="Creating task..." 
           type="saving" 
         />
-      </KeyboardAvoidingView>
-    );
-  }
+    </KeyboardAvoidingView>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {

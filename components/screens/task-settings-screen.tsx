@@ -1,12 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
@@ -15,6 +14,9 @@ import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
+import { supabase } from '../../lib/supabase';
+import DatePicker from '../DatePicker';
+import TimePicker from '../TimePicker';
 
 
 // Define the four main categories from the database
@@ -51,9 +53,16 @@ interface TaskSettingsScreenProps {
 export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { tasks, addTask, updateTask, getTasksForHome, activateTaskForHome, deactivateTaskForHome } = useTasks();
+  const { templateTasks, homeTasks, activateTaskForHome, setCurrentHome } = useTasks();
   const { vendors } = useVendors();
   const { showToast } = useToast();
+
+  // Set current home when component mounts
+  useEffect(() => {
+    if (homeId) {
+      setCurrentHome(homeId);
+    }
+  }, [homeId, setCurrentHome]);
   
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
@@ -68,19 +77,41 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
     assigned_vendor_id: string;
     assigned_user_id: string;
     due_date: string;
+    due_time: string;
     frequency: string;
     notes: string;
     is_recurring: boolean;
     recurrence_pattern: string | null;
     is_active: boolean;
   }}>({});
+  
+  // Loading state for saving tasks
+  const [savingTasks, setSavingTasks] = useState<Set<string>>(new Set());
+
+  // Get tasks for this home (both active and inactive for proper toggle state)
+  const homeTasksForHome = useMemo(() => {
+    if (!homeId) return [];
+    return homeTasks
+      .filter(ht => ht.home_id === homeId)
+      .map(ht => {
+        const task = templateTasks.find(t => t.id === ht.task_id);
+        return task ? { ...task, homeTaskId: ht.task_id, homeTask: ht } : null;
+      })
+      .filter((task): task is NonNullable<typeof task> => task !== null);
+  }, [homeTasks, homeId, templateTasks]);
+
+  // Get only active tasks for display purposes
+  const activeTasksForHome = useMemo(() => {
+    return homeTasksForHome.filter(task => task.homeTask.is_active === true);
+  }, [homeTasksForHome]);
+
+  // Get all available template tasks
+  const allTemplateTasks = useMemo(() => templateTasks, [templateTasks]);
 
   // Filter tasks: active tasks first, then completed tasks
-  const homeSpecificTasks = homeId ? getTasksForHome(homeId) : [];
-  
-  const activeTasks = homeSpecificTasks
+  const activeTasks = useMemo(() => activeTasksForHome
     .filter(task => 
-      task.is_active && task.status !== 'completed' && task.status !== 'template'
+      task.is_active && task.status !== 'completed'
     )
     .sort((a, b) => {
       const dateA = a.next_due || a.due_date;
@@ -91,34 +122,17 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
       if (!dateB) return -1;
       
       return new Date(dateA).getTime() - new Date(dateB).getTime();
-    });
-
-  const completedTasks = homeSpecificTasks
-    .filter(task => 
-      task.status === 'completed'
-    )
-    .sort((a, b) => {
-      const dateA = a.completed_at;
-      const dateB = b.completed_at;
-      
-      if (!dateA && !dateB) return 0;
-      if (!dateA) return 1;
-      if (!dateB) return -1;
-      
-      return new Date(dateB).getTime() - new Date(dateA).getTime(); // Most recent first
-    });
+    }), [activeTasksForHome]);
 
   // Separate custom tasks from predefined tasks
-  const customTasks = tasks.filter(task => 
+  const customTasks = useMemo(() => activeTasksForHome.filter(task => 
     task.task_type === 'custom' && task.is_active
-  );
+  ), [activeTasksForHome]);
 
-  // Get tasks for each category from the database
-  const getTasksForCategory = (categoryName: string) => {
-    return tasks.filter(task => 
-      task.category === categoryName && task.is_active
-    );
-  };
+  // Get tasks for each category from the template tasks
+  const getTasksForCategory = useCallback((categoryName: string) => {
+    return allTemplateTasks.filter(task => task.category === categoryName);
+  }, [allTemplateTasks]);
 
   // Get predefined tasks that should be shown for all users
   const getPresetTasksForCategory = (categoryName: string) => {
@@ -159,47 +173,6 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
     return presetTasks[categoryName] || [];
   };
 
-  // Helper function to remove duplicate tasks from database
-  const removeDuplicateTasks = async () => {
-    try {
-      // Group tasks by title to find duplicates
-      const tasksByTitle = tasks.reduce((acc, task) => {
-        if (!acc[task.title]) {
-          acc[task.title] = [];
-        }
-        acc[task.title].push(task);
-        return acc;
-      }, {} as {[key: string]: any[]});
-
-      // Find titles that have more than one task
-      const duplicateTitles = Object.keys(tasksByTitle).filter(title => tasksByTitle[title].length > 1);
-      
-      if (duplicateTitles.length > 0) {
-        console.log('Found duplicate task titles:', duplicateTitles);
-        
-        for (const title of duplicateTitles) {
-          const duplicateTasks = tasksByTitle[title];
-          // Keep the most recently created one, remove the rest
-          const sortedTasks = duplicateTasks.sort((a, b) => 
-            new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime()
-          );
-          const tasksToRemove = sortedTasks.slice(1); // Remove all but the first (most recent)
-          
-          console.log(`Removing ${tasksToRemove.length} duplicate(s) of "${title}"`);
-          
-          for (const task of tasksToRemove) {
-            await updateTask(task.id, { is_active: false });
-          }
-        }
-        
-        showToast(`Cleaned up ${duplicateTitles.length} duplicate task(s)`, 'success');
-      }
-    } catch (error) {
-      console.error('Error removing duplicate tasks:', error);
-      showToast('Failed to clean up duplicate tasks', 'error');
-    }
-  };
-
   // Combine preset tasks with database tasks for each category
   const getCombinedTasksForCategory = (categoryName: string) => {
     const databaseTasks = getTasksForCategory(categoryName);
@@ -220,7 +193,8 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
       category: task.category || 'General',
       subcategory: task.subcategory || null,
       isPreset: task.task_type === 'preset',
-      databaseTask: task // Keep reference to original task
+      databaseTask: task, // Keep reference to original task
+      isActiveForHome: activeTasksForHome.some(ht => ht.homeTask.task_id === task.id)
     }));
     
     // Convert preset tasks to the same format
@@ -230,7 +204,8 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
       category: categoryName,
       subcategory: null,
       isPreset: true,
-      databaseTask: null // No database task for preset
+      databaseTask: null, // No database task for preset
+      isActiveForHome: false
     }));
     
     return [...formattedDatabaseTasks, ...formattedPresetTasks];
@@ -238,17 +213,13 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
 
   // Initialize selectedTasks based on existing active tasks
   useEffect(() => {
-    const activeTaskNames = new Set(activeTasks.map(t => t.title));
-    
-    // Also include preset tasks that have been activated (exist in database)
-    const activePresetTasks = tasks.filter(t => 
-      t.task_type === 'preset' && t.is_active
-    ).map(t => t.title);
-    
-    const allActiveTaskNames = new Set([...activeTaskNames, ...activePresetTasks]);
-    setSelectedTasks(allActiveTaskNames);
-    console.log('Initialized selectedTasks with active tasks:', Array.from(allActiveTaskNames));
-  }, [tasks, activeTasks]);
+    if (!homeId) return;
+    // Reset expansion and forms on home change to avoid leakage
+    setExpandedTasks(new Set());
+    setTaskForms({});
+    const activeTaskNames = new Set(activeTasks.map(t => t.title).filter(Boolean));
+    setSelectedTasks(activeTaskNames);
+  }, [homeId, activeTasks]);
 
   const toggleCategory = (categoryName: string) => {
     setExpandedCategory(expandedCategory === categoryName ? null : categoryName);
@@ -261,7 +232,7 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
     } else {
       newExpandedTasks.add(taskName);
       // Initialize form with existing task data when expanding
-      const existingTask = tasks.find(t => t.title === taskName);
+      const existingTask = activeTasksForHome.find(t => t?.title === taskName);
       if (existingTask) {
         setTaskForms(prev => ({
           ...prev,
@@ -269,6 +240,7 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
             assigned_vendor_id: existingTask.assigned_vendor_id || '',
             assigned_user_id: existingTask.assigned_user_id || '',
             due_date: existingTask.due_date || '',
+            due_time: '09:00', // Default time since home_tasks doesn't have due_time field yet
             frequency: existingTask.recurrence_pattern || '',
             notes: existingTask.notes || '',
             is_recurring: existingTask.is_recurring || false,
@@ -284,6 +256,7 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
             assigned_vendor_id: '',
             assigned_user_id: '',
             due_date: new Date().toISOString().split('T')[0],
+            due_time: '09:00',
             frequency: '',
             notes: '',
             is_recurring: false,
@@ -296,58 +269,35 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
     setExpandedTasks(newExpandedTasks);
   };
 
-  const toggleTask = async (task: any) => {
-    console.log('Toggling task:', task);
+    const toggleTask = (task: any) => {
     const taskName = task.name;
-    const existingHomeTask = homeSpecificTasks.find(t => t.title === taskName);
+    const existingTask = homeTasksForHome.find(t => t?.title === taskName);
     const isCurrentlySelected = selectedTasks.has(taskName);
     
-    // Validate homeId is required
-    if (!homeId) {
-      showToast('Please select a home before managing tasks', 'error');
-      return;
-    }
-    
-    if (existingHomeTask) {
-      // Home task exists - toggle its active status
-      try {
-        if (existingHomeTask.is_active) {
-          // Deactivate the home task
-          console.log(`Deactivating home task ${taskName}`);
-          await deactivateTaskForHome(homeId, existingHomeTask.id);
-          
-          setSelectedTasks(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(taskName);
-            return newSet;
-          });
-          showToast(`Task "${taskName}" deactivated successfully!`, 'success');
-        } else {
-          // Reactivate the home task
-          console.log(`Reactivating home task ${taskName}`);
-          await activateTaskForHome(homeId, existingHomeTask.id);
-          
-          setSelectedTasks(prev => new Set([...prev, taskName]));
-          showToast(`Task "${taskName}" activated successfully!`, 'success');
-        }
-        
-        console.log('Task status updated successfully');
-      } catch (error) {
-        console.error('Error updating task status:', error);
-        showToast('Failed to update task status. Please try again.', 'error');
-      }
+    if (existingTask && existingTask.homeTask.is_active) {
+      // Task is active - toggle it off (visual only, no database)
+      setSelectedTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskName);
+        return newSet;
+      });
+      
+      // Close dropdown if open
+      setExpandedTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskName);
+        return newSet;
+      });
     } else {
-      // Task doesn't exist in database - handle visual toggle and dropdown
-      if (isCurrentlySelected) {
-        // Task is currently selected but not saved - deactivate it
-        console.log('Deactivating unsaved task:', taskName);
+      // Task is not active or doesn't exist - toggle dropdown
+      if (isCurrentlySelected && expandedTasks.has(taskName)) {
+        // Task is selected and dropdown is open - close dropdown and deselect
         setSelectedTasks(prev => {
           const newSet = new Set(prev);
           newSet.delete(taskName);
           return newSet;
         });
         
-        // Close the dropdown if open
         setExpandedTasks(prev => {
           const newSet = new Set(prev);
           newSet.delete(taskName);
@@ -360,28 +310,18 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
           delete newForms[taskName];
           return newForms;
         });
-        
-        showToast(`"${taskName}" deactivated`, 'info');
       } else {
-        // Task is not selected - show dropdown for configuration before creating
-        console.log('Showing configuration dropdown for new task:', taskName);
-        
-        // Toggle the task to be selected (visually active)
+        // Task is not selected or dropdown not open - select and show dropdown
         setSelectedTasks(prev => new Set([...prev, taskName]));
-        
-        // Open the dropdown for configuration
         toggleTaskExpansion(taskName);
-        
-        // Show a helpful message
-        showToast(`Configure "${taskName}" settings and click Save to activate`, 'info');
       }
     }
   };
 
-  const handleTaskDetailSave = async (task: any) => {
+    const handleTaskDetailSave = async (task: any) => {
     const taskName = task.name;
     const taskForm = taskForms[taskName];
-    const existingTask = tasks.find(t => t.title === taskName);
+    const existingTask = homeTasksForHome.find(t => t?.title === taskName);
     
     if (!taskForm) {
       showToast('Task form not found', 'error');
@@ -394,48 +334,170 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
       return;
     }
 
-    try {
-      if (existingTask) {
-        // Update existing task
-        const updates = {
-          assigned_vendor_id: taskForm.assigned_vendor_id || null,
-          assigned_user_id: taskForm.assigned_user_id || null,
-          due_date: taskForm.due_date || null,
-          recurrence_pattern: taskForm.recurrence_pattern || null,
-          is_recurring: taskForm.is_recurring,
-          notes: taskForm.notes || null,
-          is_active: taskForm.is_active
-        };
+    // Set loading state
+    setSavingTasks(prev => new Set([...prev, taskName]));
 
-        await updateTask(existingTask.id, updates);
-        showToast('Task updated successfully!', 'success');
+    try {
+      if (existingTask && !existingTask.homeTask.is_active) {
+        // Reactivate existing inactive task
+        try {
+          const { error } = await supabase
+            .from('home_tasks')
+            .update({ 
+              is_active: true, 
+              status: 'pending',
+              due_date: taskForm.due_date || null,
+              is_recurring: taskForm.is_recurring,
+              recurrence_pattern: taskForm.recurrence_pattern,
+              assigned_vendor_id: taskForm.assigned_vendor_id || null,
+              assigned_user_id: taskForm.assigned_user_id || null,
+              notes: taskForm.notes,
+              next_due: taskForm.due_date || null,
+            })
+            .eq('id', existingTask.homeTask.id);
+
+          if (error) throw error;
+
+          // Close dropdown
+          setExpandedTasks(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(taskName);
+            return newSet;
+          });
+          
+          showToast(`Task "${taskName}" reactivated successfully!`, 'success');
+        } catch (error) {
+          console.error('Error reactivating task:', error);
+          showToast('Failed to reactivate task. Please try again.', 'error');
+        }
+      } else if (existingTask && existingTask.homeTask.is_active) {
+        // Update existing active task
+        try {
+          const { error } = await supabase
+            .from('home_tasks')
+            .update({ 
+              due_date: taskForm.due_date || null,
+              is_recurring: taskForm.is_recurring,
+              recurrence_pattern: taskForm.recurrence_pattern,
+              assigned_vendor_id: taskForm.assigned_vendor_id || null,
+              assigned_user_id: taskForm.assigned_user_id || null,
+              notes: taskForm.notes,
+              next_due: taskForm.due_date || null,
+            })
+            .eq('id', existingTask.homeTask.id);
+
+          if (error) throw error;
+
+          // Close dropdown
+          setExpandedTasks(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(taskName);
+            return newSet;
+          });
+          
+          showToast(`Task "${taskName}" updated successfully!`, 'success');
+        } catch (error) {
+          console.error('Error updating task:', error);
+          showToast('Failed to update task. Please try again.', 'error');
+        }
       } else {
         // Create new task
-        const taskData = {
-          title: taskName,
-          category: task.category || 'General',
-          subcategory: task.subcategory || null,
-          due_date: taskForm.due_date,
-          home_id: homeId, // Ensure home_id is set for the task
-          is_recurring: taskForm.is_recurring,
-          recurrence_pattern: taskForm.recurrence_pattern,
-          is_active: taskForm.is_active,
-          task_type: task.isPreset ? 'preset' : 'custom',
-          suggested_frequency: task.suggestedFrequency,
-          assigned_vendor_id: taskForm.assigned_vendor_id || null,
-          assigned_user_id: taskForm.assigned_user_id || null,
-          notes: taskForm.notes || null
-        };
+        if (task.databaseTask) {
+          // This is a template task - activate it for this home with custom settings
+          try {
+            if (!homeId) {
+              showToast('Please select a home before activating tasks', 'error');
+              return;
+            }
+            
+            const customSettings = {
+              due_date: taskForm.due_date || null,
+              is_recurring: taskForm.is_recurring,
+              recurrence_pattern: taskForm.recurrence_pattern,
+              assigned_vendor_id: taskForm.assigned_vendor_id || null,
+              assigned_user_id: taskForm.assigned_user_id || null,
+              notes: taskForm.notes,
+              recurrence_interval: taskForm.recurrence_pattern === 'monthly' ? 1 : undefined,
+              recurrence_unit: taskForm.recurrence_pattern === 'monthly' ? 'months' : 
+                              taskForm.recurrence_pattern === 'weekly' ? 'weeks' :
+                              taskForm.recurrence_pattern === 'daily' ? 'days' :
+                              taskForm.recurrence_pattern === 'quarterly' ? 'months' :
+                              taskForm.recurrence_pattern === 'annually' ? 'years' : undefined,
+            };
 
-        await addTask(taskData);
-        showToast('Task created successfully!', 'success');
-        
-        // Close the dropdown after successful creation
-        setExpandedTasks(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(taskName);
-          return newSet;
-        });
+            // Close dropdown immediately for better UX
+            setExpandedTasks(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(taskName);
+              return newSet;
+            });
+            
+            // Activate task
+            await activateTaskForHome(task.databaseTask.id, homeId, {
+              name: taskName,
+              category: task.category,
+              suggestedFrequency: task.suggestedFrequency,
+              customSettings
+            });
+            
+            showToast(`Task "${taskName}" activated successfully!`, 'success');
+          } catch (error) {
+            console.error('Error activating template task:', error);
+            showToast('Failed to activate task. Please try again.', 'error');
+          }
+        } else if (task.isPreset) {
+          // This is a preset task - create it as a new template first, then activate
+          try {
+            if (!homeId) {
+              showToast('Please select a home before activating tasks', 'error');
+              return;
+            }
+
+            // Create the preset task as a template in the tasks table
+            const { data: newTask, error: taskError } = await supabase
+              .from('tasks')
+              .insert([{
+                title: taskName,
+                category: task.category,
+                task_type: 'preset',
+                is_active: true,
+                status: 'pending',
+              }])
+              .select()
+              .single();
+
+            if (taskError) throw taskError;
+
+            // Now activate it for this home
+            const customSettings = {
+              due_date: taskForm.due_date || null,
+              is_recurring: taskForm.is_recurring,
+              recurrence_pattern: taskForm.recurrence_pattern,
+              assigned_vendor_id: taskForm.assigned_vendor_id || null,
+              assigned_user_id: taskForm.assigned_user_id || null,
+              notes: taskForm.notes,
+            };
+
+            await activateTaskForHome(newTask.id, homeId, {
+              name: taskName,
+              category: task.category,
+              suggestedFrequency: task.suggestedFrequency,
+              customSettings
+            });
+
+            // Close dropdown
+            setExpandedTasks(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(taskName);
+              return newSet;
+            });
+            
+            showToast(`Preset task "${taskName}" created and activated!`, 'success');
+          } catch (error) {
+            console.error('Error creating preset task:', error);
+            showToast('Failed to create preset task. Please try again.', 'error');
+          }
+        }
       }
     } catch (error) {
       console.error('Error saving task:', error);
@@ -449,6 +511,13 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
           return newSet;
         });
       }
+    } finally {
+      // Remove loading state
+      setSavingTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskName);
+        return newSet;
+      });
     }
   };
 
@@ -535,7 +604,7 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
   const renderTaskItem = (task: any, category: string, index: number) => {
     const isSelected = selectedTasks.has(task.name);
     const isExpanded = expandedTasks.has(task.name);
-    const existingTask = tasks.find(t => t.title === task.name);
+    const existingTask = activeTasksForHome.find(t => t?.title === task.name);
     const taskForm = taskForms[task.name];
     const assignedVendor = taskForm?.assigned_vendor_id ? 
       vendors.find(v => v.id === taskForm.assigned_vendor_id) : 
@@ -647,19 +716,22 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
               </TouchableOpacity>
             </View>
             
-            {/* Start Date Input */}
-            <View style={styles.startDateSection}>
-              <Text style={[styles.startDateLabel, { color: colors.text }]}>Start date</Text>
-              <TextInput
-                style={[styles.startDateInput, { 
-                  backgroundColor: colors.background,
-                  color: colors.text,
-                  borderColor: colors.border 
-                }]}
-                placeholder="MM/DD/YYYY"
-                placeholderTextColor={colors.textSecondary}
+            {/* Start Date and Time */}
+            <View style={styles.dateTimeSection}>
+              <DatePicker
+                label="Start date"
                 value={taskForm.due_date}
-                onChangeText={(text) => updateTaskForm(task.name, 'due_date', text)}
+                placeholder="Select start date"
+                onChange={(dateString) => updateTaskForm(task.name, 'due_date', dateString)}
+                isOptional={true}
+              />
+              
+              <TimePicker
+                label="Start time"
+                value={taskForm.due_time}
+                placeholder="Select start time"
+                onChange={(timeString) => updateTaskForm(task.name, 'due_time', timeString)}
+                isOptional={true}
               />
             </View>
             
@@ -738,10 +810,19 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
             
             {/* Save Button */}
             <TouchableOpacity
-              style={[styles.saveButton, { backgroundColor: colors.primary }]}
+              style={[
+                styles.saveButton, 
+                { 
+                  backgroundColor: savingTasks.has(task.name) ? colors.textSecondary : colors.primary,
+                  opacity: savingTasks.has(task.name) ? 0.7 : 1
+                }
+              ]}
               onPress={() => handleTaskDetailSave(task)}
+              disabled={savingTasks.has(task.name)}
             >
-              <Text style={[styles.saveButtonText, { color: colors.background }]}>Save</Text>
+              <Text style={[styles.saveButtonText, { color: colors.background }]}>
+                {savingTasks.has(task.name) ? 'Saving...' : 'Save'}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -1314,20 +1395,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
   },
-  startDateSection: {
-    marginBottom: 12,
-  },
-  startDateLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  startDateInput: {
-    height: 48,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    fontSize: 16,
+  dateTimeSection: {
+    marginBottom: 16,
+    gap: 12,
   },
   recurrenceSection: {
     marginBottom: 12,
