@@ -1,6 +1,7 @@
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { Database } from '../../supabase-types';
 import { useAuth } from '../hooks/useAuth';
+import { useRealTimeSubscription } from '../hooks/useRealTimeSubscription';
 import { supabase } from '../supabase';
 
 // Use database types for consistency
@@ -14,12 +15,14 @@ interface TasksContextType {
   // Data
   templateTasks: TaskTemplate[];
   homeTasks: HomeTask[];
+  allHomeTasks: HomeTask[]; // Tasks from all homes for dashboard
   currentHomeId: string | null;
   loading: boolean;
   
   // Essential functions only
   fetchTemplateTasks: () => Promise<void>;
   fetchHomeTasks: (homeId: string) => Promise<void>;
+  fetchAllHomeTasks: () => Promise<void>; // Fetch tasks from all homes
   activateTemplateForHome: (templateId: string, homeId: string, details: any) => Promise<void>;
   createCustomTask: (homeId: string, taskData: any) => Promise<HomeTask>;
   updateHomeTask: (homeTaskId: string, updates: any) => Promise<void>;
@@ -49,8 +52,11 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
   const { user } = useAuth();
   const [templateTasks, setTemplateTasks] = useState<TaskTemplate[]>([]);
   const [homeTasks, setHomeTasks] = useState<HomeTask[]>([]);
+  const [allHomeTasks, setAllHomeTasks] = useState<HomeTask[]>([]);
   const [currentHomeId, setCurrentHomeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  console.log('TasksProvider: Initialized with user:', user?.id, 'user object:', user);
 
   // Call 1: Fetch template tasks
   const fetchTemplateTasks = useCallback(async () => {
@@ -85,6 +91,7 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      console.log('TasksContext: Fetched home tasks for home', homeId, ':', data?.length || 0, 'tasks');
       setHomeTasks(data || []);
     } catch (error) {
       console.error('Error fetching home tasks:', error);
@@ -92,6 +99,81 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       setLoading(false);
     }
   }, []);
+
+  // Call 2.5: Fetch home tasks for all homes (for dashboard)
+  const fetchAllHomeTasks = useCallback(async () => {
+    if (!user?.id) {
+      console.log('TasksContext: No user ID, skipping fetchAllHomeTasks');
+      return;
+    }
+    
+    console.log('TasksContext: Fetching all home tasks for user:', user.id);
+    
+    try {
+      setLoading(true);
+      
+      // First get all homes for the user
+      const { data: userHomes, error: homesError } = await supabase
+        .from('homes')
+        .select('id')
+        .eq('user_id', user.id);
+      
+      if (homesError) throw homesError;
+      
+      if (!userHomes || userHomes.length === 0) {
+        console.log('TasksContext: No homes found for user:', user.id);
+        setAllHomeTasks([]);
+        return;
+      }
+      
+      const homeIds = userHomes.map(home => home.id);
+      console.log('TasksContext: Found homes for user:', homeIds);
+      
+      // First, let's check if there are any tasks at all in the database
+      const { data: allTasksInDB, error: allTasksError } = await supabase
+        .from('home_tasks')
+        .select('*')
+        .limit(10);
+      
+      console.log('TasksContext: All tasks in database:', allTasksInDB?.length || 0);
+      if (allTasksInDB && allTasksInDB.length > 0) {
+        console.log('TasksContext: Sample task from DB:', {
+          id: allTasksInDB[0].id,
+          title: allTasksInDB[0].title,
+          home_id: allTasksInDB[0].home_id,
+          is_active: allTasksInDB[0].is_active,
+          status: allTasksInDB[0].status
+        });
+      }
+      
+      // Then get all tasks for those homes (including inactive ones for debugging)
+      const { data, error } = await supabase
+        .from('home_tasks')
+        .select('*')
+        .in('home_id', homeIds)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      console.log('TasksContext: Fetched all home tasks:', data?.length || 0, 'tasks');
+      if (data && data.length > 0) {
+        console.log('TasksContext: Sample task:', {
+          id: data[0].id,
+          title: data[0].title,
+          status: data[0].status,
+          is_active: data[0].is_active,
+          due_date: data[0].due_date,
+          home_id: data[0].home_id
+        });
+      }
+      setAllHomeTasks(data || []);
+      console.log('TasksContext: Successfully set allHomeTasks, count:', data?.length || 0);
+    } catch (error) {
+      console.error('Error fetching all home tasks:', error);
+    } finally {
+      console.log('TasksContext: Setting loading to false');
+      setLoading(false);
+    }
+  }, [user?.id]);
 
   // Call 3: Activate template for home
   const activateTemplateForHome = useCallback(async (templateId: string, homeId: string, details: any) => {
@@ -423,21 +505,68 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
   //   [templateTasks, homeTasks]
   // );
 
-  // Load template tasks on mount
+  // Debounce timer for task updates
+  const [taskUpdateTimer, setTaskUpdateTimer] = useState<NodeJS.Timeout | null>(null);
+
+  // Set up real-time subscription for home_tasks
+  const handleHomeTaskChange = useCallback(async (payload: any) => {
+    if (payload.new?.home_id || payload.old?.home_id) {
+      const homeId = payload.new?.home_id || payload.old?.home_id;
+      
+      // Clear existing timer
+      if (taskUpdateTimer) {
+        clearTimeout(taskUpdateTimer);
+      }
+      
+      // Set new debounced timer
+      const timer = setTimeout(async () => {
+        // Always refresh all home tasks for dashboard
+        await fetchAllHomeTasks();
+        
+        // Also refresh current home tasks if this change affects the current home
+        if (homeId === currentHomeId) {
+          await fetchHomeTasks(homeId);
+        }
+      }, 200); // 200ms debounce
+      
+      setTaskUpdateTimer(timer);
+    }
+  }, [currentHomeId, fetchHomeTasks, fetchAllHomeTasks, taskUpdateTimer]);
+
+  // Set up the home_tasks real-time subscription
+  useRealTimeSubscription(
+    { 
+      table: 'home_tasks',
+    },
+    handleHomeTaskChange
+  );
+
+  // Load template tasks and all home tasks on mount
   useEffect(() => {
+    console.log('TasksProvider: useEffect called, user:', user?.id);
     fetchTemplateTasks();
-  }, [fetchTemplateTasks]);
+    fetchAllHomeTasks();
+    
+    // Cleanup timer on unmount
+    return () => {
+      if (taskUpdateTimer) {
+        clearTimeout(taskUpdateTimer);
+      }
+    };
+  }, [user?.id, fetchTemplateTasks, fetchAllHomeTasks, taskUpdateTimer]);
 
   const value = {
     // Data
     templateTasks,
     homeTasks,
+    allHomeTasks,
     currentHomeId,
     loading,
     
     // Functions
     fetchTemplateTasks,
     fetchHomeTasks,
+    fetchAllHomeTasks,
     activateTemplateForHome,
     createCustomTask,
     updateHomeTask,

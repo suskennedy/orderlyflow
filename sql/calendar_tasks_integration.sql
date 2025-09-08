@@ -283,11 +283,13 @@ $$ LANGUAGE plpgsql;
 GRANT EXECUTE ON FUNCTION cleanup_orphaned_calendar_events TO authenticated;
 
 -- Step 15: Create function to handle manual calendar event creation with mapping
+-- NOTE: This function is only used for manually created calendar events (not from home tasks)
 CREATE OR REPLACE FUNCTION create_calendar_event_with_mapping()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- If the calendar event has a home_id, create the mapping
-  IF NEW.home_id IS NOT NULL THEN
+  -- Only create mapping if this is NOT a home task event (to avoid duplicates)
+  -- Home task events already have their mapping created by the home task trigger
+  IF NEW.home_id IS NOT NULL AND NEW.home_task_id IS NULL THEN
     INSERT INTO home_calendar_events (event_id, home_id, created_at)
     VALUES (NEW.id, NEW.home_id, NOW());
   END IF;
@@ -307,18 +309,22 @@ CREATE TRIGGER trigger_create_calendar_event_with_mapping
 CREATE OR REPLACE FUNCTION update_calendar_event_with_mapping()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- If home_id changed, update the mapping
-  IF OLD.home_id IS DISTINCT FROM NEW.home_id THEN
-    -- Remove old mapping if it exists
-    IF OLD.home_id IS NOT NULL THEN
-      DELETE FROM home_calendar_events 
-      WHERE event_id = NEW.id AND home_id = OLD.home_id;
-    END IF;
-    
-    -- Add new mapping if home_id is provided
-    IF NEW.home_id IS NOT NULL THEN
-      INSERT INTO home_calendar_events (event_id, home_id, created_at)
-      VALUES (NEW.id, NEW.home_id, NOW());
+  -- Only handle mapping updates for manually created calendar events (not from home tasks)
+  -- Home task events have their mapping managed by the home task triggers
+  IF NEW.home_task_id IS NULL THEN
+    -- If home_id changed, update the mapping
+    IF OLD.home_id IS DISTINCT FROM NEW.home_id THEN
+      -- Remove old mapping if it exists
+      IF OLD.home_id IS NOT NULL THEN
+        DELETE FROM home_calendar_events 
+        WHERE event_id = NEW.id AND home_id = OLD.home_id;
+      END IF;
+      
+      -- Add new mapping if home_id is provided
+      IF NEW.home_id IS NOT NULL THEN
+        INSERT INTO home_calendar_events (event_id, home_id, created_at)
+        VALUES (NEW.id, NEW.home_id, NOW());
+      END IF;
     END IF;
   END IF;
   
@@ -355,3 +361,18 @@ CREATE TRIGGER trigger_delete_calendar_event_with_mapping
 GRANT EXECUTE ON FUNCTION create_calendar_event_with_mapping TO authenticated;
 GRANT EXECUTE ON FUNCTION update_calendar_event_with_mapping TO authenticated;
 GRANT EXECUTE ON FUNCTION delete_calendar_event_with_mapping TO authenticated;
+
+-- Step 22: Fix priority constraint issue
+-- Drop the existing priority constraint if it exists
+ALTER TABLE home_tasks DROP CONSTRAINT IF EXISTS home_tasks_priority_check;
+
+-- Add a new constraint that accepts the priority values we're using
+ALTER TABLE home_tasks ADD CONSTRAINT home_tasks_priority_check 
+  CHECK (priority IS NULL OR priority IN ('low', 'medium', 'high', 'urgent', 'Low', 'Medium', 'High', 'Urgent'));
+
+-- Step 23: Also fix priority_level constraint if it exists
+ALTER TABLE home_tasks DROP CONSTRAINT IF EXISTS home_tasks_priority_level_check;
+
+-- Add a new constraint for priority_level
+ALTER TABLE home_tasks ADD CONSTRAINT home_tasks_priority_level_check 
+  CHECK (priority_level IS NULL OR priority_level IN ('low', 'medium', 'high', 'urgent', 'Low', 'Medium', 'High', 'Urgent'));

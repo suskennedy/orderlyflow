@@ -242,6 +242,9 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
     handleHomeChange
   );
 
+  // Debounce timer for task count updates
+  const [taskCountUpdateTimer, setTaskCountUpdateTimer] = useState<NodeJS.Timeout | null>(null);
+
   // Set up real-time subscription for home_tasks to update counts
   const handleHomeTaskChange = useCallback(async (payload: any) => {
     if (payload.new?.home_id || payload.old?.home_id) {
@@ -250,9 +253,13 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
       // Check if this home belongs to the current user
       const home = homes.find(h => h.id === homeId);
       if (home && home.user_id === user?.id) {
-        // Add a small delay to prevent rapid updates
-        const timeoutId = setTimeout(async () => {
-          // Refresh task counts for this home
+        // Clear existing timer
+        if (taskCountUpdateTimer) {
+          clearTimeout(taskCountUpdateTimer);
+        }
+        
+        // Set new debounced timer
+        const timer = setTimeout(async () => {
           const taskCounts = await fetchTaskCountsForHomes([homeId]);
           const counts = taskCounts[homeId] || { total: 0, active: 0, completed: 0 };
           const completionRate = counts.total > 0 ? Math.round((counts.completed / counts.total) * 100) : 0;
@@ -264,19 +271,19 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
                 : h
             )
           );
-        }, 100); // 100ms debounce
+        }, 300); // 300ms debounce
         
-        // Cleanup timeout on component unmount
-        return () => clearTimeout(timeoutId);
+        setTaskCountUpdateTimer(timer);
       }
     }
-  }, [homes, user?.id, fetchTaskCountsForHomes]);
+  }, [homes, user?.id, fetchTaskCountsForHomes, taskCountUpdateTimer]);
 
-  // Set up the home_tasks real-time subscription
+  // Set up the home_tasks real-time subscription with a more flexible filter
   useRealTimeSubscription(
     { 
       table: 'home_tasks',
-      filter: user?.id ? `home_id=in.(${homes.map(h => h.id).join(',')})` : undefined
+      // Remove the filter to get all home_tasks changes, then filter in the handler
+      // This ensures we don't miss updates when homes array is empty or not yet loaded
     },
     handleHomeTaskChange
   );
@@ -298,8 +305,12 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
     
     return () => {
       isMounted = false;
+      // Cleanup timer on unmount
+      if (taskCountUpdateTimer) {
+        clearTimeout(taskCountUpdateTimer);
+      }
     };
-  }, [user, fetchHomes]);
+  }, [user, fetchHomes, taskCountUpdateTimer]);
 
   const getHomeById = (homeId?: string) => {
     if (!homeId) return undefined;
@@ -315,7 +326,7 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
   const createHome = async (homeData: Omit<Home, 'id' | 'user_id'>) => {
     if (!user) throw new Error('User is not authenticated');
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('homes')
         .insert([{ ...homeData, user_id: user.id }])
         .select()

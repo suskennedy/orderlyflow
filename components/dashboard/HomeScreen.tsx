@@ -21,7 +21,7 @@ import TaskCompletionModal from '../ui/TaskCompletionModal';
 export default function HomeScreen() {
   const { colors } = useTheme();
   const { onRefresh: homesRefresh, homes } = useHomes();
-  const { templateTasks, homeTasks, completeHomeTask, fetchHomeTasks } = useTasks();
+  const { templateTasks, homeTasks, allHomeTasks, completeHomeTask, fetchHomeTasks, fetchAllHomeTasks } = useTasks();
   const { onRefresh: eventsRefresh } = useCalendar();
   const { onRefresh: vendorsRefresh } = useVendors();
   const [refreshing, setRefreshing] = useState(false);
@@ -31,8 +31,11 @@ export default function HomeScreen() {
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
-  // Use homeTasks as allTasks since these are the actual task instances with due dates
-  const allTasks = homeTasks || [];
+  // Use allHomeTasks to show tasks from all homes
+  const allTasks = allHomeTasks || [];
+  
+  // Debug: Log when allTasks changes
+  console.log('HomeScreen: allTasks changed, count:', allTasks.length);
 
 
   const onRefresh = () => {
@@ -40,8 +43,8 @@ export default function HomeScreen() {
     // Refresh all contexts using their onRefresh methods
     Promise.all([
       homesRefresh?.() || Promise.resolve(),
-      // Refresh home tasks for all homes
-      Promise.all(homes.map(home => fetchHomeTasks(home.id))).catch(console.error),
+      // Refresh all home tasks for dashboard
+      fetchAllHomeTasks().catch(console.error),
       eventsRefresh?.() || Promise.resolve(),
       vendorsRefresh?.() || Promise.resolve(),
     ]).finally(() => {

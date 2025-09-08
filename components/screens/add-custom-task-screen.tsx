@@ -12,11 +12,11 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
-import { useHomes } from '../../lib/hooks/useHomes';
 import DatePicker from '../DatePicker';
 
 const PRIORITY_OPTIONS = [
@@ -39,7 +39,7 @@ const RECURRENCE_OPTIONS = [
 
 const CATEGORY_OPTIONS = [
   { label: 'Deep Cleaning', value: 'Deep Cleaning' },
-  { label: 'Health + Safety', value: 'Home + Safety' },
+  { label: 'Health + Safety', value: 'Health + Safety' },
   { label: 'Home Maintenance', value: 'Home Maintenance' },
   { label: 'Repairs', value: 'Repairs' },
   { label: 'Custom', value: 'Custom' }
@@ -131,7 +131,7 @@ export default function AddCustomTaskScreen() {
         switch (category) {
           case 'Deep Cleaning':
             return 'deep_cleaning';
-          case 'Home + Safety':
+          case 'Health + Safety':
             return 'health_safety';
           case 'Home Maintenance':
             return 'home_maintenance';
@@ -149,8 +149,8 @@ export default function AddCustomTaskScreen() {
         description: formData.description.trim() || null,
         category: formData.category.trim(),
         subcategory: null,
-        priority: formData.priority,
-        priority_level: formData.priority_level,
+        priority: formData.priority.toLowerCase(),
+        priority_level: formData.priority_level.toLowerCase(),
         due_date: formData.due_date || null,
         is_recurring: formData.is_recurring,
         recurrence_pattern: formData.recurrence_pattern,
@@ -170,7 +170,7 @@ export default function AddCustomTaskScreen() {
         status: 'pending'
       };
 
-      await addTask(taskData);
+      await createCustomTask(taskData);
       showToast('Custom task created successfully!', 'success');
       router.back();
     } catch (error) {

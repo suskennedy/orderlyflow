@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../lib/contexts/ThemeContext';
 import DatePicker from './DatePicker';
 
@@ -116,43 +116,48 @@ export default function TaskCompletionModal({
                 <Text style={[styles.inputLabel, { color: colors.text }]}>Select Vendor</Text>
                 <View style={[styles.vendorSelectionContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
                   {vendors.length > 0 ? (
-                    vendors.map((vendor) => (
-                      <TouchableOpacity
-                        key={vendor.id}
-                        style={[
-                          styles.vendorOption,
-                          completedByVendorId === vendor.id && { backgroundColor: colors.primaryLight, borderColor: colors.primary }
-                        ]}
-                        onPress={() => setCompletedByVendorId(vendor.id)}
-                      >
-                        <View style={styles.vendorOptionContent}>
-                          <Ionicons 
-                            name="person-circle" 
-                            size={24} 
-                            color={completedByVendorId === vendor.id ? colors.primary : colors.textSecondary} 
-                          />
-                          <View style={styles.vendorOptionInfo}>
-                            <Text style={[
-                              styles.vendorOptionName, 
-                              { color: completedByVendorId === vendor.id ? colors.primary : colors.text }
-                            ]}>
-                              {vendor.name}
-                            </Text>
-                            {vendor.category && (
+                    <FlatList
+                      data={vendors}
+                      keyExtractor={(item) => item.id}
+                      renderItem={({ item: vendor }) => (
+                        <TouchableOpacity
+                          style={[
+                            styles.vendorOption,
+                            completedByVendorId === vendor.id && { backgroundColor: colors.primaryLight, borderColor: colors.primary }
+                          ]}
+                          onPress={() => setCompletedByVendorId(vendor.id)}
+                        >
+                          <View style={styles.vendorOptionContent}>
+                            <Ionicons 
+                              name="person-circle" 
+                              size={24} 
+                              color={completedByVendorId === vendor.id ? colors.primary : colors.textSecondary} 
+                            />
+                            <View style={styles.vendorOptionInfo}>
                               <Text style={[
-                                styles.vendorOptionCategory, 
-                                { color: completedByVendorId === vendor.id ? colors.primary : colors.textSecondary }
+                                styles.vendorOptionName, 
+                                { color: completedByVendorId === vendor.id ? colors.primary : colors.text }
                               ]}>
-                                {vendor.category}
+                                {vendor.name}
                               </Text>
-                            )}
+                              {vendor.category && (
+                                <Text style={[
+                                  styles.vendorOptionCategory, 
+                                  { color: completedByVendorId === vendor.id ? colors.primary : colors.textSecondary }
+                                ]}>
+                                  {vendor.category}
+                                </Text>
+                              )}
+                            </View>
                           </View>
-                        </View>
-                        {completedByVendorId === vendor.id && (
-                          <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                        )}
-                      </TouchableOpacity>
-                    ))
+                          {completedByVendorId === vendor.id && (
+                            <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                          )}
+                        </TouchableOpacity>
+                      )}
+                      showsVerticalScrollIndicator={false}
+                      nestedScrollEnabled={true}
+                    />
                   ) : (
                     <View style={styles.noVendorsContainer}>
                       <Ionicons name="people-outline" size={48} color={colors.textTertiary} />

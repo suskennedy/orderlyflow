@@ -2,21 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useAuth } from '../../lib/hooks/useAuth';
 
 // Home card component that uses pre-calculated task counts from context
-const HomeCard = ({ home, colors }: { home: any; colors: any }) => {
+const HomeCard = React.memo(({ home, colors }: { home: any; colors: any }) => {
   const { taskCounts } = home;
 
   return (
@@ -71,7 +70,7 @@ const HomeCard = ({ home, colors }: { home: any; colors: any }) => {
       </View>
     </TouchableOpacity>
   );
-};
+});
 
 // Add display name for the component
 HomeCard.displayName = 'HomeCard';
@@ -80,12 +79,11 @@ export default function HomeSelectorScreen() {
   const { homesWithTaskCounts, loading, refreshing, onRefresh } = useHomes();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
 
-  // Debug logging
-  console.log('HomeSelectorScreen - homesWithTaskCounts:', homesWithTaskCounts);
-  console.log('HomeSelectorScreen - loading:', loading);
-  console.log('HomeSelectorScreen - user:', user?.id);
+  // Debug logging (reduced)
+  if (homesWithTaskCounts.length > 0) {
+    console.log('HomeSelectorScreen - homes count:', homesWithTaskCounts.length);
+  }
 
   // Memoized render function for better performance
   const renderHomeCard = useCallback(({ item: home }: { item: any }) => (
