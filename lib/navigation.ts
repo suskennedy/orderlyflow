@@ -78,6 +78,7 @@ export const routes = {
   calendar: {
     index: '/(tabs)/(calendar)',
     add: '/(tabs)/(calendar)/add',
+    home: (homeId: string) => `/(tabs)/(home)/${homeId}/calendar`,
   },
   
   // Inventory routes
@@ -126,6 +127,7 @@ export const navigate = {
   toFlo: () => router.replace(routes.tabs.flo as any),
   toSettings: () => router.replace(routes.tabs.settings as any),
   toCalendar: () => router.replace(routes.tabs.calendar as any),
+  toCalendarHome: (homeId: string) => router.push(routes.calendar.home(homeId) as any),
   
   // Generic navigation
   back: () => router.back(),

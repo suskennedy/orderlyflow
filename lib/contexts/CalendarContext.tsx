@@ -8,14 +8,18 @@ interface CalendarContextType {
   events: CalendarEvent[];
   loading: boolean;
   refreshing: boolean;
+  currentHomeId: string | null;
   addEvent: (event: Partial<CalendarEvent>) => void;
   updateEvent: (eventId: string, updates: Partial<CalendarEvent>) => Promise<void>;
   deleteEvent: (eventId: string) => Promise<void>;
   removeEventsByTaskId: (taskId: string) => void;
+  removeEventsByHomeTaskId: (homeTaskId: string) => void;
   refreshEvents: () => Promise<void>;
   onRefresh: () => Promise<void>;
   getAgendaEvents: () => CalendarEvent[];
-  getEventsForHome: (homeId: string) => CalendarEvent[];
+  getEventsForHome: (homeId: string) => Promise<CalendarEvent[]>;
+  getFilteredEvents: () => CalendarEvent[];
+  setCurrentHome: (homeId: string | null) => void;
   cleanupOrphanedEvents: () => Promise<void>;
 }
 
@@ -38,6 +42,7 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentHomeId, setCurrentHomeId] = useState<string | null>(null);
 
   // Helper function to sort events by start time
   const sortEvents = useCallback((eventsList: CalendarEvent[]) => {
@@ -49,24 +54,27 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
   // Helper function to get agenda events (grouped recurring tasks)
   const getAgendaEvents = useCallback(() => {
     const now = new Date();
-    const futureEvents = events.filter(event => new Date(event.start_time) >= now);
+    const filteredEvents = getFilteredEvents();
+    const futureEvents = filteredEvents.filter(event => new Date(event.start_time) >= now);
     
     console.log('Processing agenda events:', {
       totalEvents: events.length,
+      filteredEvents: filteredEvents.length,
       futureEvents: futureEvents.length
     });
     
-    // Group events by task_id to handle recurring tasks
+    // Group events by task_id or home_task_id to handle recurring tasks
     const taskGroups = new Map<string, CalendarEvent[]>();
     const nonTaskEvents: CalendarEvent[] = [];
     
     futureEvents.forEach(event => {
-      if (event.task_id) {
+      const groupKey = event.task_id || event.home_task_id;
+      if (groupKey) {
         // This is a task event
-        if (!taskGroups.has(event.task_id)) {
-          taskGroups.set(event.task_id, []);
+        if (!taskGroups.has(groupKey)) {
+          taskGroups.set(groupKey, []);
         }
-        taskGroups.get(event.task_id)!.push(event);
+        taskGroups.get(groupKey)!.push(event);
       } else {
         // This is a regular calendar event
         nonTaskEvents.push(event);
@@ -77,7 +85,7 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
     
     // For each task group, take only the next occurrence
     const nextTaskEvents: CalendarEvent[] = [];
-    taskGroups.forEach((taskEvents, taskId) => {
+    taskGroups.forEach((taskEvents, groupKey) => {
       if (taskEvents.length > 1 || taskEvents[0]?.is_recurring) {
         // This is a recurring task - take the next occurrence
         const nextEvent = taskEvents.sort((a, b) => 
@@ -99,36 +107,43 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
     const result = sortEvents([...nextTaskEvents, ...nonTaskEvents]);
     console.log('Final agenda events:', result.length);
     return result;
-  }, [events, sortEvents]);
+  }, [events, sortEvents, getFilteredEvents]);
 
-  // Get events for a specific home by filtering on task_id with home_id
+  // Get events for a specific home using the new schema
   const getEventsForHome = useCallback(async (homeId: string) => {
     if (!user?.id || !homeId) return [];
 
     try {
-      // Fetch events that belong to this specific home using the home_calendar_events junction table
+      // Fetch events that belong to this specific home using the new home_id column
       const { data, error } = await supabase
-        .from('home_calendar_events')
-        .select(`
-          event_id,
-          calendar_events!inner (*)
-        `)
+        .from('calendar_events')
+        .select('*')
         .eq('home_id', homeId)
-        .order('calendar_events.start_time', { ascending: true });
+        .eq('user_id', user.id)
+        .order('start_time', { ascending: true });
 
       if (error) {
         console.error('Error fetching events for home:', error);
         return [];
       }
 
-      // Extract the calendar events from the joined data
-      const homeEvents = data?.map(item => item.calendar_events).filter(Boolean) || [];
-      return homeEvents;
+      return data || [];
     } catch (error) {
       console.error('Error fetching events for home:', error);
       return [];
     }
   }, [user?.id]);
+
+  // Get filtered events based on current home selection
+  const getFilteredEvents = useCallback(() => {
+    // Events are already filtered by home in fetchEvents, so just return them
+    return events;
+  }, [events]);
+
+  // Set current home for filtering
+  const setCurrentHome = useCallback((homeId: string | null) => {
+    setCurrentHomeId(homeId);
+  }, []);
 
   // Fetch calendar events from Supabase
   const fetchEvents = useCallback(async () => {
@@ -138,20 +153,46 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
       setLoading(true);
       console.log('=== FETCHING CALENDAR EVENTS ===');
       console.log('Fetching calendar events for user:', user.id);
+        console.log('Current home ID for filtering:', currentHomeId);
+        
+        let query;
+        
+        // If we have a current home, use the home_calendar_events mapping table
+        if (currentHomeId) {
+          console.log('Filtering events by home_id using home_calendar_events mapping:', currentHomeId);
+          query = supabase
+            .from('home_calendar_events')
+            .select(`
+              event_id,
+              home_id,
+              calendar_events!inner(*)
+            `)
+            .eq('home_id', currentHomeId)
+            .eq('calendar_events.user_id', user.id);
+        } else {
+          // If no home selected, get all events for the user
+          query = supabase
+            .from('calendar_events')
+            .select('*')
+            .eq('user_id', user.id);
+        }
       
-      const { data, error } = await supabase
-        .from('calendar_events')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('start_time', { ascending: true });
+      const { data, error } = await query.order('start_time', { ascending: true });
         
       if (error) throw error;
       
-      console.log('Raw calendar events from database:', data?.length || 0);
-      
-      if (data && data.length > 0) {
-        const recurringEvents = data.filter(event => event.is_recurring);
-        const regularEvents = data.filter(event => !event.is_recurring);
+        console.log('Raw calendar events from database:', data?.length || 0);
+        
+        // Process the data based on the query type
+        let processedData = data;
+        if (currentHomeId && data) {
+          // When using home_calendar_events mapping, extract the calendar_events data
+          processedData = data.map((item: any) => item.calendar_events);
+        }
+        
+        if (processedData && processedData.length > 0) {
+          const recurringEvents = processedData.filter((event: any) => event.is_recurring);
+          const regularEvents = processedData.filter((event: any) => !event.is_recurring);
         
         console.log('Regular events:', regularEvents.length);
         console.log('Recurring events:', recurringEvents.length);
@@ -221,7 +262,7 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?.id, sortEvents]);
+  }, [user?.id, sortEvents, currentHomeId]);
 
   // Handle real-time calendar event updates
   const handleEventChange = useCallback((payload: any) => {
@@ -454,18 +495,74 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
     }
   }, [user?.id, fetchEvents]);
 
+  // Remove calendar events by home_task_id
+  const removeEventsByHomeTaskId = useCallback(async (homeTaskId: string) => {
+    if (!user?.id) return;
+
+    try {
+      console.log(`Removing calendar events for home_task_id: ${homeTaskId}`);
+      
+      // First, remove events from local state immediately for better UX
+      setEvents(current => {
+        const filtered = current.filter(event => event.home_task_id !== homeTaskId);
+        console.log(`Removed events for home_task ${homeTaskId} from local state, remaining:`, filtered.length);
+        return filtered;
+      });
+
+      // Then delete from database
+      const { data: eventsToDelete, error: selectError } = await supabase
+        .from('calendar_events')
+        .select('id')
+        .eq('home_task_id', homeTaskId)
+        .eq('user_id', user.id);
+
+      if (selectError) {
+        console.error('Error selecting events to delete by home_task_id:', selectError);
+        return;
+      }
+
+      if (eventsToDelete && eventsToDelete.length > 0) {
+        const eventIds = eventsToDelete.map(event => event.id);
+        console.log(`Found ${eventIds.length} calendar events to delete for home_task_id: ${homeTaskId}`);
+
+        const { error: deleteError } = await supabase
+          .from('calendar_events')
+          .delete()
+          .in('id', eventIds);
+
+        if (deleteError) {
+          console.error('Error deleting calendar events by home_task_id:', deleteError);
+          // If deletion failed, refresh events to restore correct state
+          await fetchEvents();
+        } else {
+          console.log('Successfully deleted calendar events by home_task_id');
+        }
+      } else {
+        console.log(`No calendar events found for home_task_id: ${homeTaskId} to delete.`);
+      }
+    } catch (error) {
+      console.error('Error during calendar events by home_task_id removal:', error);
+      // If there's an error, refresh events to ensure correct state
+      await fetchEvents();
+    }
+  }, [user?.id, fetchEvents]);
+
   const value = {
     events,
     loading,
     refreshing,
+    currentHomeId,
     addEvent,
     updateEvent,
     deleteEvent,
     removeEventsByTaskId,
+    removeEventsByHomeTaskId,
     refreshEvents,
     onRefresh,
     getAgendaEvents,
     getEventsForHome,
+    getFilteredEvents,
+    setCurrentHome,
     cleanupOrphanedEvents,
   };
 

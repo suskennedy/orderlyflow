@@ -21,7 +21,7 @@ import TaskCompletionModal from '../ui/TaskCompletionModal';
 export default function HomeScreen() {
   const { colors } = useTheme();
   const { onRefresh: homesRefresh, homes } = useHomes();
-  const { templateTasks, homeTasks, onRefresh: tasksRefresh, completeTask } = useTasks();
+  const { templateTasks, homeTasks, completeHomeTask, fetchHomeTasks } = useTasks();
   const { onRefresh: eventsRefresh } = useCalendar();
   const { onRefresh: vendorsRefresh } = useVendors();
   const [refreshing, setRefreshing] = useState(false);
@@ -31,8 +31,8 @@ export default function HomeScreen() {
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
-  // Use templateTasks as allTasks for now, or combine with homeTasks if needed
-  const allTasks = templateTasks || [];
+  // Use homeTasks as allTasks since these are the actual task instances with due dates
+  const allTasks = homeTasks || [];
 
 
   const onRefresh = () => {
@@ -40,7 +40,8 @@ export default function HomeScreen() {
     // Refresh all contexts using their onRefresh methods
     Promise.all([
       homesRefresh?.() || Promise.resolve(),
-      tasksRefresh?.() || Promise.resolve(),
+      // Refresh home tasks for all homes
+      Promise.all(homes.map(home => fetchHomeTasks(home.id))).catch(console.error),
       eventsRefresh?.() || Promise.resolve(),
       vendorsRefresh?.() || Promise.resolve(),
     ]).finally(() => {
@@ -62,7 +63,7 @@ export default function HomeScreen() {
   const handleTaskUncomplete = useCallback(async (taskId: string) => {
     try {
       setCompletingTaskId(taskId);
-      await completeTask(taskId, {
+      await completeHomeTask(taskId, {
         status: 'pending',
         completed_by_type: null,
         completed_at: null,
@@ -76,7 +77,7 @@ export default function HomeScreen() {
     } finally {
       setCompletingTaskId(null);
     }
-  }, [completeTask]);
+  }, [completeHomeTask]);
 
   const handleTaskComplete = useCallback(async (completionData: {
     notes: string;
@@ -106,7 +107,7 @@ export default function HomeScreen() {
         completionPayload.completed_by_user_id = null; // Will be set by backend
       }
 
-      await completeTask(selectedTaskForCompletion.id, completionPayload);
+      await completeHomeTask(selectedTaskForCompletion.id, completionPayload);
       
       // Close modal and reset state
       setCompletionModalVisible(false);
@@ -116,7 +117,7 @@ export default function HomeScreen() {
     } finally {
       setCompletingTaskId(null);
     }
-  }, [completeTask, selectedTaskForCompletion]);
+  }, [completeHomeTask, selectedTaskForCompletion]);
 
   const handleCancelCompletion = useCallback(() => {
     setCompletionModalVisible(false);
@@ -183,14 +184,12 @@ export default function HomeScreen() {
     });
 
     const userTasks = (allTasks || []).filter(task => 
-      task.task_type === 'custom' || 
-      task.task_type === 'preset' || 
-      !task.task_type
+      task.is_active === true // Only show active home tasks
     );
 
     // Filter tasks for this week
     const thisWeekTasks = userTasks.filter(task => {
-      if (task.status === 'completed' || task.is_active === false) return false;
+      if (task.status === 'completed') return false; // Already filtered for active tasks
       
       const dueDate = getTaskDueDate(task);
       if (!dueDate) return false;
@@ -201,7 +200,7 @@ export default function HomeScreen() {
 
     // Filter tasks for this month (excluding this week)
     const thisMonthTasks = userTasks.filter(task => {
-      if (task.status === 'completed' || task.is_active === false) return false;
+      if (task.status === 'completed') return false; // Already filtered for active tasks
       
       const dueDate = getTaskDueDate(task);
       if (!dueDate) return false;
@@ -215,7 +214,7 @@ export default function HomeScreen() {
 
     // Filter tasks for this year (excluding this week and this month)
     const thisYearTasks = userTasks.filter(task => {
-      if (task.status === 'completed' || task.is_active === false) return false;
+      if (task.status === 'completed') return false; // Already filtered for active tasks
       
       const dueDate = getTaskDueDate(task);
       if (!dueDate) return false;
@@ -298,9 +297,7 @@ export default function HomeScreen() {
 
   // Simple test to show all tasks if none are being displayed
   const showAllTasks = (allTasks || []).length > 0 && (allTasks || []).filter(task => 
-    task.task_type === 'custom' || 
-    task.task_type === 'preset' || 
-    !task.task_type
+    task.is_active === true
   ).length === 0;
 
   const renderHeader = () => (

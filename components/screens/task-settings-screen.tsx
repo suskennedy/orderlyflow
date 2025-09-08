@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTasks } from '../../lib/contexts/TasksContext';
@@ -53,7 +53,7 @@ interface TaskSettingsScreenProps {
 export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { templateTasks, homeTasks, activateTaskForHome, setCurrentHome } = useTasks();
+  const { templateTasks, homeTasks, activateTemplateForHome, setCurrentHome } = useTasks();
   const { vendors } = useVendors();
   const { showToast } = useToast();
 
@@ -111,11 +111,11 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
   // Filter tasks: active tasks first, then completed tasks
   const activeTasks = useMemo(() => activeTasksForHome
     .filter(task => 
-      task.is_active && task.status !== 'completed'
+      task.homeTask.is_active && task.homeTask.status !== 'completed'
     )
     .sort((a, b) => {
-      const dateA = a.next_due || a.due_date;
-      const dateB = b.next_due || b.due_date;
+      const dateA = a.homeTask.next_due || a.homeTask.due_date;
+      const dateB = b.homeTask.next_due || b.homeTask.due_date;
       
       if (!dateA && !dateB) return 0;
       if (!dateA) return 1;
@@ -126,7 +126,7 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
 
   // Separate custom tasks from predefined tasks
   const customTasks = useMemo(() => activeTasksForHome.filter(task => 
-    task.task_type === 'custom' && task.is_active
+    task.homeTask.task_id === null && task.homeTask.is_active
   ), [activeTasksForHome]);
 
   // Get tasks for each category from the template tasks
@@ -189,10 +189,10 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
     // Convert database tasks to the format expected by renderTaskItem
     const formattedDatabaseTasks = databaseTasks.map(task => ({
       name: task.title,
-      suggestedFrequency: task.recurrence_pattern ? `Every ${task.recurrence_pattern}` : 'One-time',
+      suggestedFrequency: 'One-time', // Template tasks don't have recurrence pattern
       category: task.category || 'General',
       subcategory: task.subcategory || null,
-      isPreset: task.task_type === 'preset',
+      isPreset: false, // All template tasks are not preset
       databaseTask: task, // Keep reference to original task
       isActiveForHome: activeTasksForHome.some(ht => ht.homeTask.task_id === task.id)
     }));
@@ -237,15 +237,15 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
         setTaskForms(prev => ({
           ...prev,
           [taskName]: {
-            assigned_vendor_id: existingTask.assigned_vendor_id || '',
-            assigned_user_id: existingTask.assigned_user_id || '',
-            due_date: existingTask.due_date || '',
+            assigned_vendor_id: existingTask.homeTask.assigned_vendor_id || '',
+            assigned_user_id: existingTask.homeTask.assigned_user_id || '',
+            due_date: existingTask.homeTask.due_date || '',
             due_time: '09:00', // Default time since home_tasks doesn't have due_time field yet
-            frequency: existingTask.recurrence_pattern || '',
-            notes: existingTask.notes || '',
-            is_recurring: existingTask.is_recurring || false,
-            recurrence_pattern: existingTask.recurrence_pattern || null,
-            is_active: existingTask.is_active !== false
+            frequency: existingTask.homeTask.recurrence_pattern || '',
+            notes: existingTask.homeTask.notes || '',
+            is_recurring: existingTask.homeTask.is_recurring || false,
+            recurrence_pattern: existingTask.homeTask.recurrence_pattern || null,
+            is_active: existingTask.homeTask.is_active !== false
           }
         }));
       } else {
@@ -432,12 +432,23 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
               return newSet;
             });
             
-            // Activate task
-            await activateTaskForHome(task.databaseTask.id, homeId, {
+            // Create calendar options if task is recurring
+            const calendarOptions = taskForm.is_recurring ? {
+              create_calendar_event: true,
+              start_time: taskForm.due_date ? `${taskForm.due_date}T09:00:00` : new Date().toISOString(),
+              end_time: taskForm.due_date ? `${taskForm.due_date}T10:00:00` : new Date().toISOString(),
+              is_recurring: taskForm.is_recurring,
+              recurrence_pattern: taskForm.recurrence_pattern,
+              recurrence_end_date: taskForm.recurrence_pattern ? 
+                new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : null
+            } : undefined;
+
+            await activateTemplateForHome(task.databaseTask.id, homeId, {
               name: taskName,
               category: task.category,
               suggestedFrequency: task.suggestedFrequency,
-              customSettings
+              customSettings,
+              calendarOptions
             });
             
             showToast(`Task "${taskName}" activated successfully!`, 'success');
@@ -478,11 +489,23 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
               notes: taskForm.notes,
             };
 
-            await activateTaskForHome(newTask.id, homeId, {
+            // Create calendar options if task is recurring
+            const calendarOptions = taskForm.is_recurring ? {
+              create_calendar_event: true,
+              start_time: taskForm.due_date ? `${taskForm.due_date}T09:00:00` : new Date().toISOString(),
+              end_time: taskForm.due_date ? `${taskForm.due_date}T10:00:00` : new Date().toISOString(),
+              is_recurring: taskForm.is_recurring,
+              recurrence_pattern: taskForm.recurrence_pattern,
+              recurrence_end_date: taskForm.recurrence_pattern ? 
+                new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : null
+            } : undefined;
+
+            await activateTemplateForHome(newTask.id, homeId, {
               name: taskName,
               category: task.category,
               suggestedFrequency: task.suggestedFrequency,
-              customSettings
+              customSettings,
+              calendarOptions
             });
 
             // Close dropdown
@@ -608,10 +631,10 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
     const taskForm = taskForms[task.name];
     const assignedVendor = taskForm?.assigned_vendor_id ? 
       vendors.find(v => v.id === taskForm.assigned_vendor_id) : 
-      (existingTask?.assigned_vendor_id ? vendors.find(v => v.id === existingTask.assigned_vendor_id) : null);
+      (existingTask?.homeTask.assigned_vendor_id ? vendors.find(v => v.id === existingTask.homeTask.assigned_vendor_id) : null);
     
     // Determine if task is active (either in selectedTasks or existingTask.is_active is true)
-    const isTaskActive = isSelected || (existingTask?.is_active === true);
+    const isTaskActive = isSelected || (existingTask?.homeTask.is_active === true);
     
     // Create unique key using category, task name, and index to avoid duplicates
     const uniqueKey = existingTask?.id || `${category}-${task.name}-${index}`;
@@ -929,12 +952,12 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
             {expandedCategory === 'Custom Tasks' && (
               <View style={styles.taskCardsContainer}>
                 {customTasks.map((task, index) => renderTaskItem({
-                  name: task.title,
-                  suggestedFrequency: task.recurrence_pattern ? `Every ${task.recurrence_pattern}` : 'One-time',
-                  category: task.category || 'Custom',
-                  subcategory: task.subcategory || null,
+                  name: task.homeTask.title,
+                  suggestedFrequency: task.homeTask.recurrence_pattern ? `Every ${task.homeTask.recurrence_pattern}` : 'One-time',
+                  category: task.homeTask.category || 'Custom',
+                  subcategory: task.homeTask.subcategory || null,
                   isPreset: false,
-                  databaseTask: task
+                  databaseTask: task.homeTask
                 }, 'Custom Tasks', index))}
               </View>
             )}

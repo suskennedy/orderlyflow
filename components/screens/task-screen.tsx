@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Animated,
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHomes } from '../../lib/contexts/HomesContext';
@@ -26,7 +26,7 @@ interface TasksScreenProps {
 
 export default function TasksScreen({ homeId }: TasksScreenProps) {
   const insets = useSafeAreaInsets();
-  const { homeTasks, loading, refreshing, onRefresh, completeTask, setCurrentHome, fetchTasksForHome } = useTasks();
+  const { homeTasks, loading, setCurrentHome, completeHomeTask, fetchHomeTasks } = useTasks();
   const { homes } = useHomes();
   const { vendors } = useVendors();
   const { colors } = useTheme();
@@ -73,12 +73,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
   // Simple combined tasks - fast array combination
   const allTasks = useMemo(() => [...activeTasks, ...completedTasks], [activeTasks, completedTasks]);
 
-  // Fetch tasks when home changes
-  useEffect(() => {
-    if (homeId) {
-      fetchTasksForHome(homeId);
-    }
-  }, [homeId, fetchTasksForHome]);
+  // Tasks are automatically fetched when setCurrentHome is called
 
   // Helper function to get the display date for a task
   const getTaskDisplayDate = useCallback((task: any) => {
@@ -118,7 +113,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
       // Mark task as incomplete
       try {
         setSavingTaskId(taskId);
-        await completeTask(taskId, { status: 'pending', is_active: true });
+        await completeHomeTask(taskId, { status: 'pending', is_active: true });
         setExpandedTask(null);
       } catch (error) {
         console.error('Error marking task as incomplete:', error);
@@ -126,7 +121,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
         setSavingTaskId(null);
       }
     }
-  }, [homeTasks, completeTask]);
+  }, [homeTasks, completeHomeTask]);
 
   // Handle completion from modal
   const handleTaskCompletion = useCallback(async (completionData: any) => {
@@ -141,7 +136,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
         is_active: false, // Deactivate task when completed
       };
 
-      await completeTask(currentTask.id, completionPayload);
+      await completeHomeTask(currentTask.id, completionPayload);
       
       // Close dropdown and clear current task
       setExpandedTask(null);
@@ -152,7 +147,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
     } finally {
       setSavingTaskId(null);
     }
-  }, [currentTask, completeTask]);
+  }, [currentTask, completeHomeTask]);
 
   // Handle modal close
   const handleCompletionModalClose = useCallback(() => {
@@ -227,7 +222,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
               </View>
               {item.category && (
                 <Text style={[styles.taskCategory, { color: colors.textSecondary }]}>
-                  {item.category} • {item.home_name || 'No home assigned'}
+                  {item.category} • {item.homes?.name || 'No home assigned'}
                 </Text>
               )}
               {isCompleted && item.completed_at && (
@@ -377,7 +372,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
         
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={() => router.push('/(tabs)/(calendar)' as any)}
+          onPress={() => router.push(`/(tabs)/(home)/${homeId}/calendar` as any)}
         >
           <Ionicons name="calendar" size={20} color={colors.text} />
           <Text style={[styles.actionButtonText, { color: colors.text }]}>
@@ -441,7 +436,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
           contentContainerStyle={styles.taskList}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl refreshing={loading} onRefresh={() => homeId && fetchHomeTasks(homeId)} />
           }
           ListHeaderComponent={renderHeader}
           // Performance optimizations
@@ -617,6 +612,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   taskActions: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },

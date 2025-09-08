@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTasks } from '../../lib/contexts/TasksContext';
@@ -48,7 +48,7 @@ const CATEGORY_OPTIONS = [
 export default function AddCustomTaskScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { addTask } = useTasks();
+  const { createCustomTask } = useTasks();
   const { homes } = useHomes();
   const { vendors } = useVendors();
   const { showToast } = useToast();

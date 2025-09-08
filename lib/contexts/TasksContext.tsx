@@ -1,61 +1,34 @@
-import React, { createContext, ReactNode, useCallback, useContext, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { Database } from '../../supabase-types';
 import { useAuth } from '../hooks/useAuth';
-import { useRealTimeSubscription } from '../hooks/useRealTimeSubscription';
 import { supabase } from '../supabase';
 
 // Use database types for consistency
-type Task = Database['public']['Tables']['tasks']['Row'];
-type TaskInsert = Database['public']['Tables']['tasks']['Insert'];
-type TaskUpdate = Database['public']['Tables']['tasks']['Update'];
+type TaskTemplate = Database['public']['Tables']['tasks']['Row'];
+// type TaskTemplateInsert = Database['public']['Tables']['tasks']['Insert'];
 type HomeTask = Database['public']['Tables']['home_tasks']['Row'];
 type HomeTaskInsert = Database['public']['Tables']['home_tasks']['Insert'];
 type HomeTaskUpdate = Database['public']['Tables']['home_tasks']['Update'];
-// REMOVED: Calendar event types are no longer needed here
-// type CalendarEventInsert = Database['public']['Tables']['calendar_events']['Insert'];
-// type HomeCalendarEventInsert = Database['public']['Tables']['home_calendar_events']['Insert'];
-
-// Extended interface for home tasks that can be either template-based or preset
-interface ExtendedHomeTask extends HomeTask {
-  // For template tasks, this will contain the full task data
-  templateTask?: Task;
-  // For preset tasks, this will contain the preset configuration
-  presetConfig?: {
-    name: string;
-    suggestedFrequency: string;
-    category: string;
-  };
-}
 
 interface TasksContextType {
-  // Template tasks (available to all homes)
-  templateTasks: Task[];
-  // Home-specific active tasks
-  homeTasks: ExtendedHomeTask[];
-  loading: boolean;
-  refreshing: boolean;
+  // Data
+  templateTasks: TaskTemplate[];
+  homeTasks: HomeTask[];
   currentHomeId: string | null;
+  loading: boolean;
   
-  // Core task operations
-  addTask: (taskData: TaskInsert) => Promise<Task>;
-  updateTask: (taskId: string, updates: TaskUpdate) => Promise<void>;
-  deleteTask: (taskId: string) => Promise<void>;
-  completeTask: (taskId: string, completionData: any) => Promise<void>;
-  
-  // Home-specific operations
+  // Essential functions only
+  fetchTemplateTasks: () => Promise<void>;
+  fetchHomeTasks: (homeId: string) => Promise<void>;
+  activateTemplateForHome: (templateId: string, homeId: string, details: any) => Promise<void>;
+  createCustomTask: (homeId: string, taskData: any) => Promise<HomeTask>;
+  updateHomeTask: (homeTaskId: string, updates: any) => Promise<void>;
+  completeHomeTask: (homeTaskId: string, completionData: any) => Promise<void>;
   setCurrentHome: (homeId: string | null) => void;
-  fetchTasksForHome: (homeId: string) => Promise<void>;
-  fetchCompletedTasksForHome: (homeId: string) => Promise<void>;
-  getTaskCountsForHome: (homeId: string) => Promise<{ active: number; completed: number; total: number }>;
-  activateTaskForHome: (taskId: string, homeId: string, presetTaskData?: {
-    name: string;
-    category: string;
-    suggestedFrequency: string;
-    customSettings?: any;
-  }) => Promise<void>;
-  deactivateTaskForHome: (taskId: string, homeId: string) => Promise<void>;
-  onRefresh: () => Promise<void>;
-  // REMOVED: createCalendarEventForTask is no longer needed here
+  
+  // Calendar integration functions
+  createHomeTaskWithCalendar: (homeId: string, taskData: any, calendarOptions?: any) => Promise<HomeTask>;
+  updateHomeTaskWithCalendar: (homeTaskId: string, updates: any, calendarOptions?: any) => Promise<void>;
 }
 
 const TasksContext = createContext<TasksContextType | undefined>(undefined);
@@ -74,19 +47,15 @@ interface TasksProviderProps {
 
 export const TasksProvider = ({ children }: TasksProviderProps) => {
   const { user } = useAuth();
-  const [templateTasks, setTemplateTasks] = useState<Task[]>([]);
-  const [homeTasks, setHomeTasks] = useState<ExtendedHomeTask[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [templateTasks, setTemplateTasks] = useState<TaskTemplate[]>([]);
+  const [homeTasks, setHomeTasks] = useState<HomeTask[]>([]);
   const [currentHomeId, setCurrentHomeId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  // Helper function to create calendar events for a task and link to home
-  // REMOVED: Calendar events should only be fetched in calendar view, not here
-  // This prevents unnecessary database operations and improves performance
-
-  // Fetch all template tasks (available to all homes)
+  // Call 1: Fetch template tasks
   const fetchTemplateTasks = useCallback(async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -95,457 +64,389 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       if (error) throw error;
       setTemplateTasks(data || []);
     } catch (error) {
-      console.error('Failed to fetch template tasks:', error);
-    }
-  }, []);
-
-  // Fetch all home tasks for display purposes (used in home selector)
-  const fetchAllHomeTasks = useCallback(async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch all home tasks - no need to join with tasks table anymore
-      // since home_tasks now contains all the necessary data
-      const { data, error } = await supabase
-        .from('home_tasks')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching all home tasks:', error);
-        throw error;
-      }
-      
-      // Transform the data to include template task info if available
-      const extendedHomeTasks: ExtendedHomeTask[] = (data || []).map(homeTask => {
-        if (homeTask.task_id) {
-          // This is a template-based task, find the template
-          const templateTask = templateTasks.find(t => t.id === homeTask.task_id);
-          return {
-            ...homeTask,
-            templateTask
-          };
-        } else {
-          // This is a preset task - for now, use basic properties
-          // Once the database is updated, these will be available
-          return {
-            ...homeTask,
-            presetConfig: {
-              name: 'Preset Task',
-              suggestedFrequency: 'Custom',
-              category: 'General'
-            }
-          };
-        }
-      });
-      
-      setHomeTasks(extendedHomeTasks);
-      
-    } catch (error) {
-      console.error('Failed to fetch all home tasks:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [templateTasks]);
-
-  // Fetch completed tasks for a specific home (separate query for better performance)
-  const fetchCompletedTasksForHome = useCallback(async (homeId: string) => {
-    if (!homeId) return;
-
-    try {
-      // Fetch completed tasks with proper sorting at database level
-      const { data, error } = await supabase
-        .from('home_tasks')
-        .select('*')
-        .eq('home_id', homeId)
-        .eq('status', 'completed')
-        .order('completed_at', { ascending: false, nullsFirst: false }); // Most recent first
-
-      if (error) {
-        console.error('Error fetching completed tasks for home:', error);
-        return;
-      }
-
-      // Update homeTasks with completed tasks - prevent unnecessary updates
-      setHomeTasks(current => {
-        const existingCompletedTasks = current.filter(ht => ht.home_id === homeId && ht.status === 'completed');
-        const newCompletedTasks = data || [];
-        
-        // Only update if the data actually changed
-        if (existingCompletedTasks.length === newCompletedTasks.length &&
-            existingCompletedTasks.every((existing, index) => existing.id === newCompletedTasks[index]?.id)) {
-          return current; // No change needed
-        }
-        
-        const activeTasks = current.filter(ht => ht.home_id === homeId && ht.status !== 'completed');
-        return [...activeTasks, ...newCompletedTasks];
-      });
-      
-    } catch (error) {
-      console.error('Failed to fetch completed tasks for home:', error);
-    }
-  }, []);
-
-  // Fast fetch tasks for a specific home (from home_tasks table)
-  const fetchTasksForHome = useCallback(async (homeId: string) => {
-    if (!homeId) return;
-
-    try {
-      setLoading(true);
-      
-      // Fetch ALL home-specific tasks in one query - much faster
-      const { data, error } = await supabase
-        .from('home_tasks')
-        .select('*')
-        .eq('home_id', homeId)
-        .order('created_at', { ascending: false }); // Simple sorting
-
-      if (error) {
-        console.error('Error fetching tasks for home:', error);
-        throw error;
-      }
-      
-      // Direct state update - no complex comparisons
-      setHomeTasks(current => {
-        const otherHomeTasks = current.filter(ht => ht.home_id !== homeId);
-        return [...otherHomeTasks, ...(data || [])];
-      });
-      
-      setCurrentHomeId(homeId);
-      
-    } catch (error) {
-      console.error('Failed to fetch tasks for home:', error);
+      console.error('Error fetching template tasks:', error);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Get task counts for a specific home
-  const getTaskCountsForHome = useCallback(async (homeId: string) => {
-    if (!homeId) return { active: 0, completed: 0, total: 0 };
-
+  // Call 2: Fetch home tasks for specific home
+  const fetchHomeTasks = useCallback(async (homeId: string) => {
     try {
-      // Get all tasks linked to this home by joining home_tasks with tasks
-      const { data: homeTaskData, error } = await supabase
+      setLoading(true);
+      const { data, error } = await supabase
         .from('home_tasks')
         .select(`
           *,
-          tasks (*)
+          homes!inner(name)
         `)
-        .eq('home_id', homeId);
+        .eq('home_id', homeId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-
-      const total = homeTaskData?.length || 0;
-      const active = homeTaskData?.filter(ht => ht.tasks?.is_active !== false && ht.tasks?.status !== 'completed').length || 0;
-      const completed = homeTaskData?.filter(ht => ht.tasks?.status === 'completed').length || 0;
-
-      return { active, completed, total };
+      setHomeTasks(data || []);
     } catch (error) {
-      console.error('Error getting task counts for home:', error);
-      return { active: 0, completed: 0, total: 0 };
+      console.error('Error fetching home tasks:', error);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  // Add a new task (creates template task)
-  const addTask = useCallback(async (taskData: TaskInsert): Promise<Task> => {
-    if (!user?.id) throw new Error('User not authenticated');
-
+  // Call 3: Activate template for home
+  const activateTemplateForHome = useCallback(async (templateId: string, homeId: string, details: any) => {
     try {
-      const payload: TaskInsert = {
+      const template = templateTasks.find(t => t.id === templateId);
+      if (!template) throw new Error('Template not found');
+
+      const homeTaskData: HomeTaskInsert = {
+        task_id: templateId,
+        home_id: homeId,
+        title: template.title,
+        description: template.description,
+        category: template.category,
+        subcategory: template.subcategory,
+        due_date: details.customSettings?.due_date || null,
+        priority: details.customSettings?.priority || null,
+        assigned_user_id: details.customSettings?.assigned_user_id || null,
+        assigned_vendor_id: details.customSettings?.assigned_vendor_id || null,
+        notes: details.customSettings?.notes || null,
+        room_location: details.customSettings?.room_location || null,
+        is_active: true,
+        status: 'pending',
+        is_recurring: details.customSettings?.is_recurring || false,
+        recurrence_pattern: details.customSettings?.recurrence_pattern || null,
+        recurrence_end_date: details.customSettings?.recurrence_end_date || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        created_by: user?.id || null,
+      };
+
+      const { data, error } = await supabase
+        .from('home_tasks')
+        .insert(homeTaskData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // If calendar options are provided, create calendar event
+      if (details.calendarOptions && details.calendarOptions.create_calendar_event) {
+        const calendarEventData = {
+          title: template.title,
+          description: template.description,
+          start_time: details.calendarOptions.start_time,
+          end_time: details.calendarOptions.end_time,
+          home_id: homeId,
+          task_id: templateId,
+          home_task_id: data.id,
+          task_type: 'task',
+          is_recurring: details.calendarOptions.is_recurring || false,
+          recurrence_pattern: details.calendarOptions.recurrence_pattern || null,
+          recurrence_end_date: details.calendarOptions.recurrence_end_date || null,
+          user_id: user?.id || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error: calendarError } = await supabase
+          .from('calendar_events')
+          .insert(calendarEventData);
+
+        if (calendarError) {
+          console.error('Error creating calendar event:', calendarError);
+          // Don't throw error - task was created successfully
+        }
+      }
+      
+      // Update local state
+      setHomeTasks(current => [data, ...current]);
+    } catch (error) {
+      console.error('Error activating template for home:', error);
+      throw error;
+    }
+  }, [templateTasks, user?.id]);
+
+  // Call 4: Create custom task
+  const createCustomTask = useCallback(async (homeId: string, taskData: any) => {
+    try {
+      const homeTaskData: HomeTaskInsert = {
         ...taskData,
-        created_by: user.id,
+        home_id: homeId,
+        task_id: null, // Custom task
+        is_active: true,
+        status: 'pending',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
 
       const { data, error } = await supabase
-        .from('tasks')
-        .insert([payload])
+        .from('home_tasks')
+        .insert(homeTaskData)
         .select()
         .single();
 
       if (error) throw error;
-
+      
       // Update local state
-      setTemplateTasks(current => [data, ...current]);
-
-      // If this task is for a specific home, activate it for that home
-      if (taskData.family_account_id) {
-        // This would be a custom task for a specific family
-        // You might want to handle this differently
-      }
-
+      setHomeTasks(current => [data, ...current]);
       return data;
     } catch (error) {
-      console.error('Error adding task:', error);
+      console.error('Error creating custom task:', error);
       throw error;
     }
-  }, [user]);
+  }, []);
 
-  // Update a task
-  const updateTask = useCallback(async (taskId: string, updates: TaskUpdate) => {
+  // Update home task
+  const updateHomeTask = useCallback(async (homeTaskId: string, updates: any) => {
     try {
-      const { error } = await supabase
-        .from('tasks')
+      const { data, error } = await supabase
+        .from('home_tasks')
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', taskId);
-
-      if (error) throw error;
-
-      // Update local state
-      setTemplateTasks(current => 
-        current.map(task => 
-          task.id === taskId ? { ...task, ...updates } : task
-        )
-      );
-    } catch (error) {
-      console.error('Error updating task:', error);
-      throw error;
-    }
-  }, []);
-
-  // Delete a task
-  const deleteTask = useCallback(async (taskId: string) => {
-    try {
-      // Delete from home_tasks first
-      await supabase
-        .from('home_tasks')
-        .delete()
-        .eq('task_id', taskId);
-
-      // REMOVED: Calendar event deletion is now handled in CalendarView
-      // This prevents unnecessary database operations and improves performance
-
-      // Delete the task
-      const { error } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', taskId);
-
-      if (error) throw error;
-      
-      // Update local state
-      setTemplateTasks(current => current.filter(task => task.id !== taskId));
-      setHomeTasks(current => current.filter(ht => ht.task_id !== taskId));
-    } catch (error) {
-      console.error('Error deleting task:', error);
-    }
-  }, []);
-
-  // Complete a task
-  const completeTask = useCallback(async (taskId: string, completionData: any) => {
-    try {
-      const updates: TaskUpdate = {
-          status: 'completed',
-        completed_at: new Date().toISOString(),
-        completion_notes: completionData.notes,
-        completed_by_type: completionData.completed_by_type,
-        completed_by_vendor_id: completionData.completed_by_vendor_id,
-        completed_by_user_id: completionData.completed_by_user_id,
-        completed_by_external_name: completionData.completed_by_external_name,
-        is_active: false, // Deactivate when completed
-      };
-
-      await updateTask(taskId, updates);
-    } catch (error) {
-      console.error('Error completing task:', error);
-      throw error;
-    }
-  }, [updateTask]);
-
-  // Fast activate a template task for a specific home
-  const activateTaskForHome = useCallback(async (taskId: string, homeId: string, presetTaskData?: {
-    name: string;
-    category: string;
-    suggestedFrequency: string;
-    customSettings?: any;
-  }) => {
-    try {
-      // Get the template task details
-      const templateTask = templateTasks.find(t => t.id === taskId);
-      if (!templateTask) {
-        throw new Error('Template task not found');
-      }
-
-      // Create minimal home task entry - only essential fields for speed
-      const homeTaskData: HomeTaskInsert = {
-        home_id: homeId,
-        task_id: taskId,
-        title: templateTask.title,
-        description: templateTask.description,
-        category: templateTask.category,
-        priority: templateTask.priority,
-        status: 'pending',
-        due_date: presetTaskData?.customSettings?.due_date || templateTask.due_date,
-        is_recurring: presetTaskData?.customSettings?.is_recurring || templateTask.is_recurring,
-        recurrence_pattern: presetTaskData?.customSettings?.recurrence_pattern || templateTask.recurrence_pattern,
-        notes: presetTaskData?.customSettings?.notes || templateTask.notes,
-        next_due: presetTaskData?.customSettings?.due_date || templateTask.next_due,
-        is_active: true,
-        assigned_vendor_id: presetTaskData?.customSettings?.assigned_vendor_id || null,
-        assigned_user_id: presetTaskData?.customSettings?.assigned_user_id || null,
-        task_type: templateTask.task_type,
-        recurrence_interval: presetTaskData?.customSettings?.recurrence_interval || templateTask.recurrence_interval,
-        recurrence_unit: presetTaskData?.customSettings?.recurrence_unit || templateTask.recurrence_unit,
-      };
-
-      const { data, error } = await supabase
-        .from('home_tasks')
-        .insert([homeTaskData])
+        .eq('id', homeTaskId)
         .select()
         .single();
 
       if (error) throw error;
-
-      // Update local state immediately for instant UI feedback
-      setHomeTasks(current => [...current, data]);
       
-    } catch (error) {
-      console.error('Error activating task for home:', error);
-      throw error;
-    }
-  }, [templateTasks]);
-
-  // Deactivate a task for a specific home (don't remove, just set inactive)
-  const deactivateTaskForHome = useCallback(async (taskId: string, homeId: string) => {
-    try {
-      // Update task to be inactive instead of deleting it
-      const { error } = await supabase
-        .from('home_tasks')
-        .update({ is_active: false, status: 'inactive' })
-        .eq('task_id', taskId)
-        .eq('home_id', homeId);
-
-      if (error) throw error;
-      
-      // Update local state immediately for instant UI feedback
+      // Update local state
       setHomeTasks(current => 
-        current.map(ht => 
-          (ht.task_id === taskId && ht.home_id === homeId) 
-            ? { ...ht, is_active: false, status: 'inactive' }
-            : ht
-        )
+        current.map(task => task.id === homeTaskId ? data : task)
       );
-      
     } catch (error) {
-      console.error('Error deactivating task for home:', error);
+      console.error('Error updating home task:', error);
       throw error;
     }
   }, []);
+
+  // Complete home task
+  const completeHomeTask = useCallback(async (homeTaskId: string, completionData: any) => {
+    try {
+      const updates: HomeTaskUpdate = {
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        completion_notes: completionData.notes,
+        completed_by_type: completionData.completed_by_type,
+        completed_by_user_id: completionData.completed_by_user_id,
+        completed_by_vendor_id: completionData.completed_by_vendor_id,
+        completed_by_external_name: completionData.completed_by_external_name,
+        is_active: false,
+        updated_at: new Date().toISOString(),
+      };
+
+      await updateHomeTask(homeTaskId, updates);
+
+      // Remove calendar events associated with this completed task
+      try {
+        const { error: calendarError } = await supabase
+          .from('calendar_events')
+          .delete()
+          .eq('home_task_id', homeTaskId);
+
+        if (calendarError) {
+          console.error('Error removing calendar events for completed task:', calendarError);
+        } else {
+          console.log('Successfully removed calendar events for completed task:', homeTaskId);
+        }
+      } catch (calendarError) {
+        console.error('Error removing calendar events for completed task:', calendarError);
+      }
+    } catch (error) {
+      console.error('Error completing home task:', error);
+      throw error;
+    }
+  }, [updateHomeTask]);
 
   // Set current home
   const setCurrentHome = useCallback((homeId: string | null) => {
     setCurrentHomeId(homeId);
     if (homeId) {
-      fetchTasksForHome(homeId);
+      fetchHomeTasks(homeId);
     } else {
       setHomeTasks([]);
     }
-  }, [fetchTasksForHome]);
+  }, [fetchHomeTasks]);
 
-  // Refresh tasks for current home
-  const onRefresh = useCallback(async () => {
-    if (!currentHomeId) return;
-    
-    setRefreshing(true);
+  // Calendar integration functions
+  const createHomeTaskWithCalendar = useCallback(async (homeId: string, taskData: any, calendarOptions?: any) => {
     try {
-      await fetchTasksForHome(currentHomeId);
-    } finally {
-      setRefreshing(false);
+      // Create the home task first
+      const homeTaskData: HomeTaskInsert = {
+        ...taskData,
+        home_id: homeId,
+        task_id: null, // Custom task
+        is_active: true,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        created_by: user?.id || null,
+      };
+
+      const { data, error } = await supabase
+        .from('home_tasks')
+        .insert(homeTaskData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // If calendar options are provided, create calendar event
+      if (calendarOptions && calendarOptions.create_calendar_event) {
+        const calendarEventData = {
+          title: taskData.title,
+          description: taskData.description,
+          start_time: calendarOptions.start_time || new Date().toISOString(),
+          end_time: calendarOptions.end_time || new Date().toISOString(),
+          home_id: homeId,
+          home_task_id: data.id,
+          task_type: 'custom',
+          is_recurring: calendarOptions.is_recurring || false,
+          recurrence_pattern: calendarOptions.recurrence_pattern || null,
+          recurrence_end_date: calendarOptions.recurrence_end_date || null,
+          user_id: user?.id || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error: calendarError } = await supabase
+          .from('calendar_events')
+          .insert(calendarEventData);
+
+        if (calendarError) {
+          console.error('Error creating calendar event:', calendarError);
+          // Don't throw error - task was created successfully
+        }
+      }
+
+      // Update local state
+      setHomeTasks(current => [data, ...current]);
+      return data;
+    } catch (error) {
+      console.error('Error creating home task with calendar:', error);
+      throw error;
     }
-  }, [currentHomeId, fetchTasksForHome]);
+  }, [user?.id]);
+
+  const updateHomeTaskWithCalendar = useCallback(async (homeTaskId: string, updates: any, calendarOptions?: any) => {
+    try {
+      // Update the home task
+      const { data, error } = await supabase
+        .from('home_tasks')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', homeTaskId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // If calendar options are provided, update or create calendar event
+      if (calendarOptions) {
+        // Check if calendar event exists for this home task
+        const { data: existingEvent } = await supabase
+          .from('calendar_events')
+          .select('id')
+          .eq('home_task_id', homeTaskId)
+          .single();
+
+        const calendarEventData = {
+          title: updates.title || data.title,
+          description: updates.description || data.description,
+          start_time: calendarOptions.start_time || new Date().toISOString(),
+          end_time: calendarOptions.end_time || new Date().toISOString(),
+          home_id: data.home_id,
+          home_task_id: homeTaskId,
+          task_type: 'custom',
+          is_recurring: calendarOptions.is_recurring || false,
+          recurrence_pattern: calendarOptions.recurrence_pattern || null,
+          recurrence_end_date: calendarOptions.recurrence_end_date || null,
+          user_id: user?.id || null,
+          updated_at: new Date().toISOString(),
+        };
+
+        if (existingEvent) {
+          // Update existing calendar event
+          const { error: calendarError } = await supabase
+            .from('calendar_events')
+            .update(calendarEventData)
+            .eq('id', existingEvent.id);
+
+          if (calendarError) {
+            console.error('Error updating calendar event:', calendarError);
+          }
+        } else if (calendarOptions.create_calendar_event) {
+          // Create new calendar event
+          const { error: calendarError } = await supabase
+            .from('calendar_events')
+            .insert({
+              ...calendarEventData,
+              created_at: new Date().toISOString(),
+            });
+
+          if (calendarError) {
+            console.error('Error creating calendar event:', calendarError);
+          }
+        }
+      }
+
+      // Update local state
+      setHomeTasks(current => 
+        current.map(task => task.id === homeTaskId ? data : task)
+      );
+    } catch (error) {
+      console.error('Error updating home task with calendar:', error);
+      throw error;
+    }
+  }, [user?.id]);
+
+  // Performance optimizations with memoization
+  // const activeTasks = useMemo(() => 
+  //   homeTasks.filter(task => task.is_active && task.status !== 'completed'), 
+  //   [homeTasks]
+  // );
+
+  // const completedTasks = useMemo(() => 
+  //   homeTasks.filter(task => task.status === 'completed'), 
+  //   [homeTasks]
+  // );
+
+  // const templatesWithStatus = useMemo(() => 
+  //   templateTasks.map(template => ({
+  //     ...template,
+  //     isActive: homeTasks.some(task => task.task_id === template.id)
+  //   })), 
+  //   [templateTasks, homeTasks]
+  // );
 
   // Load template tasks on mount
-  React.useEffect(() => {
+  useEffect(() => {
     fetchTemplateTasks();
   }, [fetchTemplateTasks]);
 
-  // Load all home tasks on mount
-  React.useEffect(() => {
-    fetchAllHomeTasks();
-  }, [fetchAllHomeTasks]);
-
-  // Real-time subscription for home_tasks
-  useRealTimeSubscription(
-    { 
-      table: 'home_tasks',
-      filter: currentHomeId ? `home_id=eq.${currentHomeId}` : undefined
-    }, 
-    () => {
-      if (currentHomeId) {
-        fetchTasksForHome(currentHomeId);
-      }
-    }
-  );
-
   const value = {
-    // State
+    // Data
     templateTasks,
     homeTasks,
     currentHomeId,
     loading,
-    refreshing,
     
     // Functions
     fetchTemplateTasks,
-    fetchTasksForHome,
-    fetchCompletedTasksForHome,
-    fetchAllHomeTasks,
-    getTaskCountsForHome,
-    addTask,
-    updateTask,
-    deleteTask,
-    completeTask: async (taskId: string, completionData: any) => {
-      // Implementation for completing a task
-      try {
-        const { error } = await supabase
-          .from('tasks')
-          .update({
-            status: 'completed',
-            completed_at: new Date().toISOString(),
-            completion_notes: completionData.notes,
-            completed_by_type: completionData.completed_by_type,
-            completed_by_user_id: completionData.completed_by_user_id,
-            completed_by_vendor_id: completionData.completed_by_vendor_id,
-            completed_by_external_name: completionData.completed_by_external_name,
-            is_active: false,
-          })
-          .eq('id', taskId);
-
-        if (error) throw error;
-        
-        // Update local state
-        setTemplateTasks(current => 
-          current.map(task => 
-            task.id === taskId 
-              ? { ...task, status: 'completed', completed_at: new Date().toISOString(), is_active: false }
-              : task
-          )
-        );
-      } catch (error) {
-        console.error('Error completing task:', error);
-        throw error;
-      }
-    },
-    activateTaskForHome,
-    deactivateTaskForHome,
-    // REMOVED: createCalendarEventForTask is no longer needed here
+    fetchHomeTasks,
+    activateTemplateForHome,
+    createCustomTask,
+    updateHomeTask,
+    completeHomeTask,
     setCurrentHome,
-    onRefresh: async () => {
-      setRefreshing(true);
-      try {
-        await Promise.all([
-          fetchTemplateTasks(),
-          fetchAllHomeTasks()
-        ]);
-      } finally {
-        setRefreshing(false);
-      }
-    },
+    
+    // Calendar integration functions
+    createHomeTaskWithCalendar,
+    updateHomeTaskWithCalendar,
   };
 
   return (
@@ -553,4 +454,4 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       {children}
     </TasksContext.Provider>
   );
-}; 
+};

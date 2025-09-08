@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { DateData } from 'react-native-calendars';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import DeleteConfirmationModal from '../../components/ui/DeleteConfirmationModal
 
 // Import hooks and utilities
 import { useCalendar } from '../../lib/contexts/CalendarContext';
+import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { getCalendarTheme, getColorHex } from '../../lib/utils/colorHelpers';
@@ -35,22 +36,44 @@ interface MarkingProps {
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { events, loading: calendarLoading, refreshing, deleteEvent, onRefresh } = useCalendar();
+  const { 
+    events, 
+    loading: calendarLoading, 
+    refreshing, 
+    deleteEvent, 
+    onRefresh,
+    currentHomeId,
+    setCurrentHome,
+    getFilteredEvents
+  } = useCalendar();
   const { templateTasks, homeTasks, loading: tasksLoading } = useTasks();
+  const { currentHome } = useHomes();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [calendarView, setCalendarView] = useState<'month' | 'agenda'>('month');
 
-  // Use templateTasks as tasks for now
-  const tasks = templateTasks || [];
+  // Use homeTasks instead of templateTasks to show only tasks for the current home
+  const tasks = homeTasks || [];
+
+  // Automatically set the current home in calendar context when there's a current home
+  useEffect(() => {
+    if (currentHome && currentHome.id !== currentHomeId) {
+      setCurrentHome(currentHome.id);
+    }
+  }, [currentHome, currentHomeId, setCurrentHome]);
+
+  // Use filtered events based on current home selection
+  const filteredEvents = useMemo(() => {
+    return getFilteredEvents();
+  }, [getFilteredEvents]);
 
   // Convert tasks to calendar events
   const taskEvents = useMemo(() => {
     const taskCalendarEvents: any[] = [];
     
     // Get all task IDs that already have calendar events
-    const tasksWithCalendarEvents = new Set(events.map(event => event.task_id).filter(Boolean));
+    const tasksWithCalendarEvents = new Set(filteredEvents.map(event => event.home_task_id).filter(Boolean));
     
     tasks.forEach((task) => {
       if (!task.is_active || task.status === 'completed') return;
@@ -80,30 +103,30 @@ export default function CalendarScreen() {
       
       // Create base task event
       const taskEvent = {
-        id: `task_${task.id}`,
+        id: `home_task_${task.id}`,
         title: `Task: ${task.title}`,
         description: task.description || `Task: ${task.title}`,
         start_time: `${taskDate}T09:00:00`,
         end_time: `${taskDate}T10:00:00`,
         color: eventColor,
         all_day: false,
-        task_id: task.id,
+        home_task_id: task.id, // Use home_task_id instead of task_id
         is_recurring: task.is_recurring || false,
         recurrence_pattern: task.recurrence_pattern,
         recurrence_end_date: task.recurrence_end_date,
-        type: 'task'
+        type: 'home_task'
       };
       
       taskCalendarEvents.push(taskEvent);
     });
     
     return taskCalendarEvents;
-  }, [tasks, events]);
+  }, [tasks, filteredEvents]);
 
   // Combine calendar events and task events
   const allEvents = useMemo(() => {
-    return [...events, ...taskEvents];
-  }, [events, taskEvents]);
+    return [...filteredEvents, ...taskEvents];
+  }, [filteredEvents, taskEvents]);
 
   // Enhanced format events for calendar markers - with filled color highlights for event dates
   const markedDates = useMemo(() => {
@@ -114,7 +137,7 @@ export default function CalendarScreen() {
     
     console.log('=== CALENDAR MARKING DEBUG ===');
     console.log('Total events to process:', allEvents.length);
-    console.log('Calendar events:', events.length);
+    console.log('Filtered calendar events:', filteredEvents.length);
     console.log('Task events:', taskEvents.length);
     
     // Get current date for generating recurring events
@@ -152,7 +175,7 @@ export default function CalendarScreen() {
       // Check if this event is already added to avoid duplicates
       const isDuplicate = eventsByDate[eventDate].some(existingEvent => 
         existingEvent.id === event.id || 
-        (existingEvent.task_id && existingEvent.task_id === event.task_id && 
+        (existingEvent.home_task_id && existingEvent.home_task_id === event.home_task_id && 
          existingEvent.start_time === event.start_time)
       );
       
@@ -191,7 +214,7 @@ export default function CalendarScreen() {
             
             // Check if this occurrence already exists to avoid duplicates
             const isOccurrenceDuplicate = eventsByDate[occurrenceDate].some(existingEvent => 
-              existingEvent.task_id === event.task_id && 
+              existingEvent.home_task_id === event.home_task_id && 
               existingEvent.start_time.startsWith(occurrenceDate)
             );
             
@@ -296,14 +319,14 @@ export default function CalendarScreen() {
       const eventDate = event.start_time.split('T')[0];
       if (eventDate === selectedDate) {
         // Check if we already have an event for this task on this date
-        if (event.task_id && processedTaskIds.has(`${event.task_id}_${eventDate}`)) {
+        if (event.home_task_id && processedTaskIds.has(`${event.home_task_id}_${eventDate}`)) {
           console.log(`⏭️ Skipping duplicate task event: ${event.title}`);
           return;
         }
         
         selectedEvents.push(event);
-        if (event.task_id) {
-          processedTaskIds.add(`${event.task_id}_${eventDate}`);
+        if (event.home_task_id) {
+          processedTaskIds.add(`${event.home_task_id}_${eventDate}`);
         }
         console.log(`✅ Added regular event: ${event.title}`);
       }
@@ -327,7 +350,7 @@ export default function CalendarScreen() {
           // Check if this occurrence falls on the selected date
           if (occurrenceDate === selectedDate) {
             // Check if we already have an event for this task on this date
-            if (event.task_id && processedTaskIds.has(`${event.task_id}_${occurrenceDate}`)) {
+            if (event.home_task_id && processedTaskIds.has(`${event.home_task_id}_${occurrenceDate}`)) {
               console.log(`⏭️ Skipping duplicate recurring occurrence: ${event.title}`);
               break; // Skip this entire recurring event if we already have it
             }
@@ -341,8 +364,8 @@ export default function CalendarScreen() {
             };
             
             selectedEvents.push(occurrenceEvent);
-            if (event.task_id) {
-              processedTaskIds.add(`${event.task_id}_${occurrenceDate}`);
+            if (event.home_task_id) {
+              processedTaskIds.add(`${event.home_task_id}_${occurrenceDate}`);
             }
             console.log(`✅ Found recurring occurrence for ${event.title} on ${selectedDate}`);
             break; // Only add one occurrence per recurring event
@@ -415,7 +438,7 @@ export default function CalendarScreen() {
     
     try {
       // If it's a task event, navigate to tasks instead of deleting
-      if (selectedEvent.type === 'task') {
+      if (selectedEvent.type === 'task' || selectedEvent.type === 'home_task') {
         setShowDeleteModal(false);
         setSelectedEvent(null);
         router.push('/(dashboard)/tasks');
@@ -430,6 +453,7 @@ export default function CalendarScreen() {
     }
   };
 
+
   // Render the header section
   const renderHeader = () => (
     <View style={styles.header}>
@@ -440,10 +464,17 @@ export default function CalendarScreen() {
         <Ionicons name="arrow-back" size={24} color={colors.text} />
       </TouchableOpacity>
       <View style={styles.headerLeft}>
-        <Text style={[styles.title, { color: colors.text }]}>Calendar</Text>
+        <Text style={[styles.title, { color: colors.text }]}>
+          {currentHome ? `${currentHome.name} Calendar` : 'Calendar'}
+        </Text>
         <Text style={[styles.subtitle, { color: colors.textTertiary }]}>
           {calendarLoading || tasksLoading ? 'Loading...' : `${allEvents.length} events`}
         </Text>
+        {currentHome && (
+          <Text style={[styles.homeName, { color: colors.textSecondary }]}>
+            Home-specific events
+          </Text>
+        )}
       </View>
       <TouchableOpacity 
         style={[styles.addButton, { backgroundColor: colors.primary }]}
@@ -453,6 +484,7 @@ export default function CalendarScreen() {
       </TouchableOpacity>
     </View>
   );
+
 
   // Show loading state while fetching data
   if ((calendarLoading || tasksLoading) && !refreshing) {
@@ -489,8 +521,8 @@ export default function CalendarScreen() {
         visible={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}
-        title={selectedEvent?.type === 'task' ? 'Task Event' : 'Delete Event'}
-        message={selectedEvent?.type === 'task' 
+        title={selectedEvent?.type === 'task' || selectedEvent?.type === 'home_task' ? 'Task Event' : 'Delete Event'}
+        message={selectedEvent?.type === 'task' || selectedEvent?.type === 'home_task'
           ? `This is a task event. To manage this task, go to the Tasks section.` 
           : `Are you sure you want to delete "${selectedEvent?.title}"? This action cannot be undone.`
         }
@@ -532,6 +564,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  homeName: {
+    fontSize: 14,
+    marginTop: 2,
   },
   backButton: {
     width: 40,

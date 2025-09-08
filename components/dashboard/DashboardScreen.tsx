@@ -52,7 +52,7 @@ export default function DashboardScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const { homes, loading: homesLoading, onRefresh: homesRefresh } = useHomes();
-  const { templateTasks, homeTasks, loading: tasksLoading, onRefresh: tasksRefresh, completeTask } = useTasks();
+  const { templateTasks, homeTasks, loading: tasksLoading, completeHomeTask, fetchHomeTasks } = useTasks();
   const { events, loading: eventsLoading, onRefresh: eventsRefresh } = useCalendar();
   const { vendors, loading: vendorsLoading, onRefresh: vendorsRefresh } = useVendors();
   const { items: inventory, loading: inventoryLoading, onRefresh: inventoryRefresh } = useInventory();
@@ -62,8 +62,8 @@ export default function DashboardScreen() {
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
-  // Use templateTasks as allTasks for now, or combine with homeTasks if needed
-  const allTasks = templateTasks || [];
+  // Use homeTasks as allTasks since these are the actual task instances with due dates
+  const allTasks = homeTasks || [];
 
   // Get the latest 5 items from each context - memoized for performance
   const tasks = useMemo(() => (allTasks || []).slice(0, 5), [allTasks]);
@@ -84,7 +84,8 @@ export default function DashboardScreen() {
     // Refresh all contexts using their onRefresh methods
     Promise.all([
       homesRefresh?.() || Promise.resolve(),
-      tasksRefresh?.() || Promise.resolve(),
+      // Refresh home tasks for all homes
+      Promise.all(homes.map(home => fetchHomeTasks(home.id))).catch(console.error),
       eventsRefresh?.() || Promise.resolve(),
       vendorsRefresh?.() || Promise.resolve(),
       inventoryRefresh?.() || Promise.resolve(),
@@ -323,6 +324,81 @@ export default function DashboardScreen() {
       });
   };
 
+  const getTasksForThisYear = () => {
+    const now = new Date();
+    const endOfMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const endOfYear = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+    
+    return allTasks
+      .filter(task => {
+        // Only show active, non-completed tasks
+        if (task.status === 'completed' || task.is_active === false) return false;
+        
+        // Handle recurring tasks based on frequency
+        if (task.is_recurring && task.recurrence_pattern) {
+          const pattern = task.recurrence_pattern.toLowerCase();
+          
+          switch (pattern) {
+            case 'daily':
+            case 'weekly':
+            case 'bi-weekly':
+            case 'biweekly':
+            case 'monthly':
+              // Short frequency tasks should not show in this year (already in this week/month)
+              return false;
+              
+            case 'quarterly':
+              // Quarterly tasks should show if they're due this year but after this month
+              if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                return dueDate > endOfMonth && dueDate <= endOfYear;
+              }
+              return false;
+              
+            case 'semi-annually':
+              // Semi-annually tasks should show if they're due this year but after this month
+              if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                return dueDate > endOfMonth && dueDate <= endOfYear;
+              }
+              return false;
+              
+            case 'annually':
+            case 'yearly':
+              // Annual tasks should show if they're due this year but after this month
+              if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                return dueDate > endOfMonth && dueDate <= endOfYear;
+              }
+              return false;
+              
+            default:
+              // For unknown patterns, check due date
+              if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                return dueDate > endOfMonth && dueDate <= endOfYear;
+              }
+              return false;
+          }
+        }
+        
+        // For non-recurring tasks, check if they're due this year but after this month
+        if (task.due_date) {
+          const dueDate = new Date(task.due_date);
+          return dueDate > endOfMonth && dueDate <= endOfYear;
+        }
+        
+        // If no due date, don't show in this year (already shown in this week/month)
+        return false;
+      })
+      .sort((a, b) => {
+        if (a.due_date && b.due_date) {
+          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+        }
+        return 0;
+      });
+  };
+
   const groupTasksByCategory = (tasks: any[]) => {
     const grouped: { [key: string]: any[] } = {};
     
@@ -351,7 +427,7 @@ export default function DashboardScreen() {
   const handleTaskUncomplete = useCallback(async (taskId: string) => {
     try {
       setCompletingTaskId(taskId);
-      await completeTask(taskId, {
+      await completeHomeTask(taskId, {
         status: 'pending',
         completed_by_type: null,
         completed_at: null,
@@ -364,7 +440,7 @@ export default function DashboardScreen() {
     } finally {
       setCompletingTaskId(null);
     }
-  }, [completeTask]);
+  }, [completeHomeTask]);
 
   const handleTaskComplete = useCallback(async (completionData: {
     notes: string;
@@ -394,7 +470,7 @@ export default function DashboardScreen() {
         completionPayload.completed_by_user_id = null; // Will be set by backend
       }
 
-      await completeTask(selectedTaskForCompletion.id, completionPayload);
+      await completeHomeTask(selectedTaskForCompletion.id, completionPayload);
       
       // Close modal and reset state
       setCompletionModalVisible(false);
@@ -405,7 +481,7 @@ export default function DashboardScreen() {
     } finally {
       setCompletingTaskId(null);
     }
-  }, [completeTask, selectedTaskForCompletion]);
+  }, [completeHomeTask, selectedTaskForCompletion]);
 
   const handleCancelCompletion = useCallback(() => {
     setCompletionModalVisible(false);
@@ -460,8 +536,10 @@ export default function DashboardScreen() {
   const renderTasksSection = () => {
     const weekTasks = getTasksForThisWeek();
     const monthTasks = getTasksForThisMonth();
+    const yearTasks = getTasksForThisYear();
     const weekTasksGrouped = groupTasksByCategory(weekTasks);
     const monthTasksGrouped = groupTasksByCategory(monthTasks);
+    const yearTasksGrouped = groupTasksByCategory(yearTasks);
 
     return (
       <View style={styles.tasksContainer}>
@@ -496,6 +574,20 @@ export default function DashboardScreen() {
             ) : (
               <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
                 No tasks this month
+              </Text>
+            )}
+          </View>
+
+          {/* This Year Column */}
+          <View style={styles.tasksColumn}>
+            <Text style={[styles.columnTitle, { color: colors.text }]}>This Year</Text>
+            {Object.keys(yearTasksGrouped).length > 0 ? (
+              Object.entries(yearTasksGrouped).map(([category, tasks]) => 
+                renderTaskCategory(category, tasks)
+              )
+            ) : (
+              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
+                No tasks this year
               </Text>
             )}
           </View>
@@ -1329,13 +1421,14 @@ const styles = StyleSheet.create({
   },
   tasksColumns: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
   tasksColumn: {
     flex: 1,
+    minWidth: 0, // Allow columns to shrink
   },
   columnTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
   },

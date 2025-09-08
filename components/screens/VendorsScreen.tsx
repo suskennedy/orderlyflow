@@ -3,16 +3,16 @@ import * as Contacts from 'expo-contacts';
 import { router } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Alert,
-  FlatList,
-  Linking,
-  Modal,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    FlatList,
+    Linking,
+    Modal,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTasks } from '../../lib/contexts/TasksContext';

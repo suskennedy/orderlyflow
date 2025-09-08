@@ -44,7 +44,7 @@ interface AddTaskScreenProps {
 
 export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
-  const { addTask, activateTaskForHome } = useTasks();
+  const { createCustomTask } = useTasks();
   const { homes } = useHomes();
   const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
@@ -69,6 +69,9 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
     recurrence_pattern: '',
     recurrence_end_date: '',
     notes: '',
+    assigned_user_id: '',
+    assigned_vendor_id: '',
+    room_location: '',
   });
   
   // Validation states
@@ -132,39 +135,31 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
     
     setLoading(true);
     try {
-      // Create the task data using database types
+      // Create the task data using database types (simplified schema)
       const taskData: TaskInsert = {
         title: formData.title.trim(),
         description: formData.description ? formData.description.trim() : null,
         category: formData.category || null,
-        priority: formData.priority,
-        status: 'pending',
-        due_date: formData.due_date || null,
-        // Remove home_id as tasks are now templates
-        is_recurring: formData.is_recurring,
-        recurrence_pattern: formData.is_recurring && formData.recurrence_pattern ? formData.recurrence_pattern.trim() : null,
-        recurrence_end_date: formData.is_recurring && formData.recurrence_end_date ? formData.recurrence_end_date : null,
-        notes: formData.notes ? formData.notes.trim() : null,
-        next_due: formData.due_date || null,
-        is_active: true,
-        task_type: 'custom',
-        // Add user context
-        created_by: user.id,
-        last_modified_by: user.id,
+        subcategory: null, // TODO: Add subcategory field to form if needed
       };
 
-      // Create the task as a template
-      const newTask = await addTask(taskData);
-
-      // If a home was selected, activate this task for that home
+      // Create custom task directly in home_tasks table
       if (formData.home_id) {
-        try {
-          await activateTaskForHome(newTask.id, formData.home_id);
-          console.log('Task activated for home successfully');
-        } catch (error) {
-          console.error('Error activating task for home:', error);
-          // Don't fail the whole operation if activation fails
-        }
+        await createCustomTask(formData.home_id, {
+          title: taskData.title,
+          description: taskData.description,
+          category: taskData.category,
+          subcategory: taskData.subcategory,
+          due_date: formData.due_date || null,
+          priority: formData.priority || null,
+          assigned_user_id: formData.assigned_user_id || null,
+          assigned_vendor_id: formData.assigned_vendor_id || null,
+          notes: formData.notes || null,
+          room_location: formData.room_location || null,
+          is_recurring: formData.is_recurring || false,
+          recurrence_pattern: formData.recurrence_pattern || null,
+          recurrence_end_date: formData.recurrence_end_date || null,
+        });
       }
 
       // Show success and navigate back
@@ -177,7 +172,7 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
     } finally {
       setLoading(false);
     }
-  }, [user, formData, validateForm, errors, addTask, activateTaskForHome]);
+  }, [user, formData, validateForm, errors, createCustomTask]);
 
   return (
     <KeyboardAvoidingView 

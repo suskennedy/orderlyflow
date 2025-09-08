@@ -18,6 +18,8 @@ import {
 import DatePicker from '../../components/DatePicker';
 import TimePicker from '../../components/TimePicker';
 import { useCalendar } from '../../lib/contexts/CalendarContext';
+import { useHomes } from '../../lib/contexts/HomesContext';
+import { useTasks } from '../../lib/contexts/TasksContext';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 
@@ -39,6 +41,8 @@ interface Task {
 export default function AddCalendarEventScreen() {
   const { user } = useAuth();
   const { addEvent } = useCalendar();
+  const { homes, currentHome } = useHomes();
+  const { homeTasks, createHomeTaskWithCalendar } = useTasks();
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [formData, setFormData] = useState({
@@ -52,9 +56,11 @@ export default function AddCalendarEventScreen() {
     color: 'blue',
     all_day: false,
     task_id: '',
+    home_id: '',
     is_recurring: false,
     recurrence_pattern: '',
     recurrence_end_date: '',
+    create_as_task: false,
   });
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
@@ -248,32 +254,60 @@ export default function AddCalendarEventScreen() {
         end_datetime = `${formData.end_date}T${formData.end_time}:00`;
       }
       
-      const eventData = {
-        title: formData.title,
-        description: formData.description || null,
-        start_time: start_datetime,
-        end_time: end_datetime,
-        location: formData.location || null,
-        color: formData.color,
-        all_day: formData.all_day,
-        task_id: formData.task_id || null,
-        user_id: user?.id,
-        is_recurring: formData.is_recurring,
-        recurrence_pattern: formData.is_recurring && formData.recurrence_pattern ? formData.recurrence_pattern : null,
-        recurrence_end_date: formData.is_recurring && formData.recurrence_end_date ? formData.recurrence_end_date : null,
-      };
+      // If creating as a home task, use the new calendar integration
+      if (formData.create_as_task && formData.home_id) {
+        const taskData = {
+          title: formData.title,
+          description: formData.description || null,
+          category: 'other',
+          priority: 'medium',
+          room_location: formData.location || null,
+          due_date: formData.start_date,
+          is_recurring: formData.is_recurring,
+          recurrence_pattern: formData.is_recurring && formData.recurrence_pattern ? formData.recurrence_pattern : null,
+          recurrence_end_date: formData.is_recurring && formData.recurrence_end_date ? formData.recurrence_end_date : null,
+        };
 
-      // Add to local state for immediate UI update
-      addEvent(eventData);
+        const calendarOptions = {
+          create_calendar_event: true,
+          start_time: start_datetime,
+          end_time: end_datetime,
+          is_recurring: formData.is_recurring,
+          recurrence_pattern: formData.is_recurring && formData.recurrence_pattern ? formData.recurrence_pattern : null,
+          recurrence_end_date: formData.is_recurring && formData.recurrence_end_date ? formData.recurrence_end_date : null,
+        };
 
-      // Then insert into Supabase
-      const { data, error } = await supabase.from('calendar_events').insert([eventData]);
+        await createHomeTaskWithCalendar(formData.home_id, taskData, calendarOptions);
+      } else {
+        // Create regular calendar event
+        const eventData = {
+          title: formData.title,
+          description: formData.description || null,
+          start_time: start_datetime,
+          end_time: end_datetime,
+          location: formData.location || null,
+          color: formData.color,
+          all_day: formData.all_day,
+          task_id: formData.task_id || null,
+          home_id: formData.home_id || null,
+          user_id: user?.id,
+          is_recurring: formData.is_recurring,
+          recurrence_pattern: formData.is_recurring && formData.recurrence_pattern ? formData.recurrence_pattern : null,
+          recurrence_end_date: formData.is_recurring && formData.recurrence_end_date ? formData.recurrence_end_date : null,
+        };
 
-      if (error) throw error;
+        // Add to local state for immediate UI update
+        addEvent(eventData);
 
-      // If it's a recurring event, create recurring calendar events
-      if (formData.is_recurring && formData.recurrence_pattern) {
-        await createRecurringCalendarEvents(eventData);
+        // Then insert into Supabase
+        const { data, error } = await supabase.from('calendar_events').insert([eventData]);
+
+        if (error) throw error;
+
+        // If it's a recurring event, create recurring calendar events
+        if (formData.is_recurring && formData.recurrence_pattern) {
+          await createRecurringCalendarEvents(eventData);
+        }
       }
 
       // Navigate back
@@ -451,6 +485,32 @@ export default function AddCalendarEventScreen() {
             </View>
           </View>
           
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Home (Optional)</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={formData.home_id}
+                onValueChange={(itemValue) => setFormData({ ...formData, home_id: itemValue })}
+                style={styles.picker}
+              >
+                <Picker.Item label="No home selected" value="" />
+                {homes.map((home) => (
+                  <Picker.Item key={home.id} label={home.name} value={home.id} />
+                ))}
+              </Picker>
+            </View>
+          </View>
+
+          <View style={styles.switchContainer}>
+            <Text style={styles.label}>Create as Home Task</Text>
+            <Switch
+              value={formData.create_as_task}
+              onValueChange={(value) => setFormData({ ...formData, create_as_task: value })}
+              trackColor={{ false: '#D1D5DB', true: '#4F46E5' }}
+              thumbColor={formData.create_as_task ? '#FFFFFF' : '#FFFFFF'}
+            />
+          </View>
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Link to Task (Optional)</Text>
             <View style={styles.pickerContainer}>
