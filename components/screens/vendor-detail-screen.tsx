@@ -2,17 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { supabase } from '../../lib/supabase';      
+import { supabase } from '../../lib/supabase';
 
 interface Vendor {
   id: string;
@@ -67,35 +66,6 @@ export default function VendorDetailScreen() {
     }
   };
 
-  const handleCall = () => {
-    if (vendor?.phone) {
-      Linking.openURL(`tel:${vendor.phone}`).catch(err => 
-        console.error('Error opening phone:', err)
-      );
-    } else {
-      Alert.alert('No Phone Number', 'This contact does not have a phone number');
-    }
-  };
-
-  const handleSchedule = () => {
-    if (vendor?.website) {
-      Linking.openURL(vendor.website).catch(err => 
-        console.error('Error opening website:', err)
-      );
-    } else {
-      Alert.alert('No Website', 'This contact does not have a website for online scheduling');
-    }
-  };
-
-  const handleEmail = () => {
-    if (vendor?.email) {
-      Linking.openURL(`mailto:${vendor.email}`).catch(err => 
-        console.error('Error opening email:', err)
-      );
-    } else {
-      Alert.alert('No Email', 'This contact does not have an email address');
-    }
-  };
 
   if (loading) {
     return (
@@ -134,7 +104,7 @@ export default function VendorDetailScreen() {
 
       <ScrollView 
         style={styles.content}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
       >
         {/* Company Name */}
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
@@ -210,32 +180,6 @@ export default function VendorDetailScreen() {
         )}
       </ScrollView>
 
-      {/* Action Buttons */}
-      <View style={[styles.actionButtons, { backgroundColor: colors.surface }]}>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: colors.success }]}
-          onPress={handleCall}
-        >
-          <Ionicons name="call" size={24} color={colors.textInverse} />
-          <Text style={[styles.actionButtonText, { color: colors.textInverse }]}>Call</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: colors.primary }]}
-          onPress={handleSchedule}
-        >
-          <Ionicons name="calendar" size={24} color={colors.textInverse} />
-          <Text style={[styles.actionButtonText, { color: colors.textInverse }]}>Schedule</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: colors.info }]}
-          onPress={handleEmail}
-        >
-          <Ionicons name="mail" size={24} color={colors.textInverse} />
-          <Text style={[styles.actionButtonText, { color: colors.textInverse }]}>Email</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
@@ -317,24 +261,5 @@ const styles = StyleSheet.create({
   notesText: {
     fontSize: 16,
     lineHeight: 24,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    padding: 20,
-    paddingBottom: 40,
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  actionButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
   },
 }); 

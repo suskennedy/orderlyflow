@@ -2,13 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
@@ -31,7 +29,7 @@ interface Vendor {
 
 export default function VendorDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { vendors, deleteVendor } = useVendors();
+  const { vendors } = useVendors();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [vendor, setVendor] = useState<Vendor | null>(null);
@@ -70,84 +68,6 @@ export default function VendorDetail() {
     );
   }
 
-  const handleCall = () => {
-    if (!vendor.phone) {
-      Alert.alert('No Phone Number', 'This vendor does not have a phone number.');
-      return;
-    }
-    
-    Alert.alert(
-      'Call Vendor',
-      `Call ${vendor.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Call', 
-          onPress: () => Linking.openURL(`tel:${vendor.phone}`)
-        }
-      ]
-    );
-  };
-
-  const handleEmail = () => {
-    if (!vendor.email) {
-      Alert.alert('No Email', 'This vendor does not have an email address.');
-      return;
-    }
-    
-    Alert.alert(
-      'Email Vendor',
-      `Send email to ${vendor.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Email', 
-          onPress: () => Linking.openURL(`mailto:${vendor.email}`)
-        }
-      ]
-    );
-  };
-
-  const handleWebsite = () => {
-    if (!vendor.website) {
-      Alert.alert('No Website', 'This vendor does not have a website.');
-      return;
-    }
-    
-    Alert.alert(
-      'Open Website',
-      `Open ${vendor.website}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Open', 
-          onPress: () => Linking.openURL(vendor.website!)
-        }
-      ]
-    );
-  };
-
-  const handleDelete = () => {
-    Alert.alert(
-      'Delete Vendor',
-      `Are you sure you want to delete ${vendor.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteVendor(vendor.id);
-              router.back();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete vendor.');
-            }
-          }
-        }
-      ]
-    );
-  };
 
   const getCategoryIcon = (category?: string | null) => {
     if (!category) return 'business';
@@ -302,51 +222,6 @@ export default function VendorDetail() {
             </View>
           )}
 
-          {/* Action Buttons */}
-          <View style={styles.actionsSection}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
-            
-            <View style={styles.actionButtons}>
-              {vendor.phone && (
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: '#10B981' }]}
-                  onPress={handleCall}
-                >
-                  <Ionicons name="call" size={24} color="white" />
-                  <Text style={styles.actionButtonText}>Call</Text>
-                </TouchableOpacity>
-              )}
-
-              {vendor.email && (
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
-                  onPress={handleEmail}
-                >
-                  <Ionicons name="mail" size={24} color="white" />
-                  <Text style={styles.actionButtonText}>Email</Text>
-                </TouchableOpacity>
-              )}
-
-              {vendor.website && (
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
-                  onPress={handleWebsite}
-                >
-                  <Ionicons name="globe" size={24} color="white" />
-                  <Text style={styles.actionButtonText}>Website</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Delete Button */}
-            <TouchableOpacity
-              style={[styles.deleteButton, { backgroundColor: colors.error + '15' }]}
-              onPress={handleDelete}
-            >
-              <Ionicons name="trash" size={20} color={colors.error} />
-              <Text style={[styles.deleteButtonText, { color: colors.error }]}>Delete Vendor</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </ScrollView>
     </View>
@@ -484,43 +359,6 @@ const styles = StyleSheet.create({
   notesText: {
     fontSize: 16,
     lineHeight: 24,
-  },
-  actionsSection: {
-    marginTop: 8,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 20,
-  },
-  actionButton: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    minWidth: 80,
-  },
-  actionButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 8,
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-  },
-  deleteButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
   },
   content: {
     flex: 1,
