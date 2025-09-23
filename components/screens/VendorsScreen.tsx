@@ -3,16 +3,16 @@ import * as Contacts from 'expo-contacts';
 import { router } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Linking,
-    Modal,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  FlatList,
+  Linking,
+  Modal,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTasks } from '../../lib/contexts/TasksContext';
@@ -303,49 +303,40 @@ export default function VendorsScreen() {
           style={styles.vendorHeader}
           onPress={() => router.push(`/(vendors)/${item.id}`)}
         >
-          <View style={styles.vendorInfo}>
+          {/* Company Name */}
+          <View style={styles.vendorMainInfo}>
             <Text style={[styles.vendorName, { color: colors.text }]}>{item.name}</Text>
-            {item.contact_name && (
-              <Text style={[styles.vendorContact, { color: colors.textSecondary }]}>
-                {item.contact_name}
-              </Text>
-            )}
             {item.category && (
-              <Text style={[styles.vendorCategory, { color: colors.textTertiary }]}>
-                {item.category}
-              </Text>
+              <View style={[styles.categoryBadge, { backgroundColor: colors.primary + '15' }]}>
+                <Ionicons name="pricetag" size={12} color={colors.primary} />
+                <Text style={[styles.categoryText, { color: colors.primary }]}>
+                  {item.category}
+                </Text>
+              </View>
             )}
           </View>
         </TouchableOpacity>
-        
-        {/* Contact Information - Clickable */}
-        <View style={styles.contactInfo}>
+
+        {/* Contact Information with Labels */}
+        <View style={styles.contactInfoSection}>
+          {item.contact_name && (
+            <View style={styles.contactRow}>
+              <View style={styles.contactLabelContainer}>
+                <Ionicons name="person" size={14} color={colors.textTertiary} />
+                <Text style={[styles.contactLabel, { color: colors.textTertiary }]}>Contact:</Text>
+              </View>
+              <Text style={[styles.contactValue, { color: colors.text }]}>{item.contact_name}</Text>
+            </View>
+          )}
+          
           {item.phone && (
-            <TouchableOpacity 
-              style={styles.contactItem}
-              onPress={() => Linking.openURL(`tel:${item.phone}`)}
-            >
-              <Ionicons name="call" size={16} color={colors.primary} />
-              <Text style={[styles.contactText, { color: colors.primary }]}>{item.phone}</Text>
-            </TouchableOpacity>
-          )}
-          {item.email && (
-            <TouchableOpacity 
-              style={styles.contactItem}
-              onPress={() => Linking.openURL(`mailto:${item.email}`)}
-            >
-              <Ionicons name="mail" size={16} color={colors.primary} />
-              <Text style={[styles.contactText, { color: colors.primary }]}>{item.email}</Text>
-            </TouchableOpacity>
-          )}
-          {item.website && (
-            <TouchableOpacity 
-              style={styles.contactItem}
-              onPress={() => Linking.openURL(item.website!)}
-            >
-              <Ionicons name="globe" size={16} color={colors.primary} />
-              <Text style={[styles.contactText, { color: colors.primary }]}>{item.website}</Text>
-            </TouchableOpacity>
+            <View style={styles.contactRow}>
+              <View style={styles.contactLabelContainer}>
+                <Ionicons name="call" size={14} color={colors.textTertiary} />
+                <Text style={[styles.contactLabel, { color: colors.textTertiary }]}>Phone:</Text>
+              </View>
+              <Text style={[styles.contactValue, { color: colors.text }]}>{item.phone}</Text>
+            </View>
           )}
         </View>
         
@@ -672,34 +663,74 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   vendorCard: {
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: 'hidden',
   },
   vendorHeader: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
   },
-  vendorInfo: {
+  vendorMainInfo: {
     width: '100%',
   },
   vendorName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
+    marginBottom: 8,
   },
-  vendorContact: {
-    fontSize: 14,
-    marginTop: 2,
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginTop: 4,
   },
-  vendorCategory: {
+  categoryText: {
     fontSize: 12,
-    marginTop: 2,
+    fontWeight: '600',
+    marginLeft: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  contactInfoSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingVertical: 2,
+  },
+  contactLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 80,
+    marginRight: 12,
+  },
+  contactLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  contactValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
   },
   deleteButtonTopRight: {
     position: 'absolute',
@@ -709,28 +740,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     zIndex: 1,
   },
-  contactInfo: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-  },
-  contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-    marginBottom: 4,
-  },
   modalContactItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-  },
-  contactText: {
-    marginLeft: 8,
-    fontSize: 14,
-    textDecorationLine: 'underline',
   },
   assignedTasks: {
     paddingHorizontal: 16,

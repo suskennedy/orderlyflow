@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Database } from '../../supabase-types';
 import { useAuth } from '../hooks/useAuth';
 import { useRealTimeSubscription } from '../hooks/useRealTimeSubscription';
@@ -76,11 +76,13 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
     }
   }, []);
 
-  // Call 2: Fetch home tasks for specific home
+  // Call 2: Fetch home tasks, repairs, and projects for specific home
   const fetchHomeTasks = useCallback(async (homeId: string) => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // Fetch home tasks
+      const { data: homeTasksData, error: homeTasksError } = await supabase
         .from('home_tasks')
         .select(`
           *,
@@ -90,11 +92,226 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      console.log('TasksContext: Fetched home tasks for home', homeId, ':', data?.length || 0, 'tasks');
-      setHomeTasks(data || []);
+      if (homeTasksError) throw homeTasksError;
+
+      // Fetch repairs for this home
+      const { data: repairsData, error: repairsError } = await supabase
+        .from('repairs')
+        .select('*')
+        .eq('home_id', homeId)
+        .order('created_at', { ascending: false });
+
+      if (repairsError) throw repairsError;
+
+      // Fetch projects for this home
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('home_id', homeId)
+        .order('created_at', { ascending: false });
+
+      if (projectsError) throw projectsError;
+
+      // Convert repairs to home task format
+      const repairTasks = (repairsData || []).map(repair => ({
+        id: `repair_${repair.id}`,
+        task_id: null,
+        home_id: repair.home_id,
+        title: repair.title,
+        description: repair.description,
+        category: repair.category || 'Repair',
+        subcategory: null,
+        due_date: repair.due_date,
+        priority: repair.priority,
+        assigned_user_id: repair.assigned_user_id,
+        assigned_vendor_id: repair.assigned_vendor_id,
+        notes: repair.notes,
+        room_location: null,
+        is_active: true,
+        status: repair.status === 'completed' ? 'completed' : 'pending',
+        is_recurring: false,
+        recurrence_pattern: null,
+        recurrence_end_date: null,
+        created_at: repair.created_at,
+        updated_at: repair.updated_at,
+        created_by: repair.created_by,
+        completed_at: repair.completed_date,
+        next_due: null,
+        actual_cost: repair.actual_cost,
+        estimated_cost: repair.estimated_cost,
+        item_type: 'repair' as const,
+        original_id: repair.id,
+        // Missing HomeTask fields
+        completion_notes: null,
+        completed_by_type: null,
+        completed_by_user_id: null,
+        completed_by_vendor_id: null,
+        completed_by_external_name: null,
+        family_account_id: repair.family_account_id,
+        user_notes: null,
+        vendor_notes: null,
+        photos: repair.photos,
+        reminder_interval: null,
+        last_reminder_sent: null,
+        difficulty_level: null,
+        estimated_time_minutes: null,
+        actual_time_minutes: null,
+        seasonal_month: null,
+        seasonal_frequency: null,
+        maintenance_interval_days: null,
+        last_maintenance_date: null,
+        next_maintenance_date: null,
+        cost_per_occurrence: null,
+        total_cost_to_date: null,
+        completion_date: null,
+        completion_verification_notes: null,
+        completion_verification_status: null,
+        custom_frequency: null,
+        custom_frequency_unit: null,
+        dependencies: null,
+        equipment_needed: null,
+        external_service_info: null,
+        home_area: null,
+        impact_if_skipped: null,
+        inspection_checklist: null,
+        is_emergency: false,
+        is_seasonal: false,
+        materials_needed: null,
+        safety_notes: null,
+        tags: null,
+        tutorial_link: null,
+        weather_dependent: false,
+        equipment_required: null,
+        estimated_duration_minutes: null,
+        frequency_type: null,
+        image_url: null,
+        maintenance_log: null,
+        next_scheduled_date: null,
+        priority_score: null,
+        resource_links: null,
+        skill_level_required: null,
+        instructions: null,
+        is_recurring_task: false,
+        last_completed: null,
+        last_modified_by: null,
+        location_notes: null,
+        next_due_date: null,
+        notification_settings: null,
+        priority_notes: null,
+        recurring_task_id: null,
+        priority_level: null,
+        recurrence_interval: null,
+        recurrence_unit: null,
+        suggested_frequency: null,
+        task_type: null
+      }));
+
+      // Convert projects to home task format
+      const projectTasks = (projectsData || []).map(project => ({
+        id: `project_${project.id}`,
+        task_id: null,
+        home_id: project.home_id,
+        title: project.title,
+        description: project.description,
+        category: project.category || 'Project',
+        subcategory: null,
+        due_date: project.start_date || project.end_date,
+        priority: project.priority,
+        assigned_user_id: project.assigned_user_id,
+        assigned_vendor_id: project.assigned_vendor_id,
+        notes: project.notes,
+        room_location: null,
+        is_active: true,
+        status: project.status === 'completed' ? 'completed' : 'pending',
+        is_recurring: false,
+        recurrence_pattern: null,
+        recurrence_end_date: null,
+        created_at: project.created_at,
+        updated_at: project.updated_at,
+        created_by: project.created_by,
+        completed_at: project.completion_date,
+        next_due: null,
+        actual_cost: project.actual_budget,
+        estimated_cost: project.estimated_budget,
+        start_date: project.start_date,
+        end_date: project.end_date,
+        item_type: 'project' as const,
+        original_id: project.id,
+        // Missing HomeTask fields
+        completion_notes: null,
+        completed_by_type: null,
+        completed_by_user_id: null,
+        completed_by_vendor_id: null,
+        completed_by_external_name: null,
+        family_account_id: project.family_account_id,
+        user_notes: null,
+        vendor_notes: null,
+        photos: project.photos,
+        reminder_interval: null,
+        last_reminder_sent: null,
+        difficulty_level: null,
+        estimated_time_minutes: null,
+        actual_time_minutes: null,
+        seasonal_month: null,
+        seasonal_frequency: null,
+        maintenance_interval_days: null,
+        last_maintenance_date: null,
+        next_maintenance_date: null,
+        cost_per_occurrence: null,
+        total_cost_to_date: null,
+        completion_date: null,
+        completion_verification_notes: null,
+        completion_verification_status: null,
+        custom_frequency: null,
+        custom_frequency_unit: null,
+        dependencies: null,
+        equipment_needed: null,
+        external_service_info: null,
+        home_area: null,
+        impact_if_skipped: null,
+        inspection_checklist: null,
+        is_emergency: false,
+        is_seasonal: false,
+        materials_needed: null,
+        safety_notes: null,
+        tags: null,
+        tutorial_link: null,
+        weather_dependent: false,
+        equipment_required: null,
+        estimated_duration_minutes: null,
+        frequency_type: null,
+        image_url: null,
+        maintenance_log: null,
+        next_scheduled_date: null,
+        priority_score: null,
+        resource_links: null,
+        skill_level_required: null,
+        instructions: null,
+        is_recurring_task: false,
+        last_completed: null,
+        last_modified_by: null,
+        location_notes: null,
+        next_due_date: null,
+        notification_settings: null,
+        priority_notes: null,
+        recurring_task_id: null,
+        priority_level: null,
+        recurrence_interval: null,
+        recurrence_unit: null,
+        suggested_frequency: null,
+        task_type: null
+      }));
+
+      // Combine all tasks
+      const allTasks = [
+        ...(homeTasksData || []),
+        ...repairTasks,
+        ...projectTasks
+      ];
+
+      setHomeTasks(allTasks);
     } catch (error) {
-      console.error('Error fetching home tasks:', error);
+      console.error('Error fetching home tasks, repairs, and projects:', error);
     } finally {
       setLoading(false);
     }
@@ -130,7 +347,7 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       console.log('TasksContext: Found homes for user:', homeIds);
       
       // First, let's check if there are any tasks at all in the database
-      const { data: allTasksInDB, error: allTasksError } = await supabase
+      const { data: allTasksInDB } = await supabase
         .from('home_tasks')
         .select('*')
         .limit(10);
@@ -146,27 +363,238 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         });
       }
       
-      // Then get all tasks for those homes (including inactive ones for debugging)
-      const { data, error } = await supabase
+      // Get all home tasks for those homes
+      const { data: homeTasksData, error: homeTasksError } = await supabase
         .from('home_tasks')
         .select('*')
         .in('home_id', homeIds)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      console.log('TasksContext: Fetched all home tasks:', data?.length || 0, 'tasks');
-      if (data && data.length > 0) {
-        console.log('TasksContext: Sample task:', {
-          id: data[0].id,
-          title: data[0].title,
-          status: data[0].status,
-          is_active: data[0].is_active,
-          due_date: data[0].due_date,
-          home_id: data[0].home_id
-        });
-      }
-      setAllHomeTasks(data || []);
-      console.log('TasksContext: Successfully set allHomeTasks, count:', data?.length || 0);
+      if (homeTasksError) throw homeTasksError;
+
+      // Get all repairs for those homes
+      const { data: repairsData, error: repairsError } = await supabase
+        .from('repairs')
+        .select('*')
+        .in('home_id', homeIds)
+        .order('created_at', { ascending: false });
+
+      if (repairsError) throw repairsError;
+
+      // Get all projects for those homes
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('projects')
+        .select('*')
+        .in('home_id', homeIds)
+        .order('created_at', { ascending: false });
+
+      if (projectsError) throw projectsError;
+
+      // Convert repairs to home task format
+      const repairTasks = (repairsData || []).map(repair => ({
+        id: `repair_${repair.id}`,
+        task_id: null,
+        home_id: repair.home_id,
+        title: repair.title,
+        description: repair.description,
+        category: repair.category || 'Repair',
+        subcategory: null,
+        due_date: repair.due_date,
+        priority: repair.priority,
+        assigned_user_id: repair.assigned_user_id,
+        assigned_vendor_id: repair.assigned_vendor_id,
+        notes: repair.notes,
+        room_location: null,
+        is_active: true,
+        status: repair.status === 'completed' ? 'completed' : 'pending',
+        is_recurring: false,
+        recurrence_pattern: null,
+        recurrence_end_date: null,
+        created_at: repair.created_at,
+        updated_at: repair.updated_at,
+        created_by: repair.created_by,
+        completed_at: repair.completed_date,
+        next_due: null,
+        actual_cost: repair.actual_cost,
+        estimated_cost: repair.estimated_cost,
+        item_type: 'repair' as const,
+        original_id: repair.id,
+        // Missing HomeTask fields
+        completion_notes: null,
+        completed_by_type: null,
+        completed_by_user_id: null,
+        completed_by_vendor_id: null,
+        completed_by_external_name: null,
+        family_account_id: repair.family_account_id,
+        user_notes: null,
+        vendor_notes: null,
+        photos: repair.photos,
+        reminder_interval: null,
+        last_reminder_sent: null,
+        difficulty_level: null,
+        estimated_time_minutes: null,
+        actual_time_minutes: null,
+        seasonal_month: null,
+        seasonal_frequency: null,
+        maintenance_interval_days: null,
+        last_maintenance_date: null,
+        next_maintenance_date: null,
+        cost_per_occurrence: null,
+        total_cost_to_date: null,
+        completion_date: null,
+        completion_verification_notes: null,
+        completion_verification_status: null,
+        custom_frequency: null,
+        custom_frequency_unit: null,
+        dependencies: null,
+        equipment_needed: null,
+        external_service_info: null,
+        home_area: null,
+        impact_if_skipped: null,
+        inspection_checklist: null,
+        is_emergency: false,
+        is_seasonal: false,
+        materials_needed: null,
+        safety_notes: null,
+        tags: null,
+        tutorial_link: null,
+        weather_dependent: false,
+        equipment_required: null,
+        estimated_duration_minutes: null,
+        frequency_type: null,
+        image_url: null,
+        maintenance_log: null,
+        next_scheduled_date: null,
+        priority_score: null,
+        resource_links: null,
+        skill_level_required: null,
+        instructions: null,
+        is_recurring_task: false,
+        last_completed: null,
+        last_modified_by: null,
+        location_notes: null,
+        next_due_date: null,
+        notification_settings: null,
+        priority_notes: null,
+        recurring_task_id: null,
+        priority_level: null,
+        recurrence_interval: null,
+        recurrence_unit: null,
+        suggested_frequency: null,
+        task_type: null
+      }));
+
+      // Convert projects to home task format
+      const projectTasks = (projectsData || []).map(project => ({
+        id: `project_${project.id}`,
+        task_id: null,
+        home_id: project.home_id,
+        title: project.title,
+        description: project.description,
+        category: project.category || 'Project',
+        subcategory: null,
+        due_date: project.start_date || project.end_date,
+        priority: project.priority,
+        assigned_user_id: project.assigned_user_id,
+        assigned_vendor_id: project.assigned_vendor_id,
+        notes: project.notes,
+        room_location: null,
+        is_active: true,
+        status: project.status === 'completed' ? 'completed' : 'pending',
+        is_recurring: false,
+        recurrence_pattern: null,
+        recurrence_end_date: null,
+        created_at: project.created_at,
+        updated_at: project.updated_at,
+        created_by: project.created_by,
+        completed_at: project.completion_date,
+        next_due: null,
+        actual_cost: project.actual_budget,
+        estimated_cost: project.estimated_budget,
+        start_date: project.start_date,
+        end_date: project.end_date,
+        item_type: 'project' as const,
+        original_id: project.id,
+        // Missing HomeTask fields
+        completion_notes: null,
+        completed_by_type: null,
+        completed_by_user_id: null,
+        completed_by_vendor_id: null,
+        completed_by_external_name: null,
+        family_account_id: project.family_account_id,
+        user_notes: null,
+        vendor_notes: null,
+        photos: project.photos,
+        reminder_interval: null,
+        last_reminder_sent: null,
+        difficulty_level: null,
+        estimated_time_minutes: null,
+        actual_time_minutes: null,
+        seasonal_month: null,
+        seasonal_frequency: null,
+        maintenance_interval_days: null,
+        last_maintenance_date: null,
+        next_maintenance_date: null,
+        cost_per_occurrence: null,
+        total_cost_to_date: null,
+        completion_date: null,
+        completion_verification_notes: null,
+        completion_verification_status: null,
+        custom_frequency: null,
+        custom_frequency_unit: null,
+        dependencies: null,
+        equipment_needed: null,
+        external_service_info: null,
+        home_area: null,
+        impact_if_skipped: null,
+        inspection_checklist: null,
+        is_emergency: false,
+        is_seasonal: false,
+        materials_needed: null,
+        safety_notes: null,
+        tags: null,
+        tutorial_link: null,
+        weather_dependent: false,
+        equipment_required: null,
+        estimated_duration_minutes: null,
+        frequency_type: null,
+        image_url: null,
+        maintenance_log: null,
+        next_scheduled_date: null,
+        priority_score: null,
+        resource_links: null,
+        skill_level_required: null,
+        instructions: null,
+        is_recurring_task: false,
+        last_completed: null,
+        last_modified_by: null,
+        location_notes: null,
+        next_due_date: null,
+        notification_settings: null,
+        priority_notes: null,
+        recurring_task_id: null,
+        priority_level: null,
+        recurrence_interval: null,
+        recurrence_unit: null,
+        suggested_frequency: null,
+        task_type: null
+      }));
+
+      // Combine all tasks
+      const allTasks = [
+        ...(homeTasksData || []),
+        ...repairTasks,
+        ...projectTasks
+      ];
+
+      console.log('TasksContext: Fetched all items:', {
+        homeTasks: homeTasksData?.length || 0,
+        repairs: repairsData?.length || 0,
+        projects: projectsData?.length || 0,
+        total: allTasks.length
+      });
+      
+      setAllHomeTasks(allTasks);
     } catch (error) {
       console.error('Error fetching all home tasks:', error);
     } finally {
@@ -307,40 +735,80 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
   // Complete home task
   const completeHomeTask = useCallback(async (homeTaskId: string, completionData: any) => {
     try {
-      const updates: HomeTaskUpdate = {
-        status: 'completed',
-        completed_at: new Date().toISOString(),
-        completion_notes: completionData.notes,
-        completed_by_type: completionData.completed_by_type,
-        completed_by_user_id: completionData.completed_by_user_id,
-        completed_by_vendor_id: completionData.completed_by_vendor_id,
-        completed_by_external_name: completionData.completed_by_external_name,
-        is_active: false,
-        updated_at: new Date().toISOString(),
-      };
+      // Check if this is a repair or project
+      if (homeTaskId.startsWith('repair_')) {
+        const repairId = homeTaskId.replace('repair_', '');
+        const { error: repairError } = await supabase
+          .from('repairs')
+          .update({
+            status: 'completed',
+            completed_date: new Date().toISOString(),
+            notes: completionData.notes ? `${completionData.notes || ''}\n\nCompleted by: ${completionData.completed_by_type === 'user' ? 'User' : completionData.completed_by_type === 'vendor' ? 'Vendor' : 'External'}` : undefined,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', repairId);
 
-      await updateHomeTask(homeTaskId, updates);
+        if (repairError) throw repairError;
 
-      // Remove calendar events associated with this completed task
-      try {
-        const { error: calendarError } = await supabase
+        // Remove calendar events associated with this completed repair
+        await supabase
+          .from('calendar_events')
+          .delete()
+          .eq('repair_id', repairId);
+
+      } else if (homeTaskId.startsWith('project_')) {
+        const projectId = homeTaskId.replace('project_', '');
+        const { error: projectError } = await supabase
+          .from('projects')
+          .update({
+            status: 'completed',
+            completion_date: new Date().toISOString(),
+            notes: completionData.notes ? `${completionData.notes || ''}\n\nCompleted by: ${completionData.completed_by_type === 'user' ? 'User' : completionData.completed_by_type === 'vendor' ? 'Vendor' : 'External'}` : undefined,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', projectId);
+
+        if (projectError) throw projectError;
+
+        // Remove calendar events associated with this completed project
+        await supabase
+          .from('calendar_events')
+          .delete()
+          .eq('project_id', projectId);
+
+      } else {
+        // Regular home task
+        const updates: HomeTaskUpdate = {
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          completion_notes: completionData.notes,
+          completed_by_type: completionData.completed_by_type,
+          completed_by_user_id: completionData.completed_by_user_id,
+          completed_by_vendor_id: completionData.completed_by_vendor_id,
+          completed_by_external_name: completionData.completed_by_external_name,
+          is_active: false,
+          updated_at: new Date().toISOString(),
+        };
+
+        await updateHomeTask(homeTaskId, updates);
+
+        // Remove calendar events associated with this completed task
+        await supabase
           .from('calendar_events')
           .delete()
           .eq('home_task_id', homeTaskId);
-
-        if (calendarError) {
-          console.error('Error removing calendar events for completed task:', calendarError);
-        } else {
-          console.log('Successfully removed calendar events for completed task:', homeTaskId);
-        }
-      } catch (calendarError) {
-        console.error('Error removing calendar events for completed task:', calendarError);
       }
+
+      // Refresh the tasks after completion
+      if (currentHomeId) {
+        await fetchHomeTasks(currentHomeId);
+      }
+
     } catch (error) {
       console.error('Error completing home task:', error);
       throw error;
     }
-  }, [updateHomeTask]);
+  }, [updateHomeTask, currentHomeId, fetchHomeTasks]);
 
   // Set current home
   const setCurrentHome = useCallback((homeId: string | null) => {
@@ -506,7 +974,7 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
   // );
 
   // Debounce timer for task updates
-  const [taskUpdateTimer, setTaskUpdateTimer] = useState<NodeJS.Timeout | null>(null);
+  const taskUpdateTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Set up real-time subscription for home_tasks
   const handleHomeTaskChange = useCallback(async (payload: any) => {
@@ -514,8 +982,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       const homeId = payload.new?.home_id || payload.old?.home_id;
       
       // Clear existing timer
-      if (taskUpdateTimer) {
-        clearTimeout(taskUpdateTimer);
+      if (taskUpdateTimerRef.current) {
+        clearTimeout(taskUpdateTimerRef.current);
       }
       
       // Set new debounced timer
@@ -529,9 +997,9 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         }
       }, 200); // 200ms debounce
       
-      setTaskUpdateTimer(timer);
+      taskUpdateTimerRef.current = timer;
     }
-  }, [currentHomeId, fetchHomeTasks, fetchAllHomeTasks, taskUpdateTimer]);
+  }, [currentHomeId, fetchHomeTasks, fetchAllHomeTasks]);
 
   // Set up the home_tasks real-time subscription
   useRealTimeSubscription(
@@ -549,11 +1017,11 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
     
     // Cleanup timer on unmount
     return () => {
-      if (taskUpdateTimer) {
-        clearTimeout(taskUpdateTimer);
+      if (taskUpdateTimerRef.current) {
+        clearTimeout(taskUpdateTimerRef.current);
       }
     };
-  }, [user?.id, fetchTemplateTasks, fetchAllHomeTasks, taskUpdateTimer]);
+  }, [user?.id, fetchTemplateTasks, fetchAllHomeTasks]);
 
   const value = {
     // Data

@@ -6,6 +6,8 @@ import { CalendarProvider } from "../lib/contexts/CalendarContext";
 import { FamilyProvider } from "../lib/contexts/FamilyContext";
 import { HomesProvider } from "../lib/contexts/HomesContext";
 import { InventoryProvider } from "../lib/contexts/InventoryContext";
+import { ProjectsProvider } from "../lib/contexts/ProjectsContext";
+import { RepairsProvider } from "../lib/contexts/RepairsContext";
 import { TasksProvider } from "../lib/contexts/TasksContext";
 import { ThemeProvider, useTheme } from "../lib/contexts/ThemeContext";
 import { ToastProvider } from "../lib/contexts/ToastContext";
@@ -33,8 +35,10 @@ function AppContent() {
             <HomesProvider>
               <CalendarProvider>
                 <TasksProvider>
-                  <VendorsProvider>
-                    <InventoryProvider>
+                  <RepairsProvider>
+                    <ProjectsProvider>
+                      <VendorsProvider>
+                        <InventoryProvider>
                       <Stack
                         screenOptions={{
                           headerShown: false,
@@ -79,8 +83,10 @@ function AppContent() {
                           }}
                         />
                       </Stack>
-                    </InventoryProvider>
-                  </VendorsProvider>
+                        </InventoryProvider>
+                      </VendorsProvider>
+                    </ProjectsProvider>
+                  </RepairsProvider>
                 </TasksProvider>
               </CalendarProvider>
             </HomesProvider>

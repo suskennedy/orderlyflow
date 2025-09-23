@@ -2,16 +2,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalendar } from '../../lib/contexts/CalendarContext';
 import { useHomes } from '../../lib/contexts/HomesContext';
+import { useProjects } from '../../lib/contexts/ProjectsContext';
+import { useRepairs } from '../../lib/contexts/RepairsContext';
 import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
@@ -21,7 +23,9 @@ import TaskCompletionModal from '../ui/TaskCompletionModal';
 export default function HomeScreen() {
   const { colors } = useTheme();
   const { onRefresh: homesRefresh, homes } = useHomes();
-  const { templateTasks, homeTasks, allHomeTasks, completeHomeTask, fetchHomeTasks, fetchAllHomeTasks } = useTasks();
+  const { allHomeTasks, completeHomeTask, fetchAllHomeTasks } = useTasks();
+  const { repairs, fetchRepairs } = useRepairs();
+  const { projects, fetchProjects } = useProjects();
   const { onRefresh: eventsRefresh } = useCalendar();
   const { onRefresh: vendorsRefresh } = useVendors();
   const [refreshing, setRefreshing] = useState(false);
@@ -45,23 +49,15 @@ export default function HomeScreen() {
       homesRefresh?.() || Promise.resolve(),
       // Refresh all home tasks for dashboard
       fetchAllHomeTasks().catch(console.error),
+      // Fetch repairs and projects for all homes
+      ...homes.map(home => fetchRepairs(home.id).catch(console.error)),
+      ...homes.map(home => fetchProjects(home.id).catch(console.error)),
       eventsRefresh?.() || Promise.resolve(),
       vendorsRefresh?.() || Promise.resolve(),
     ]).finally(() => {
       setRefreshing(false);
     });
   };
-
-  const handleTaskClick = useCallback((task: any) => {
-    if (task.status === 'completed') {
-      // If already completed, uncomplete it
-      handleTaskUncomplete(task.id);
-    } else {
-      // If not completed, show completion modal
-      setSelectedTaskForCompletion(task);
-      setCompletionModalVisible(true);
-    }
-  }, []);
 
   const handleTaskUncomplete = useCallback(async (taskId: string) => {
     try {
@@ -81,6 +77,17 @@ export default function HomeScreen() {
       setCompletingTaskId(null);
     }
   }, [completeHomeTask]);
+
+  const handleTaskClick = useCallback((task: any) => {
+    if (task.status === 'completed') {
+      // If already completed, uncomplete it
+      handleTaskUncomplete(task.id);
+    } else {
+      // If not completed, show completion modal
+      setSelectedTaskForCompletion(task);
+      setCompletionModalVisible(true);
+    }
+  }, [handleTaskUncomplete]);
 
   const handleTaskComplete = useCallback(async (completionData: {
     notes: string;
@@ -169,7 +176,7 @@ export default function HomeScreen() {
     return task.next_due || task.due_date;
   };
 
-  // Filter tasks based on current date and time
+  // Filter tasks, repairs, and projects based on current date and time
   const filterTasksByTimePeriod = () => {
     const now = new Date();
     const { startOfWeek, endOfWeek } = getCurrentWeekRange();
@@ -190,8 +197,31 @@ export default function HomeScreen() {
       task.is_active === true // Only show active home tasks
     );
 
-    // Filter tasks for this week
-    const thisWeekTasks = userTasks.filter(task => {
+    // Convert repairs to task-like format for filtering
+    const repairTasks = (repairs || []).map(repair => ({
+      ...repair,
+      title: `🔧 ${repair.title}`,
+      due_date: repair.due_date,
+      status: repair.status === 'completed' ? 'completed' : 'pending',
+      category: 'Repairs',
+      is_active: true
+    }));
+
+    // Convert projects to task-like format for filtering
+    const projectTasks = (projects || []).map(project => ({
+      ...project,
+      title: `🏗️ ${project.title}`,
+      due_date: project.start_date,
+      status: project.status === 'completed' ? 'completed' : 'pending',
+      category: 'Projects',
+      is_active: true
+    }));
+
+    // Combine all items
+    const allItems = [...userTasks, ...repairTasks, ...projectTasks];
+
+    // Filter items for this week
+    const thisWeekTasks = allItems.filter(task => {
       if (task.status === 'completed') return false; // Already filtered for active tasks
       
       const dueDate = getTaskDueDate(task);
@@ -215,8 +245,8 @@ export default function HomeScreen() {
              !isDateInRange(taskDueDate, startOfWeek, endOfWeek);
     });
 
-    // Filter tasks for this year (excluding this week and this month)
-    const thisYearTasks = userTasks.filter(task => {
+    // Filter items for this year (excluding this week and this month)
+    const thisYearTasks = allItems.filter(task => {
       if (task.status === 'completed') return false; // Already filtered for active tasks
       
       const dueDate = getTaskDueDate(task);
@@ -230,8 +260,11 @@ export default function HomeScreen() {
              !isDateInRange(taskDueDate, startOfMonth, endOfMonth);
     });
 
-    console.log('Task counts:', {
-      total: userTasks.length,
+    console.log('Item counts:', {
+      total: allItems.length,
+      tasks: userTasks.length,
+      repairs: repairTasks.length,
+      projects: projectTasks.length,
       thisWeek: thisWeekTasks.length,
       thisMonth: thisMonthTasks.length,
       thisYear: thisYearTasks.length
@@ -298,10 +331,6 @@ export default function HomeScreen() {
 
   const { thisWeekTasks, thisMonthTasks, thisYearTasks } = filterTasksByTimePeriod();
 
-  // Simple test to show all tasks if none are being displayed
-  const showAllTasks = (allTasks || []).length > 0 && (allTasks || []).filter(task => 
-    task.is_active === true
-  ).length === 0;
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: colors.surface }]}>

@@ -2,14 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useProjects } from '../../lib/contexts/ProjectsContext';
+import { useRepairs } from '../../lib/contexts/RepairsContext';
 import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
@@ -19,12 +21,11 @@ import DatePicker from '../DatePicker';
 import TimePicker from '../TimePicker';
 
 
-// Define the four main categories from the database
+// Define the three main categories from the database
 const DATABASE_CATEGORIES = [
   'Deep Cleaning',
-  'Home + Safety', 
-  'Home Maintenance',
-  'Repairs'
+  'Health + Safety', 
+  'Home Maintenance'
 ];
 
 const QUICK_OPTIONS = [
@@ -53,16 +54,21 @@ interface TaskSettingsScreenProps {
 export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { templateTasks, homeTasks, activateTemplateForHome, setCurrentHome } = useTasks();
+  const { templateTasks,fetchTemplateTasks, homeTasks, activateTemplateForHome, setCurrentHome } = useTasks();
   const { vendors } = useVendors();
+  const { repairs, fetchRepairs } = useRepairs();
+  const { projects, fetchProjects } = useProjects();
   const { showToast } = useToast();
 
   // Set current home when component mounts
   useEffect(() => {
     if (homeId) {
+      fetchTemplateTasks();
       setCurrentHome(homeId);
+      fetchRepairs(homeId);
+      fetchProjects(homeId);
     }
-  }, [homeId, setCurrentHome]);
+  }, [homeId, setCurrentHome, fetchRepairs, fetchProjects, fetchTemplateTasks]);
   
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
@@ -134,61 +140,14 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
     return allTemplateTasks.filter(task => task.category === categoryName);
   }, [allTemplateTasks]);
 
-  // Get predefined tasks that should be shown for all users
-  const getPresetTasksForCategory = (categoryName: string) => {
-    const presetTasks: { [key: string]: { name: string; suggestedFrequency: string }[] } = {
-      'Deep Cleaning': [
-        { name: 'Deep clean carpets', suggestedFrequency: 'Yearly' },
-        { name: 'Window cleaning', suggestedFrequency: '6 months' },
-        { name: 'Clean pantry', suggestedFrequency: '3 months' },
-        { name: 'Bathtub caulking', suggestedFrequency: 'As needed' },
-        { name: 'Clean refrigerator coils', suggestedFrequency: 'Yearly' },
-        { name: 'Deep clean oven', suggestedFrequency: '6 months' }
-      ],
-      'Home + Safety': [
-        { name: 'Test smoke detectors', suggestedFrequency: 'Monthly' },
-        { name: 'Check carbon monoxide detectors', suggestedFrequency: 'Monthly' },
-        { name: 'Test fire extinguishers', suggestedFrequency: '6 months' },
-        { name: 'Check emergency lights', suggestedFrequency: '3 months' },
-        { name: 'Inspect electrical outlets', suggestedFrequency: '6 months' }
-      ],
-      'Home Maintenance': [
-        { name: 'Fridge filter', suggestedFrequency: '6 months' },
-        { name: 'Change air filter', suggestedFrequency: '3 months' },
-        { name: 'Clean dishwasher', suggestedFrequency: 'Monthly' },
-        { name: 'Clean garbage disposal', suggestedFrequency: 'Monthly' },
-        { name: 'Flush water heater', suggestedFrequency: 'Yearly' },
-        { name: 'Clean dryer vent', suggestedFrequency: '6 months' },
-        { name: 'Inspect roof gutters', suggestedFrequency: '6 months' }
-      ],
-      'Repairs': [
-        { name: 'General repairs', suggestedFrequency: 'As needed' },
-        { name: 'Fix leaky faucets', suggestedFrequency: 'As needed' },
-        { name: 'Repair broken tiles', suggestedFrequency: 'As needed' },
-        { name: 'Fix squeaky doors', suggestedFrequency: 'As needed' },
-        { name: 'Repair window screens', suggestedFrequency: 'As needed' }
-      ]
-    };
-
-    return presetTasks[categoryName] || [];
-  };
-
-  // Combine preset tasks with database tasks for each category
+  // Get only database tasks for each category (no preset tasks)r
   const getCombinedTasksForCategory = (categoryName: string) => {
     const databaseTasks = getTasksForCategory(categoryName);
-    const presetTasks = getPresetTasksForCategory(categoryName);
-    
-    // Create a map of existing database tasks by title to avoid duplicates
-    const existingTaskTitles = new Set(databaseTasks.map(task => task.title));
-    
-    // Filter out preset tasks that already exist in database
-    const uniquePresetTasks = presetTasks.filter((presetTask: { name: string; suggestedFrequency: string }) => 
-      !existingTaskTitles.has(presetTask.name)
-    );
     
     // Convert database tasks to the format expected by renderTaskItem
     const formattedDatabaseTasks = databaseTasks.map(task => ({
       name: task.title,
+      description: task.description, // Include description from database
       suggestedFrequency: 'One-time', // Template tasks don't have recurrence pattern
       category: task.category || 'General',
       subcategory: task.subcategory || null,
@@ -197,18 +156,7 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
       isActiveForHome: activeTasksForHome.some(ht => ht.homeTask.task_id === task.id)
     }));
     
-    // Convert preset tasks to the same format
-    const formattedPresetTasks = uniquePresetTasks.map((presetTask: { name: string; suggestedFrequency: string }) => ({
-      name: presetTask.name,
-      suggestedFrequency: presetTask.suggestedFrequency,
-      category: categoryName,
-      subcategory: null,
-      isPreset: true,
-      databaseTask: null, // No database task for preset
-      isActiveForHome: false
-    }));
-    
-    return [...formattedDatabaseTasks, ...formattedPresetTasks];
+    return formattedDatabaseTasks;
   };
 
   // Initialize selectedTasks based on existing active tasks
@@ -219,7 +167,10 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
     setTaskForms({});
     const activeTaskNames = new Set(activeTasks.map(t => t.title).filter(Boolean));
     setSelectedTasks(activeTaskNames);
-  }, [homeId, activeTasks]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homeId]); // Only depend on homeId to avoid re-renders when activeTasks changes
+  // Note: We intentionally don't include activeTasks in dependencies to prevent
+  // re-renders that would close open dialogs when task data updates
 
   const toggleCategory = (categoryName: string) => {
     setExpandedCategory(expandedCategory === categoryName ? null : categoryName);
@@ -649,9 +600,11 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
           <View style={styles.taskHeader}>
             <View style={styles.taskInfo}>
               <Text style={[styles.taskName, { color: colors.text }]}>{task.name}</Text>
-              <Text style={[styles.taskFrequency, { color: colors.textSecondary }]}>
-                Suggested replace: {task.suggestedFrequency}
-              </Text>
+              {/* {task.description && (
+                <Text style={[styles.taskFrequency, { color: colors.textSecondary }]}>
+                  {task.description}
+                </Text>
+              )} */}
             </View>
             
             <View style={styles.taskActions}>
@@ -689,12 +642,14 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
         {/* Task Details Dropdown - Matching the image format */}
         {isExpanded && taskForm && (
           <View style={[styles.taskDetailsContainer, { backgroundColor: colors.surface }]}>
-            {/* Task Name and Suggested Replacement */}
+            {/* Task Name and Description */}
             <View style={styles.taskDetailHeader}>
-              <Text style={[styles.taskDetailTitle, { color: colors.text }]}>{task.name}</Text>
-              <Text style={[styles.taskDetailSubtitle, { color: colors.textSecondary }]}>
-                Suggested replace: {task.suggestedFrequency}
-              </Text>
+              {/* <Text style={[styles.taskDetailTitle, { color: colors.text }]}>{task.name}</Text> */}
+              {task.description && (
+                <Text style={[styles.taskDetailSubtitle, { color: colors.textSecondary }]}>
+                  {task.description}
+                </Text>
+              )}
             </View>
             
             {/* Toggle Switch */}
@@ -911,6 +866,7 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
               <View style={styles.taskCardsContainer}>
                 {getCombinedTasksForCategory(category).map((task, index) => renderTaskItem({
                   name: task.name,
+                  description: task.description,
                   suggestedFrequency: task.suggestedFrequency,
                   category: task.category || 'General',
                   subcategory: task.subcategory || null,
@@ -963,6 +919,142 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
             )}
           </View>
         )}
+
+        {/* Repairs Section */}
+        <View style={styles.repairsProjectsSection}>
+          <TouchableOpacity
+            style={[
+              styles.categoryCard,
+              { backgroundColor: colors.surface },
+              expandedCategory === 'Repairs' && { backgroundColor: colors.primary }
+            ]}
+            onPress={() => toggleCategory('Repairs')}
+          >
+            <Text style={[
+              styles.categoryCardTitle,
+              { 
+                color: expandedCategory === 'Repairs' ? colors.background : colors.text 
+              }
+            ]}>
+              🔧 Repairs ({repairs.length})
+            </Text>
+            <Ionicons 
+              name="chevron-down" 
+              size={20} 
+              color={expandedCategory === 'Repairs' ? colors.background : colors.textSecondary} 
+            />
+          </TouchableOpacity>
+          
+          {expandedCategory === 'Repairs' && (
+            <View style={styles.repairsProjectsContent}>
+              {repairs.map((repair) => (
+                <TouchableOpacity
+                  key={repair.id}
+                  style={[styles.repairProjectItem, { backgroundColor: colors.background }]}
+                  onPress={() => router.push(`/(tabs)/(tasks)/repair/${repair.id}` as any)}
+                >
+                  <View style={styles.repairProjectInfo}>
+                    <Text style={[styles.repairProjectTitle, { color: colors.text }]}>
+                      {repair.title}
+                    </Text>
+                    <Text style={[styles.repairProjectStatus, { color: colors.textSecondary }]}>
+                      Status: {repair.status}
+                    </Text>
+                    {repair.assigned_vendor_id && (
+                      <Text style={[styles.repairProjectVendor, { color: colors.textSecondary }]}>
+                        Vendor: {vendors.find(v => v.id === repair.assigned_vendor_id)?.name || 'Unknown'}
+                      </Text>
+                    )}
+                    {repair.due_date && (
+                      <Text style={[styles.repairProjectDue, { color: colors.textSecondary }]}>
+                        Due: {new Date(repair.due_date).toLocaleDateString()}
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              ))}
+              
+              <TouchableOpacity
+                style={[styles.addRepairProjectButton, { backgroundColor: colors.primary }]}
+                onPress={() => router.push(`/(tabs)/(tasks)/add-repair?homeId=${homeId}` as any)}
+              >
+                <Ionicons name="add" size={20} color={colors.background} />
+                <Text style={[styles.addRepairProjectText, { color: colors.background }]}>
+                  Add Repair
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {/* Projects Section */}
+        <View style={styles.repairsProjectsSection}>
+          <TouchableOpacity
+            style={[
+              styles.categoryCard,
+              { backgroundColor: colors.surface },
+              expandedCategory === 'Projects' && { backgroundColor: colors.primary }
+            ]}
+            onPress={() => toggleCategory('Projects')}
+          >
+            <Text style={[
+              styles.categoryCardTitle,
+              { 
+                color: expandedCategory === 'Projects' ? colors.background : colors.text 
+              }
+            ]}>
+              🏗️ Projects ({projects.length})
+            </Text>
+            <Ionicons 
+              name="chevron-down" 
+              size={20} 
+              color={expandedCategory === 'Projects' ? colors.background : colors.textSecondary} 
+            />
+          </TouchableOpacity>
+          
+          {expandedCategory === 'Projects' && (
+            <View style={styles.repairsProjectsContent}>
+              {projects.map((project) => (
+                <TouchableOpacity
+                  key={project.id}
+                  style={[styles.repairProjectItem, { backgroundColor: colors.background }]}
+                  onPress={() => router.push(`/(tabs)/(tasks)/project/${project.id}` as any)}
+                >
+                  <View style={styles.repairProjectInfo}>
+                    <Text style={[styles.repairProjectTitle, { color: colors.text }]}>
+                      {project.title}
+                    </Text>
+                    <Text style={[styles.repairProjectStatus, { color: colors.textSecondary }]}>
+                      Status: {project.status}
+                    </Text>
+                    {project.assigned_vendor_id && (
+                      <Text style={[styles.repairProjectVendor, { color: colors.textSecondary }]}>
+                        Vendor: {vendors.find(v => v.id === project.assigned_vendor_id)?.name || 'Unknown'}
+                      </Text>
+                    )}
+                    {project.estimated_budget && (
+                      <Text style={[styles.repairProjectBudget, { color: colors.textSecondary }]}>
+                        Budget: ${project.estimated_budget.toLocaleString()}
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              ))}
+              
+              <TouchableOpacity
+                style={[styles.addRepairProjectButton, { backgroundColor: colors.primary }]}
+                onPress={() => router.push(`/(tabs)/(tasks)/add-project?homeId=${homeId}` as any)}
+              >
+                <Ionicons name="add" size={20} color={colors.background} />
+                <Text style={[styles.addRepairProjectText, { color: colors.background }]}>
+                  Add Project
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
@@ -1224,7 +1316,7 @@ const styles = StyleSheet.create({
   taskDetailsContainer: {
     marginTop: 0,
     padding: 16,
-    borderRadius: 0,
+    borderRadius: 15,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.1)',
     borderLeftWidth: 0,
@@ -1516,5 +1608,71 @@ const styles = StyleSheet.create({
   },
   emptyVendorsText: {
     fontSize: 16,
+  },
+  repairsProjectsSection: {
+    marginTop: 20,
+  },
+  repairsProjectsContent: {
+    marginTop: 8,
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  repairProjectItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  repairProjectInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  repairProjectTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  repairProjectStatus: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  repairProjectVendor: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  repairProjectDue: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  repairProjectBudget: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  addRepairProjectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  addRepairProjectText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 }); 

@@ -2,12 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Alert,
+    Linking,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
@@ -124,24 +125,33 @@ export default function VendorDetailScreen() {
           )}
 
           {vendor.phone && (
-            <View style={styles.infoRow}>
-              <Ionicons name="call" size={20} color={colors.textTertiary} />
-              <Text style={[styles.infoText, { color: colors.text }]}>{vendor.phone}</Text>
-            </View>
+            <TouchableOpacity 
+              style={styles.infoRow}
+              onPress={() => Linking.openURL(`tel:${vendor.phone}`)}
+            >
+              <Ionicons name="call" size={20} color={colors.primary} />
+              <Text style={[styles.infoText, { color: colors.primary }]}>{vendor.phone}</Text>
+            </TouchableOpacity>
           )}
 
           {vendor.email && (
-            <View style={styles.infoRow}>
-              <Ionicons name="mail" size={20} color={colors.textTertiary} />
-              <Text style={[styles.infoText, { color: colors.text }]}>{vendor.email}</Text>
-            </View>
+            <TouchableOpacity 
+              style={styles.infoRow}
+              onPress={() => Linking.openURL(`mailto:${vendor.email}`)}
+            >
+              <Ionicons name="mail" size={20} color={colors.primary} />
+              <Text style={[styles.infoText, { color: colors.primary }]}>{vendor.email}</Text>
+            </TouchableOpacity>
           )}
 
           {vendor.website && (
-            <View style={styles.infoRow}>
-              <Ionicons name="globe" size={20} color={colors.textTertiary} />
-              <Text style={[styles.infoText, { color: colors.text }]}>{vendor.website}</Text>
-            </View>
+            <TouchableOpacity 
+              style={styles.infoRow}
+              onPress={() => Linking.openURL(vendor.website!)}
+            >
+              <Ionicons name="globe" size={20} color={colors.primary} />
+              <Text style={[styles.infoText, { color: colors.primary }]}>{vendor.website}</Text>
+            </TouchableOpacity>
           )}
 
           {vendor.address && (

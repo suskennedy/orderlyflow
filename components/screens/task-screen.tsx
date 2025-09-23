@@ -179,12 +179,24 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
     }
   }, [loading, fadeAnim, slideAnim, scaleAnim]);
 
+  // Helper function to get task type icon and color
+  const getTaskTypeInfo = useCallback((item: any) => {
+    if (item.item_type === 'repair') {
+      return { icon: 'construct', color: '#FF6B35', label: 'Repair' };
+    } else if (item.item_type === 'project') {
+      return { icon: 'hammer', color: '#4ECDC4', label: 'Project' };
+    } else {
+      return { icon: 'checkmark-circle', color: colors.primary, label: 'Task' };
+    }
+  }, [colors.primary]);
+
   // Memoized task item renderer for better performance
   const renderTaskItem = useCallback(({ item, index }: { item: any; index: number }) => {
     const isCompleted = item.status === 'completed';
     const isExpanded = expandedTask === item.id;
     const isRecurring = isRecurringTask(item);
     const displayDate = getTaskDisplayDate(item);
+    const typeInfo = getTaskTypeInfo(item);
     
     return (
       <Animated.View
@@ -201,7 +213,9 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
             styles.taskCard, 
             { 
               backgroundColor: isCompleted ? '#F5F5F5' : colors.surface,
-              opacity: isCompleted ? 0.7 : 1
+              opacity: isCompleted ? 0.7 : 1,
+              borderLeftWidth: 4,
+              borderLeftColor: typeInfo.color
             }
           ]}
           onPress={() => handleTaskPress(item)}
@@ -210,15 +224,31 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
           <View style={styles.taskContent}>
             <View style={styles.taskInfo}>
               <View style={styles.taskHeader}>
-                <Text style={[
-                  styles.taskTitle, 
-                  { 
-                    color: isCompleted ? colors.textSecondary : colors.text,
-                    textDecorationLine: isCompleted ? 'line-through' : 'none'
-                  }
-                ]}>
-                  {item.title}
-                </Text>
+                <View style={styles.titleRow}>
+                  <Ionicons 
+                    name={typeInfo.icon as any} 
+                    size={16} 
+                    color={typeInfo.color} 
+                    style={styles.typeIcon}
+                  />
+                  <Text style={[
+                    styles.taskTitle, 
+                    { 
+                      color: isCompleted ? colors.textSecondary : colors.text,
+                      textDecorationLine: isCompleted ? 'line-through' : 'none'
+                    }
+                  ]}>
+                    {item.title}
+                  </Text>
+                  <Text style={[styles.typeLabel, { color: typeInfo.color }]}>
+                    {typeInfo.label}
+                  </Text>
+                </View>
+                {/* {item.description && (
+                  <Text style={[styles.taskDescription, { color: colors.textSecondary }]}>
+                    {item.description}
+                  </Text>
+                )} */}
               </View>
               {item.category && (
                 <Text style={[styles.taskCategory, { color: colors.textSecondary }]}>
@@ -595,9 +625,29 @@ const styles = StyleSheet.create({
   taskHeader: {
     marginBottom: 4,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  typeIcon: {
+    marginRight: 4,
+  },
+  typeLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginLeft: 'auto',
+  },
   taskTitle: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  taskDescription: {
+    fontSize: 14,
+    marginTop: 4,
+    lineHeight: 20,
   },
   taskCategory: {
     fontSize: 14,

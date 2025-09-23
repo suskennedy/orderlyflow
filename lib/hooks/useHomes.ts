@@ -159,6 +159,7 @@ export function useHomes() {
   return {
     homes,
     currentHome,
+    setCurrentHome,
     loading,
     fetchHomes,
     createHome,

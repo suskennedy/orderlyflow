@@ -2,32 +2,47 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
 
 const VENDOR_CATEGORIES = [
-  'Organizer',
-  'Plumber',
-  'Electrician',
-  'HVAC',
-  'Landscaper',
-  'Painter',
+  'Appliances',
+  'Architect',
+  'Builder',
   'Carpenter',
-  'Roofing',
+  'Cleaning',
+  'Closets',
+  'Drywall',
+  'Electrician',
+  'Fencing',
+  'Flooring',
+  'Garage Door',
+  'Handyman',
+  'HVAC',
+  'Interior Designs',
+  'Landscape',
+  'Masonry / Concrete',
+  'Organizer',
+  'Painter',
   'Pest Control',
-  'Cleaning Service',
+  'Plumber',
+  'Pool / Spa',
+  'Roofing',
   'Security',
-  'Other'
+  'Solar Panel',
+  'Well / Water Treatment',
+  'Windows',
+  'Other',
 ];
 
 const PRIORITY_OPTIONS = [

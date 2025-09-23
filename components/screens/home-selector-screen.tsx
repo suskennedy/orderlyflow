@@ -2,22 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 
-// Home card component that uses pre-calculated task counts from context
+// Home card component - simplified to show just home name and address
 const HomeCard = React.memo(({ home, colors }: { home: any; colors: any }) => {
-  const { taskCounts } = home;
-
   return (
     <TouchableOpacity
       style={[styles.homeCard, { backgroundColor: colors.surface }]}
@@ -41,33 +39,6 @@ const HomeCard = React.memo(({ home, colors }: { home: any; colors: any }) => {
         </View>
         <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
       </View>
-
-      {/* Task Stats */}
-      <View style={styles.taskStats}>
-        <View style={styles.statItem}>
-          <View style={[styles.statIcon, { backgroundColor: colors.warning + '20' }]}>
-            <Ionicons name="list" size={16} color={colors.warning} />
-          </View>
-          <Text style={[styles.statNumber, { color: colors.text }]}>{taskCounts.active}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Active</Text>
-        </View>
-
-        <View style={styles.statItem}>
-          <View style={[styles.statIcon, { backgroundColor: colors.success + '20' }]}>
-            <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-          </View>
-          <Text style={[styles.statNumber, { color: colors.text }]}>{taskCounts.completed}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Done</Text>
-        </View>
-
-        <View style={styles.statItem}>
-          <View style={[styles.statIcon, { backgroundColor: colors.info + '20' }]}>
-            <Ionicons name="trending-up" size={16} color={colors.info} />
-          </View>
-          <Text style={[styles.statNumber, { color: colors.text }]}>{taskCounts.completionRate}%</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Complete</Text>
-        </View>
-      </View>
     </TouchableOpacity>
   );
 });
@@ -76,13 +47,13 @@ const HomeCard = React.memo(({ home, colors }: { home: any; colors: any }) => {
 HomeCard.displayName = 'HomeCard';
 
 export default function HomeSelectorScreen() {
-  const { homesWithTaskCounts, loading, refreshing, onRefresh } = useHomes();
+  const { homes, loading, refreshing, onRefresh } = useHomes();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
   // Debug logging (reduced)
-  if (homesWithTaskCounts.length > 0) {
-    console.log('HomeSelectorScreen - homes count:', homesWithTaskCounts.length);
+  if (homes.length > 0) {
+    console.log('HomeSelectorScreen - homes count:', homes.length);
   }
 
   // Memoized render function for better performance
@@ -138,11 +109,11 @@ export default function HomeSelectorScreen() {
         </Text>
       </View>
 
-      {homesWithTaskCounts.length === 0 ? (
+      {homes.length === 0 ? (
         renderEmptyState()
       ) : (
         <FlatList
-          data={homesWithTaskCounts}
+          data={homes}
           renderItem={renderHomeCard}
           keyExtractor={item => item.id}
           contentContainerStyle={[
@@ -225,45 +196,6 @@ const styles = StyleSheet.create({
   homeAddress: {
     fontSize: 14,
     opacity: 0.8,
-  },
-  taskStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  progressContainer: {
-    marginTop: 8,
-  },
-  progressBar: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
   },
   emptyContainer: {
     flex: 1,

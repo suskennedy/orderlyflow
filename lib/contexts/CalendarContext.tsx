@@ -63,14 +63,14 @@ export const CalendarProvider = ({ children }: CalendarProviderProps) => {
       futureEvents: futureEvents.length
     });
     
-    // Group events by task_id or home_task_id to handle recurring tasks
+    // Group events by task_id, home_task_id, repair_id, or project_id to handle recurring tasks
     const taskGroups = new Map<string, CalendarEvent[]>();
     const nonTaskEvents: CalendarEvent[] = [];
     
     futureEvents.forEach(event => {
-      const groupKey = event.task_id || event.home_task_id;
+      const groupKey = event.task_id || event.home_task_id || event.repair_id || event.project_id;
       if (groupKey) {
-        // This is a task event
+        // This is a task/repair/project event
         if (!taskGroups.has(groupKey)) {
           taskGroups.set(groupKey, []);
         }
