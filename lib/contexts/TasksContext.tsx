@@ -778,21 +778,21 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
 
       } else {
         // Regular home task
-        const updates: HomeTaskUpdate = {
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          completion_notes: completionData.notes,
-          completed_by_type: completionData.completed_by_type,
-          completed_by_user_id: completionData.completed_by_user_id,
-          completed_by_vendor_id: completionData.completed_by_vendor_id,
-          completed_by_external_name: completionData.completed_by_external_name,
-          is_active: false,
-          updated_at: new Date().toISOString(),
-        };
+      const updates: HomeTaskUpdate = {
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        completion_notes: completionData.notes,
+        completed_by_type: completionData.completed_by_type,
+        completed_by_user_id: completionData.completed_by_user_id,
+        completed_by_vendor_id: completionData.completed_by_vendor_id,
+        completed_by_external_name: completionData.completed_by_external_name,
+        is_active: false,
+        updated_at: new Date().toISOString(),
+      };
 
-        await updateHomeTask(homeTaskId, updates);
+      await updateHomeTask(homeTaskId, updates);
 
-        // Remove calendar events associated with this completed task
+      // Remove calendar events associated with this completed task
         await supabase
           .from('calendar_events')
           .delete()
