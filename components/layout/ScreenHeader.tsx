@@ -45,7 +45,7 @@ export default function ScreenHeader({
     <View style={[
       styles.header,
       {
-        paddingTop: paddingTop || insets.top + 16,
+        paddingTop: paddingTop || insets.top + 8,
         backgroundColor: colors.surface,
         borderBottomColor: colors.border,
       }
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },

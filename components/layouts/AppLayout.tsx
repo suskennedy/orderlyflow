@@ -18,7 +18,7 @@ export default function AppLayout({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const footerHeight = Platform.OS === 'ios' ? 85 + insets.bottom : 70;
+  const footerHeight = Platform.OS === 'ios' ? 65 + insets.bottom : 55;
   const bottomPadding = showFooter ? footerHeight + paddingBottom : paddingBottom;
 
   return (

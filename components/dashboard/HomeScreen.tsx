@@ -22,7 +22,7 @@ import TaskCompletionModal from '../ui/TaskCompletionModal';
 
 export default function HomeScreen() {
   const { colors } = useTheme();
-  const { onRefresh: homesRefresh, homes } = useHomes();
+  const { homes } = useHomes();
   const { allHomeTasks, completeHomeTask, fetchAllHomeTasks } = useTasks();
   const { repairs, fetchRepairs } = useRepairs();
   const { projects, fetchProjects } = useProjects();
@@ -37,17 +37,10 @@ export default function HomeScreen() {
 
   // Use allHomeTasks to show tasks from all homes
   const allTasks = allHomeTasks || [];
-  
-  // Debug: Log when allTasks changes
-  console.log('HomeScreen: allTasks changed, count:', allTasks.length);
-
-
+ 
   const onRefresh = () => {
     setRefreshing(true);
-    // Refresh all contexts using their onRefresh methods
     Promise.all([
-      homesRefresh?.() || Promise.resolve(),
-      // Refresh all home tasks for dashboard
       fetchAllHomeTasks().catch(console.error),
       // Fetch repairs and projects for all homes
       ...homes.map(home => fetchRepairs(home.id).catch(console.error)),
@@ -505,6 +498,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    backgroundColor: "green",
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

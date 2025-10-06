@@ -17,8 +17,8 @@ const Header: React.FC = () => {
 const styles = StyleSheet.create({
   header: {
     alignItems: "center",
-    marginTop: Platform.OS === 'ios' ? 20 : 30,
-    marginBottom: 40,
+    marginTop: Platform.OS === 'ios' ? 8 : 12,
+    marginBottom: 20,
     paddingHorizontal: 16,
   },
   title: {

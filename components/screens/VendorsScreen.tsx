@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Contacts from 'expo-contacts';
 import { router } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -15,7 +15,6 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
 
@@ -51,7 +50,6 @@ interface GroupedVendors {
 
 export default function VendorsScreen() {
   const { vendors, loading, refreshing, onRefresh, deleteVendor } = useVendors();
-  const { homeTasks } = useTasks();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
@@ -99,10 +97,6 @@ export default function VendorsScreen() {
     return grouped;
   }, [filteredVendors]);
 
-  // Get tasks assigned to a specific vendor
-  const getVendorTasks = useCallback((vendorId: string) => {
-    return homeTasks.filter(task => task.assigned_vendor_id === vendorId);
-  }, [homeTasks]);
 
   // Load contacts using Expo Contacts API
   const loadContactsFromPhoneBook = async () => {
@@ -287,7 +281,6 @@ export default function VendorsScreen() {
   };
 
   const renderVendorItem = ({ item }: { item: Vendor }) => {
-    const vendorTasks = getVendorTasks(item.id);
     
     return (
       <View style={[styles.vendorCard, { backgroundColor: colors.surface }]}>
@@ -318,7 +311,7 @@ export default function VendorsScreen() {
         </TouchableOpacity>
 
         {/* Contact Information with Labels */}
-        <View style={styles.contactInfoSection}>
+        {/* <View style={styles.contactInfoSection}>
           {item.contact_name && (
             <View style={styles.contactRow}>
               <View style={styles.contactLabelContainer}>
@@ -339,32 +332,7 @@ export default function VendorsScreen() {
             </View>
           )}
         </View>
-        
-        {/* Assigned Tasks */}
-        {vendorTasks.length > 0 && (
-          <View style={styles.assignedTasks}>
-            <Text style={[styles.assignedTasksTitle, { color: colors.text }]}>
-              Assigned Tasks ({vendorTasks.length})
-            </Text>
-            {vendorTasks.slice(0, 3).map((task: any, index: number) => (
-              <View key={task.id} style={styles.taskItem}>
-                <Ionicons 
-                  name={task.status === 'completed' ? 'checkmark-circle' : 'ellipse-outline'} 
-                  size={14} 
-                  color={task.status === 'completed' ? colors.success : colors.textSecondary} 
-                />
-                <Text style={[styles.taskTitle, { color: colors.textSecondary }]}>
-                  {task.title}
-                </Text>
-              </View>
-            ))}
-            {vendorTasks.length > 3 && (
-              <Text style={[styles.moreTasks, { color: colors.textTertiary }]}>
-                +{vendorTasks.length - 3} more tasks
-              </Text>
-            )}
-          </View>
-        )}
+         */}
       </View>
     );
   };
@@ -745,29 +713,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-  },
-  assignedTasks: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  assignedTasksTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  taskItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  taskTitle: {
-    marginLeft: 8,
-    fontSize: 12,
-  },
-  moreTasks: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    marginTop: 4,
   },
   sectionHeader: {
     paddingVertical: 8,

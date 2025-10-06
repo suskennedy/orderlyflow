@@ -11,6 +11,7 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { supabase } from '../../lib/supabase';
 
@@ -34,6 +35,7 @@ export default function VendorDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { homeTasks } = useTasks();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -65,6 +67,11 @@ export default function VendorDetailScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Get tasks assigned to a specific vendor
+  const getVendorTasks = (vendorId: string) => {
+    return homeTasks.filter(task => task.assigned_vendor_id === vendorId);
   };
 
 
@@ -188,6 +195,47 @@ export default function VendorDetailScreen() {
             <Text style={[styles.notesText, { color: colors.textSecondary }]}>{vendor.notes}</Text>
           </View>
         )}
+
+        {/* Assigned Tasks */}
+        {(() => {
+          const vendorTasks = getVendorTasks(vendor.id);
+          if (vendorTasks.length === 0) return null;
+
+          return (
+            <View style={[styles.section, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Assigned Tasks ({vendorTasks.length})
+              </Text>
+              {vendorTasks.map((task: any) => (
+                <TouchableOpacity
+                  key={task.id}
+                  style={styles.taskItem}
+                  onPress={() => {
+                    // Navigate to task details
+                    router.push(`/(tabs)/(tasks)/repair/${task.id}`);
+                  }}
+                >
+                  <Ionicons
+                    name={task.status === 'completed' ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={20}
+                    color={task.status === 'completed' ? colors.success : colors.textSecondary}
+                  />
+                  <View style={styles.taskContent}>
+                    <Text style={[styles.taskTitle, { color: colors.text }]}>
+                      {task.title}
+                    </Text>
+                    {task.category && (
+                      <Text style={[styles.taskCategory, { color: colors.textTertiary }]}>
+                        {task.category}
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          );
+        })()}
       </ScrollView>
 
     </View>
@@ -271,5 +319,25 @@ const styles = StyleSheet.create({
   notesText: {
     fontSize: 16,
     lineHeight: 24,
+  },
+  taskItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  taskContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  taskTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  taskCategory: {
+    fontSize: 14,
   },
 }); 
