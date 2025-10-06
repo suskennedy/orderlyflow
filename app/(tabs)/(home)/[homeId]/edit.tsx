@@ -17,9 +17,9 @@ import DatePicker from '../../../../components/DatePicker';
 import AddressAutocomplete from '../../../../components/forms/AddressAutocomplete';
 import FoundationSelector from '../../../../components/forms/FoundationSelector';
 import PhotoManager from '../../../../components/forms/PhotoManager';
+import { useHomes } from '../../../../lib/contexts/HomesContext';
 import { useTheme } from '../../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../../lib/contexts/ToastContext';
-import { useHomes } from '../../../../lib/hooks/useHomes';
 import { googlePlacesService, PlaceDetails } from '../../../../lib/services/GooglePlacesService';
 
 export default function EditHomeScreen() {

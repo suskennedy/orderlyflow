@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Linking,
   ScrollView,
@@ -32,10 +32,15 @@ interface Vendor {
 export default function VendorDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { vendors } = useVendors();
-  const { homeTasks } = useTasks();
+  const { allHomeTasks, loading: tasksLoading, fetchAllHomeTasks } = useTasks();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [vendor, setVendor] = useState<Vendor | null>(null);
+
+  // Get tasks assigned to this vendor
+  const getVendorTasks = useCallback((vendorId: string) => {
+    return allHomeTasks.filter(task => task.assigned_vendor_id === vendorId);
+  }, [allHomeTasks]);
 
   useEffect(() => {
     if (id && vendors.length > 0) {
@@ -48,6 +53,21 @@ export default function VendorDetail() {
       console.log('No vendors available, but looking for ID:', id);
     }
   }, [id, vendors]);
+
+  // Force refresh tasks when component mounts
+  useEffect(() => {
+    console.log('VendorDetail: Component mounted, refreshing all tasks...');
+    fetchAllHomeTasks();
+  }, [fetchAllHomeTasks]);
+
+  // Debug: Monitor allHomeTasks changes
+  useEffect(() => {
+    console.log('VendorDetail: allHomeTasks updated:', allHomeTasks.length);
+    if (vendor) {
+      const vendorTasks = getVendorTasks(vendor.id);
+      console.log('VendorDetail: Tasks for vendor', vendor.id, ':', vendorTasks.length);
+    }
+  }, [allHomeTasks, vendor, getVendorTasks]);
 
   if (!vendor) {
     return (
@@ -104,13 +124,8 @@ export default function VendorDetail() {
     return '#6B7280';
   };
 
-  const categoryIcon = getCategoryIcon(vendor.category);
-  const categoryColor = getCategoryColor(vendor.category);
-
-  // Get tasks assigned to this vendor
-  const getVendorTasks = (vendorId: string) => {
-    return homeTasks.filter(task => task.assigned_vendor_id === vendorId);
-  };
+  const categoryIcon = getCategoryIcon(vendor?.category);
+  const categoryColor = getCategoryColor(vendor?.category);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -247,7 +262,11 @@ export default function VendorDetail() {
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>
                   Assigned Tasks ({vendorTasks.length})
                 </Text>
-                {vendorTasks.length === 0 ? (
+                {tasksLoading ? (
+                  <Text style={[styles.taskTitle, { color: colors.textSecondary }]}>
+                    Loading tasks...
+                  </Text>
+                ) : vendorTasks.length === 0 ? (
                   <Text style={[styles.taskTitle, { color: colors.textSecondary }]}>
                     No tasks assigned to this vendor
                   </Text>

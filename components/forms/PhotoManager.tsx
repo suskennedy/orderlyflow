@@ -81,19 +81,32 @@ export default function PhotoManager({
       return;
     }
 
+    console.log('PhotoManager: Starting upload for URI:', imageUri);
     setUploading(true);
+    
     try {
+      // Validate the image URI
+      if (!imageUri || typeof imageUri !== 'string') {
+        throw new Error('Invalid image URI provided');
+      }
+
+      console.log('PhotoManager: Calling storageService.uploadHomeImage');
       const result = await storageService.uploadHomeImage(imageUri, homeId);
       
+      console.log('PhotoManager: Upload result:', result);
+      
       if (result.success && result.url) {
+        console.log('PhotoManager: Upload successful, calling onImageUpload');
         onImageUpload?.(result.url);
         setShowModal(false);
       } else {
-        Alert.alert('Upload Failed', result.error || 'Failed to upload image');
+        console.error('PhotoManager: Upload failed:', result.error);
+        Alert.alert('Upload Failed', result.error || 'Failed to upload image. Please check your internet connection and try again.');
       }
     } catch (error) {
-      console.error('Upload error:', error);
-      Alert.alert('Upload Failed', 'An error occurred while uploading the image');
+      console.error('PhotoManager: Upload error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      Alert.alert('Upload Failed', `An error occurred while uploading the image: ${errorMessage}`);
     } finally {
       setUploading(false);
     }
@@ -105,21 +118,34 @@ export default function PhotoManager({
       return;
     }
 
+    console.log('PhotoManager: Starting Street View upload');
     setUploading(true);
+    
     try {
-      const streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?size=400x300&location=${latitude},${longitude}&key=${process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY}`;
+      // Check if Google Places API key is available
+      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
+      if (!apiKey) {
+        throw new Error('Google Places API key is not configured');
+      }
+
+      const streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?size=400x300&location=${latitude},${longitude}&key=${apiKey}`;
+      console.log('PhotoManager: Street View URL:', streetViewUrl);
       
       const result = await storageService.uploadHomeImage(streetViewUrl, homeId, `streetview_${homeId}_${Date.now()}.jpg`);
+      
+      console.log('PhotoManager: Street View upload result:', result);
       
       if (result.success && result.url) {
         onImageUpload?.(result.url);
         setShowModal(false);
       } else {
-        Alert.alert('Upload Failed', result.error || 'Failed to upload Street View image');
+        console.error('PhotoManager: Street View upload failed:', result.error);
+        Alert.alert('Upload Failed', result.error || 'Failed to upload Street View image. Please check your internet connection and try again.');
       }
     } catch (error) {
-      console.error('Street View upload error:', error);
-      Alert.alert('Upload Failed', 'An error occurred while uploading the Street View image');
+      console.error('PhotoManager: Street View upload error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      Alert.alert('Upload Failed', `An error occurred while uploading the Street View image: ${errorMessage}`);
     } finally {
       setUploading(false);
     }
