@@ -79,16 +79,14 @@ export default function FooterNavigation({ showFooter = true }: FooterNavigation
       styles.container,
       {
         backgroundColor: colors.primary,
-        paddingBottom: Platform.OS === 'ios' ? insets.bottom : 4,
+        display:"flex",
+        flexDirection:"row",
+        alignContent:"center",
+        justifyContent:"center",
+        paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8,
         paddingTop: 8,
         height: Platform.OS === 'ios' ? 65 + insets.bottom : 55,
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 12,
-        borderTopLeftRadius: 0,
-        borderTopRightRadius: 0,
+       
       }
     ]}>
       {navigationItems.map((item) => {
@@ -138,24 +136,19 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
   },
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 44,
-    height: 32,
-    borderRadius: 16,
+    width: "100%",
     backgroundColor: 'transparent',
   },
   labelContainer: {
     alignItems: 'center',
-    marginTop: 4,
   },
   activeIndicator: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    marginTop: 2,
   },
 }); 

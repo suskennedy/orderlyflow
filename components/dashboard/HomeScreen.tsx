@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalendar } from '../../lib/contexts/CalendarContext';
 import { useHomes } from '../../lib/contexts/HomesContext';
 import { useProjects } from '../../lib/contexts/ProjectsContext';
@@ -33,7 +32,6 @@ export default function HomeScreen() {
   const [completionModalVisible, setCompletionModalVisible] = useState(false);
   const [selectedTaskForCompletion, setSelectedTaskForCompletion] = useState<any>(null);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
-  const insets = useSafeAreaInsets();
 
   // Use allHomeTasks to show tasks from all homes
   const allTasks = allHomeTasks || [];
@@ -266,60 +264,41 @@ export default function HomeScreen() {
     return { thisWeekTasks, thisMonthTasks, thisYearTasks };
   };
 
-  // Group tasks by category
-  const groupTasksByCategory = (taskList: any[]) => {
-    const grouped: { [key: string]: any[] } = {};
-    taskList.forEach(task => {
-      const category = task.category || 'Other';
-      if (!grouped[category]) {
-        grouped[category] = [];
-      }
-      grouped[category].push(task);
-    });
-    return grouped;
-  };
 
-  const renderTaskList = (groupedTasks: { [key: string]: any[] }) => {
-    return Object.entries(groupedTasks).map(([category, tasks]) => (
-      <View key={category}>
-        <Text style={[styles.categoryHeading, { color: colors.text }]}>{category}</Text>
-        <View style={styles.taskItems}>
-          {tasks.slice(0, tasksToShow).map((task, index) => (
-            <View key={task.id || index} style={styles.taskItem}>
-              <TouchableOpacity 
-                onPress={() => handleTaskClick(task)}
-                style={[
-                  styles.taskCheckbox,
-                  { opacity: completingTaskId === task.id ? 0.6 : 1 }
-                ]}
-                activeOpacity={0.7}
-                disabled={completingTaskId === task.id}
-              >
-                <Ionicons 
-                  name={task.status === 'completed' ? "checkmark-circle" : "ellipse-outline"} 
-                  size={20} 
-                  color="#7fbbdd" 
-                />
-              </TouchableOpacity>
-              <Text style={[
-                styles.taskText, 
-                { 
-                  color: task.status === 'completed' ? colors.textSecondary : colors.text,
-                  textDecorationLine: task.status === 'completed' ? 'line-through' : 'none'
-                }
-              ]}>
-                {task.title}
-              </Text>
-          </View>
-          ))}
-          {tasks.length === 0 && (
-            <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
-              No tasks due
-            </Text>
-          )}
+  const renderTaskList = (tasks: any[]) => {
+    return tasks.slice(0, tasksToShow).map((task, index) => {
+      // Get home name for the task by matching home_id with homes array
+      const homeName = homes.find(home => home.id === task.home_id)?.name || 'Unknown Home';
+      
+      return (
+        <View key={task.id || index} style={styles.taskItem}>
+          <TouchableOpacity 
+            onPress={() => handleTaskClick(task)}
+            style={[
+              styles.taskCheckbox,
+              { opacity: completingTaskId === task.id ? 0.6 : 1 }
+            ]}
+            activeOpacity={0.7}
+            disabled={completingTaskId === task.id}
+          >
+            <Ionicons 
+              name={task.status === 'completed' ? "checkmark-circle" : "ellipse-outline"} 
+              size={20} 
+              color="#7fbbdd" 
+            />
+          </TouchableOpacity>
+          <Text style={[
+            styles.taskText, 
+            { 
+              color: task.status === 'completed' ? colors.textSecondary : colors.text,
+              textDecorationLine: task.status === 'completed' ? 'line-through' : 'none'
+            }
+          ]}>
+            {task.title} ({homeName})
+          </Text>
         </View>
-      </View>
-    ));
+      );
+    });
   };
 
   const { thisWeekTasks, thisMonthTasks, thisYearTasks } = filterTasksByTimePeriod();
@@ -423,7 +402,7 @@ export default function HomeScreen() {
       
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -452,32 +431,40 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
           </View>
-          <View style={styles.topRow}>
-            <View style={styles.taskColumn}>
+          <View style={styles.singleColumnContainer}>
+            <View style={styles.timeSection}>
               <Text style={[styles.columnTitle, { color: colors.text }]}>This Week</Text>
-              {Object.keys(groupTasksByCategory(thisWeekTasks)).length > 0 ? (
-                renderTaskList(groupTasksByCategory(thisWeekTasks))
+              {thisWeekTasks.length > 0 ? (
+                <View style={styles.taskItems}>
+                  {renderTaskList(thisWeekTasks)}
+                </View>
               ) : (
                 <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks due this week</Text>
               )}
             </View>
-            <View style={styles.taskColumn}>
+
+            <View style={styles.timeSection}>
               <Text style={[styles.columnTitle, { color: colors.text }]}>This Month</Text>
-              {Object.keys(groupTasksByCategory(thisMonthTasks)).length > 0 ? (
-                renderTaskList(groupTasksByCategory(thisMonthTasks))
+              {thisMonthTasks.length > 0 ? (
+                <View style={styles.taskItems}>
+                  {renderTaskList(thisMonthTasks)}
+                </View>
               ) : (
                 <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks due this month</Text>
               )}
             </View>
+
+            <View style={styles.timeSection}>
+              <Text style={[styles.columnTitle, { color: colors.text }]}>This Year</Text>
+              {thisYearTasks.length > 0 ? (
+                <View style={styles.taskItems}>
+                  {renderTaskList(thisYearTasks)}
+                </View>
+              ) : (
+                <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks due this year</Text>
+              )}
+            </View>
           </View>
-          <View style={styles.bottomRow}>
-            <Text style={[styles.columnTitle, { color: colors.text }]}>This Year</Text>
-            {Object.keys(groupTasksByCategory(thisYearTasks)).length > 0 ? (
-              renderTaskList(groupTasksByCategory(thisYearTasks))
-            ) : (
-              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks due this year</Text>
-            )}
-        </View>
       </View>
     </ScrollView>
     
@@ -498,11 +485,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    backgroundColor: "green",
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: 20,
     paddingBottom: 20,
     paddingHorizontal: 20,
   },
@@ -567,19 +553,11 @@ const styles = StyleSheet.create({
   tasksContainer: {
     marginBottom: 30,
   },
-  tasksColumns: {
-    flexDirection: 'row',
-    gap: 20,
-  },
-  topRow: {
-    flexDirection: 'row',
-    gap: 20,
-  },
-  bottomRow: {
-    marginTop: 20,
-  },
-  taskColumn: {
+  singleColumnContainer: {
     flex: 1,
+  },
+  timeSection: {
+    marginBottom: 24,
   },
   columnTitle: {
     fontSize: 16,
@@ -598,8 +576,9 @@ const styles = StyleSheet.create({
   taskItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 8,
     paddingHorizontal: 8,
+    marginBottom: 4,
   },
   taskText: {
     marginLeft: 8,

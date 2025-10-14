@@ -28,7 +28,7 @@ function AppContent() {
       {/* Use SafeAreaView with edges prop to handle both top and bottom system UI elements */}
       <SafeAreaView
         style={{ flex: 1, backgroundColor: colors.background }}
-        edges={["top", "left", "right"]}
+        edges={["top", "left", "right", "bottom"]}
       >
         <ToastProvider>
           <FamilyProvider>

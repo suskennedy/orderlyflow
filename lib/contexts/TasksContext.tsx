@@ -79,6 +79,7 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
   // Call 2: Fetch home tasks, repairs, and projects for specific home
   const fetchHomeTasks = useCallback(async (homeId: string) => {
     try {
+      console.log('TasksContext: fetchHomeTasks called for homeId:', homeId);
       setLoading(true);
       
       // Fetch home tasks
@@ -310,9 +311,11 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       ];
 
       setHomeTasks(allTasks);
+      console.log('TasksContext: fetchHomeTasks completed, tasks count:', allTasks.length);
     } catch (error) {
       console.error('Error fetching home tasks, repairs, and projects:', error);
     } finally {
+      console.log('TasksContext: fetchHomeTasks setting loading to false');
       setLoading(false);
     }
   }, []);
@@ -363,28 +366,37 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         });
       }
       
-      // Get all home tasks for those homes
+      // Get all home tasks for those homes with home information
       const { data: homeTasksData, error: homeTasksError } = await supabase
         .from('home_tasks')
-        .select('*')
+        .select(`
+          *,
+          homes!inner(name)
+        `)
         .in('home_id', homeIds)
         .order('created_at', { ascending: false });
 
       if (homeTasksError) throw homeTasksError;
 
-      // Get all repairs for those homes
+      // Get all repairs for those homes with home information
       const { data: repairsData, error: repairsError } = await supabase
         .from('repairs')
-        .select('*')
+        .select(`
+          *,
+          homes!inner(name)
+        `)
         .in('home_id', homeIds)
         .order('created_at', { ascending: false });
 
       if (repairsError) throw repairsError;
 
-      // Get all projects for those homes
+      // Get all projects for those homes with home information
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
-        .select('*')
+        .select(`
+          *,
+          homes!inner(name)
+        `)
         .in('home_id', homeIds)
         .order('created_at', { ascending: false });
 
@@ -812,11 +824,13 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
 
   // Set current home
   const setCurrentHome = useCallback((homeId: string | null) => {
+    console.log('TasksContext: setCurrentHome called with homeId:', homeId);
     setCurrentHomeId(homeId);
     if (homeId) {
       fetchHomeTasks(homeId);
     } else {
       setHomeTasks([]);
+      setLoading(false); // Reset loading state when no home is selected
     }
   }, [fetchHomeTasks]);
 

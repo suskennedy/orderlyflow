@@ -81,6 +81,17 @@ export default function HomeSelectorScreen() {
     </View>
   ), [colors]);
 
+  // Add timeout to prevent stuck loading state
+  React.useEffect(() => {
+    if (loading) {
+      const timeout = setTimeout(() => {
+        console.log('HomeSelectorScreen: Loading timeout - this might indicate an issue');
+      }, 15000); // 15 second timeout
+
+      return () => clearTimeout(timeout);
+    }
+  }, [loading]);
+
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>

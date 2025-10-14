@@ -18,15 +18,17 @@ export default function AppLayout({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const footerHeight = Platform.OS === 'ios' ? 65 + insets.bottom : 55;
-  const bottomPadding = showFooter ? footerHeight + paddingBottom : paddingBottom;
+  // Calculate proper footer height and content padding
+  const footerHeight = Platform.OS === 'ios' ? 65 : 55;
+  const totalFooterHeight = showFooter ? footerHeight + insets.bottom : 0;
+  const contentBottomPadding = showFooter ? totalFooterHeight + paddingBottom : paddingBottom;
 
   return (
     <View style={[
       styles.container,
       { 
         backgroundColor: colors.background,
-        paddingBottom: bottomPadding
+        paddingBottom: contentBottomPadding
       }
     ]}>
       {/* Main Content */}

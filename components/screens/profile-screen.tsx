@@ -217,7 +217,7 @@ export default function ProfileScreen() {
     <View style={[styles.container, { 
       backgroundColor: colors.background,
       paddingTop: insets.top,
-      paddingBottom: insets.bottom + 80 // Add extra padding for tab bar
+      paddingBottom: insets.bottom + 20 // Add extra padding for tab bar
     }]}>
       {renderHeader()}
       

@@ -300,6 +300,7 @@ export const HomesProvider = ({ children }: HomesProviderProps) => {
       if (isMounted) {
         setHomes([]);
         setHomesWithTaskCounts([]);
+        setLoading(false); // Ensure loading is false when no user
       }
     }
     

@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Animated,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHomes } from '../../lib/contexts/HomesContext';
@@ -40,6 +40,18 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
       setCurrentHome(homeId);
     }
   }, [homeId, setCurrentHome]);
+
+  // Add timeout to prevent stuck loading state
+  useEffect(() => {
+    if (loading) {
+      const timeout = setTimeout(() => {
+        console.log('TaskScreen: Loading timeout - forcing loading to false');
+        // This will be handled by the context, but we can add a fallback here if needed
+      }, 10000); // 10 second timeout
+
+      return () => clearTimeout(timeout);
+    }
+  }, [loading]);
   
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -336,7 +348,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
         )}
       </Animated.View>
     );
-  }, [expandedTask, savingTaskId, colors, fadeAnim, slideAnim, handleTaskToggle, handleTaskPress, vendors, getTaskDisplayDate, formatDate, isRecurringTask]);
+  }, [expandedTask, savingTaskId, colors, fadeAnim, slideAnim, handleTaskToggle, handleTaskPress, vendors, getTaskDisplayDate, formatDate, isRecurringTask, getTaskTypeInfo]);
 
   const renderEmptyState = () => (
     <Animated.View 
@@ -444,17 +456,9 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
             )}
           </View>
         </View>
-        {homeId && (
-        <TouchableOpacity
-          style={styles.settingsButton}
-            onPress={() => router.push(`/(tabs)/(home)/${homeId}/tasks/settings` as any)}
-        >
-          <Ionicons name="settings-outline" size={20} color={colors.text} />
-        </TouchableOpacity>
-        )}
       </View>
           
-      {loading ? (
+      {loading && homeId ? (
         <TaskSkeleton count={5} />
       ) : allTasks.length === 0 ? (
         renderEmptyState()

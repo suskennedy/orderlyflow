@@ -3,16 +3,16 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
@@ -709,7 +709,7 @@ export default function EditProfileScreen() {
     <View style={[styles.container, { 
       backgroundColor: colors.background,
       paddingTop: insets.top,
-      paddingBottom: insets.bottom + 80
+      paddingBottom: insets.bottom + 20
     }]}>
       {renderHeader()}
       

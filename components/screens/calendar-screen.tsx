@@ -495,7 +495,7 @@ export default function CalendarScreen() {
     <View style={[styles.container, { 
       backgroundColor: colors.background, 
       paddingTop: insets.top, 
-      paddingBottom: insets.bottom + 80 
+      paddingBottom: insets.bottom + 20 
     }]}>
       {renderHeader()}
       <CalendarViewToggle currentView={calendarView} onViewChange={handleViewChange} />

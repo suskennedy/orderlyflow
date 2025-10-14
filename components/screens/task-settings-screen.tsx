@@ -150,7 +150,6 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
       description: task.description, // Include description from database
       suggestedFrequency: 'One-time', // Template tasks don't have recurrence pattern
       category: task.category || 'General',
-      subcategory: task.subcategory || null,
       isPreset: false, // All template tasks are not preset
       databaseTask: task, // Keep reference to original task
       isActiveForHome: activeTasksForHome.some(ht => ht.homeTask.task_id === task.id)
@@ -650,27 +649,12 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
                   {task.description}
                 </Text>
               )}
-            </View>
-            
-            {/* Toggle Switch */}
-            <View style={styles.taskDetailToggle}>
-              <TouchableOpacity
-                style={[
-                  styles.toggleSwitch,
-                  { backgroundColor: taskForm.is_active ? colors.primary : colors.border }
-                ]}
-                onPress={() => updateTaskForm(task.name, 'is_active', !taskForm.is_active)}
-              >
-                <View style={[
-                  styles.toggleKnob,
-                  { 
-                    backgroundColor: '#FFFFFF',
-                    transform: [{ translateX: taskForm.is_active ? 22 : 2 }]
-                  }
-                ]} />
-              </TouchableOpacity>
-            </View>
-            
+              {task.databaseTask?.suggested_use && (
+                <Text style={styles.suggestedUseText}>
+                  Suggested Use: {task.databaseTask.suggested_use}
+                </Text>
+              )}
+            </View>      
             {/* Attach User and Vendor Dropdowns */}
             <View style={styles.assignmentDropdowns}>
               <TouchableOpacity
@@ -869,7 +853,6 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
                   description: task.description,
                   suggestedFrequency: task.suggestedFrequency,
                   category: task.category || 'General',
-                  subcategory: task.subcategory || null,
                   isPreset: task.isPreset,
                   databaseTask: task.databaseTask
                 }, category, index))}
@@ -911,7 +894,6 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
                   name: task.homeTask.title,
                   suggestedFrequency: task.homeTask.recurrence_pattern ? `Every ${task.homeTask.recurrence_pattern}` : 'One-time',
                   category: task.homeTask.category || 'Custom',
-                  subcategory: task.homeTask.subcategory || null,
                   isPreset: false,
                   databaseTask: task.homeTask
                 }, 'Custom Tasks', index))}
@@ -1141,6 +1123,7 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
               </TouchableOpacity>
             </View>
             <View style={styles.vendorList}>
+              
               {vendors.length > 0 ? (
                 vendors.map((vendor) => (
                   <TouchableOpacity
@@ -1157,7 +1140,10 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
                       </Text>
                     )}
                   </TouchableOpacity>
+                  
                 ))
+                
+
               ) : (
                 <View style={styles.emptyVendors}>
                   <Text style={[styles.emptyVendorsText, { color: colors.textSecondary }]}>
@@ -1165,6 +1151,14 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
                   </Text>
                 </View>
               )}
+              <TouchableOpacity
+                style={[styles.vendorItem, { borderBottomColor: colors.border }]}
+                onPress={() => handleVendorSelection('')}
+              >
+                <Text style={[styles.vendorName, { color: colors.text }]}>
+                  None
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </TouchableOpacity>
@@ -1483,7 +1477,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   taskDetailSubtitle: {
-    fontSize: 14,
+    fontSize: 16,
+  },
+  suggestedUseText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 4,
+    fontStyle: 'italic',
+    color: "teal",
   },
   taskDetailToggle: {
     marginTop: 12,
