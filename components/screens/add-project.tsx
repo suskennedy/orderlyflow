@@ -1,46 +1,26 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import { useFamily } from '../../lib/contexts/FamilyContext';
 import { useProjects } from '../../lib/contexts/ProjectsContext';
+import { useVendors } from '../../lib/contexts/VendorsContext';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useHomes } from '../../lib/hooks/useHomes';
+import { PROJECT_STATUS, PROJECT_TYPES, ProjectFormData, projectFormSchema } from '../../lib/schemas/projectSchema';
 import DatePicker from '../DatePicker';
-
-const PROJECT_CATEGORIES = [
-  'Renovation',
-  'Addition',
-  'Remodel',
-  'Kitchen',
-  'Bathroom',
-  'Basement',
-  'Attic',
-  'Outdoor',
-  'Other',
-];
-
-const PRIORITY_OPTIONS = [
-  { label: 'Low', value: 'low' },
-  { label: 'Medium', value: 'medium' },
-  { label: 'High', value: 'high' },
-  { label: 'Urgent', value: 'urgent' },
-];
-
-const STATUS_OPTIONS = [
-  { label: 'Planning', value: 'planning' },
-  { label: 'In Progress', value: 'in_progress' },
-  { label: 'Completed', value: 'completed' },
-  { label: 'On Hold', value: 'on_hold' },
-];
+import PhotoUploader from '../ui/PhotoUploader';
 
 export default function AddProjectScreen() {
   const router = useRouter();
@@ -48,86 +28,81 @@ export default function AddProjectScreen() {
   const { addProject } = useProjects();
   const { user } = useAuth();
   const { getHomeById } = useHomes();
-
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: '',
-    priority: 'medium',
-    status: 'planning',
-    estimated_budget: '',
-    start_date: '',
-    end_date: '',
-    notes: '',
-  });
+  const { vendors } = useVendors();
+  const { familyMembers } = useFamily();
 
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
 
-  // Get the home object when component mounts
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+  } = useForm<ProjectFormData>({
+    resolver: zodResolver(projectFormSchema) as any,
+    defaultValues: {
+      title: '',
+      project_type: 'other',
+      start_date: '',
+      target_completion_date: '',
+      description: '',
+      photos_inspiration: [],
+      location_in_home: '',
+      vendor_ids: [],
+      assigned_user_ids: [],
+      estimated_budget: undefined,
+      current_spend: undefined,
+      final_cost: undefined,
+      status: 'not_started',
+      reminders_enabled: false,
+      notes: '',
+      subtasks: [],
+    },
+  });
+
+  // Load home context if needed
   useEffect(() => {
     if (homeId && typeof homeId === 'string') {
-      const home = getHomeById(homeId);
-      if (home) {
-        // Home is already available in currentHome if it matches
-      }
+      getHomeById(homeId);
     }
   }, [homeId, getHomeById]);
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
-    }
-
-    if (!formData.category) {
-      newErrors.category = 'Category is required';
-    }
-
-    if (formData.estimated_budget && isNaN(Number(formData.estimated_budget))) {
-      newErrors.estimated_budget = 'Estimated budget must be a valid number';
-    }
-
-    if (formData.start_date && formData.end_date && formData.start_date > formData.end_date) {
-      newErrors.end_date = 'End date must be after start date';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSave = async () => {
-    if (!validateForm()) return;
-
+  const onSubmit: (data: ProjectFormData) => Promise<void> = async (data: ProjectFormData) => {
     if (!homeId || typeof homeId !== 'string') {
       Alert.alert('Error', 'No home selected');
       return;
     }
-
     if (!user) {
       Alert.alert('Error', 'User not authenticated');
       return;
     }
 
     setLoading(true);
-
     try {
-      const projectData = {
+      const payload = {
         home_id: homeId,
-        title: formData.title.trim(),
-        description: formData.description.trim() || undefined,
-        category: formData.category,
-        priority: formData.priority as 'low' | 'medium' | 'high' | 'urgent',
-        status: formData.status as 'planning' | 'in_progress' | 'completed' | 'on_hold',
-        estimated_budget: formData.estimated_budget ? Number(formData.estimated_budget) : undefined,
-        start_date: formData.start_date || undefined,
-        end_date: formData.end_date || undefined,
-        notes: formData.notes.trim() || undefined,
+        title: data.title,
+        project_type: data.project_type,
+        start_date: data.start_date || undefined,
+        target_completion_date: data.target_completion_date || undefined,
+        description: data.description || undefined,
+        photos_inspiration: (uploadedFiles.length > 0 ? uploadedFiles : data.photos_inspiration) || undefined,
+        location_in_home: data.location_in_home || undefined,
+        vendor_ids: data.vendor_ids && data.vendor_ids.length ? data.vendor_ids : undefined,
+        assigned_user_ids: data.assigned_user_ids && data.assigned_user_ids.length ? data.assigned_user_ids : undefined,
+        estimated_budget: data.estimated_budget ?? undefined,
+        current_spend: data.current_spend ?? undefined,
+        final_cost: data.final_cost ?? undefined,
+        status: data.status,
+        reminders_enabled: data.reminders_enabled ?? false,
+        notes: data.notes || undefined,
+        subtasks: data.subtasks && data.subtasks.length ? data.subtasks : undefined,
         created_by: user.id,
       };
 
-      await addProject(projectData);
+      await addProject(payload as any);
       Alert.alert('Success', 'Project added successfully', [
         { text: 'OK', onPress: () => router.back() },
       ]);
@@ -139,11 +114,46 @@ export default function AddProjectScreen() {
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
+  const handleUploadComplete = (results: { url: string }[]) => {
+    const urls = results.map(r => r.url);
+    setUploadedFiles(prev => [...prev, ...urls]);
+  };
+
+  const removeVendor = (id: string) => {
+    const current = watch('vendor_ids') || [];
+    setValue('vendor_ids', current.filter(v => v !== id));
+  };
+
+  const addVendor = (id: string) => {
+    const current = watch('vendor_ids') || [];
+    if (!current.includes(id)) setValue('vendor_ids', [...current, id]);
+  };
+
+  const removeUser = (id: string) => {
+    const current = watch('assigned_user_ids') || [];
+    setValue('assigned_user_ids', current.filter(v => v !== id));
+  };
+
+  const addUser = (id: string) => {
+    const current = watch('assigned_user_ids') || [];
+    if (!current.includes(id)) setValue('assigned_user_ids', [...current, id]);
+  };
+
+  const addSubtask = () => {
+    const current = watch('subtasks') || [];
+    setValue('subtasks', [...current, { title: '', is_done: false }]);
+  };
+
+  const updateSubtask = (index: number, field: 'title' | 'is_done' | 'due_date', value: any) => {
+    const current = watch('subtasks') || [];
+    const copy = [...current];
+    copy[index] = { ...copy[index], [field]: value };
+    setValue('subtasks', copy);
+  };
+
+  const removeSubtask = (index: number) => {
+    const current = watch('subtasks') || [];
+    setValue('subtasks', current.filter((_, i) => i !== index));
   };
 
   return (
@@ -164,171 +174,334 @@ export default function AddProjectScreen() {
         </View>
 
         <View style={styles.form}>
+          {/* Project Title */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Title *</Text>
-            <TextInput
-              style={[styles.input, errors.title && styles.inputError]}
-              value={formData.title}
-              onChangeText={(value) => handleInputChange('title', value)}
-              placeholder="Enter project title"
-              placeholderTextColor="#999"
+            <Text style={styles.label}>Project Title *</Text>
+            <Controller
+              control={control}
+              name="title"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput
+                  style={[styles.input, errors.title && styles.inputError]}
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  placeholder="Enter project title"
+                  placeholderTextColor="#999"
+                />
+              )}
             />
-            {errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
+            {errors.title && <Text style={styles.errorText}>{errors.title.message}</Text>}
           </View>
 
+          {/* Project Type */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={formData.description}
-              onChangeText={(value) => handleInputChange('description', value)}
-              placeholder="Enter project description"
-              placeholderTextColor="#999"
-              multiline
-              numberOfLines={3}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Category *</Text>
-            <View style={styles.pickerContainer}>
-              <Text style={styles.pickerText}>
-                {formData.category || 'Select category'}
-              </Text>
-            </View>
+            <Text style={styles.label}>Project Type *</Text>
             <View style={styles.categoryGrid}>
-              {PROJECT_CATEGORIES.map((category) => (
-                <TouchableOpacity
-                  key={category}
-                  style={[
-                    styles.categoryButton,
-                    formData.category === category && styles.categoryButtonSelected,
-                  ]}
-                  onPress={() => handleInputChange('category', category)}
-                >
-                  <Text
-                    style={[
-                      styles.categoryButtonText,
-                      formData.category === category && styles.categoryButtonTextSelected,
-                    ]}
-                  >
-                    {category}
-                  </Text>
-                </TouchableOpacity>
+              {PROJECT_TYPES.map((type) => (
+                <Controller
+                  key={type}
+                  control={control}
+                  name="project_type"
+                  render={({ field: { onChange, value } }) => (
+                    <TouchableOpacity
+                      style={[styles.categoryButton, value === type && styles.categoryButtonSelected]}
+                      onPress={() => onChange(type)}
+                    >
+                      <Text style={[styles.categoryButtonText, value === type && styles.categoryButtonTextSelected]}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                />
               ))}
             </View>
-            {errors.category && <Text style={styles.errorText}>{errors.category}</Text>}
+            {errors.project_type && <Text style={styles.errorText}>{errors.project_type.message}</Text>}
           </View>
 
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>Priority</Text>
-              <View style={styles.pickerContainer}>
-                <Text style={styles.pickerText}>
-                  {PRIORITY_OPTIONS.find(p => p.value === formData.priority)?.label}
-                </Text>
-              </View>
-              <View style={styles.priorityGrid}>
-                {PRIORITY_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.priorityButton,
-                      formData.priority === option.value && styles.priorityButtonSelected,
-                    ]}
-                    onPress={() => handleInputChange('priority', option.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.priorityButtonText,
-                        formData.priority === option.value && styles.priorityButtonTextSelected,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>Status</Text>
-              <View style={styles.pickerContainer}>
-                <Text style={styles.pickerText}>
-                  {STATUS_OPTIONS.find(s => s.value === formData.status)?.label}
-                </Text>
-              </View>
-              <View style={styles.statusGrid}>
-                {STATUS_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.statusButton,
-                      formData.status === option.value && styles.statusButtonSelected,
-                    ]}
-                    onPress={() => handleInputChange('status', option.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.statusButtonText,
-                        formData.status === option.value && styles.statusButtonTextSelected,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Estimated Budget</Text>
-            <TextInput
-              style={[styles.input, errors.estimated_budget && styles.inputError]}
-              value={formData.estimated_budget}
-              onChangeText={(value) => handleInputChange('estimated_budget', value)}
-              placeholder="Enter estimated budget"
-              placeholderTextColor="#999"
-              keyboardType="numeric"
-            />
-            {errors.estimated_budget && <Text style={styles.errorText}>{errors.estimated_budget}</Text>}
-          </View>
-
+          {/* Dates */}
           <View style={styles.row}>
             <View style={[styles.inputGroup, styles.halfWidth]}>
               <Text style={styles.label}>Start Date</Text>
-              <DatePicker
-                label=""
-                value={formData.start_date}
-                onChange={(date) => handleInputChange('start_date', date || '')}
-                placeholder="Select start date"
+              <Controller
+                control={control}
+                name="start_date"
+                render={({ field: { onChange, value } }) => (
+                  <DatePicker label="" value={value || ''} onChange={onChange} placeholder="Select start date" />
+                )}
               />
             </View>
-
             <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>End Date</Text>
-              <DatePicker
-                label=""
-                value={formData.end_date}
-                onChange={(date) => handleInputChange('end_date', date || '')}
-                placeholder="Select end date"
+              <Text style={styles.label}>Target Completion Date</Text>
+              <Controller
+                control={control}
+                name="target_completion_date"
+                render={({ field: { onChange, value } }) => (
+                  <DatePicker label="" value={value || ''} onChange={onChange} placeholder="Select target date" />
+                )}
               />
-              {errors.end_date && <Text style={styles.errorText}>{errors.end_date}</Text>}
+              {errors.target_completion_date && (
+                <Text style={styles.errorText}>{errors.target_completion_date.message}</Text>
+              )}
             </View>
           </View>
 
+          {/* Description */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Project Description</Text>
+            <Controller
+              control={control}
+              name="description"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput
+                  style={[styles.input, styles.textArea, errors.description && styles.inputError]}
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  placeholder="Enter project description"
+                  placeholderTextColor="#999"
+                  multiline
+                  numberOfLines={3}
+                />
+              )}
+            />
+            {errors.description && <Text style={styles.errorText}>{errors.description.message}</Text>}
+          </View>
+
+          {/* Photos / Inspiration */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Photos / Inspiration</Text>
+            <PhotoUploader
+              onUploadComplete={handleUploadComplete}
+              onUploadStart={() => {}}
+              onUploadError={(e) => Alert.alert('Upload Error', e)}
+              targetFolder="projects"
+              userId={user?.id}
+              existingFiles={uploadedFiles}
+              disabled={loading}
+            />
+          </View>
+
+          {/* Location in Home */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Location in Home</Text>
+            <Controller
+              control={control}
+              name="location_in_home"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput
+                  style={[styles.input, errors.location_in_home && styles.inputError]}
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  placeholder="Enter location"
+                  placeholderTextColor="#999"
+                />
+              )}
+            />
+            {errors.location_in_home && <Text style={styles.errorText}>{errors.location_in_home.message}</Text>}
+          </View>
+
+          {/* Vendors - multi-select chips */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Vendors / Contractors</Text>
+            <View style={styles.categoryGrid}>
+              {vendors.map((v) => {
+                const current = watch('vendor_ids') || [];
+                const active = current.includes(v.id);
+                return (
+                  <TouchableOpacity
+                    key={v.id}
+                    style={[styles.categoryButton, active && styles.categoryButtonSelected]}
+                    onPress={() => (active ? removeVendor(v.id) : addVendor(v.id))}
+                  >
+                    <Text style={[styles.categoryButtonText, active && styles.categoryButtonTextSelected]}>
+                      {v.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* User assignment - multi-select chips */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>User Assignment</Text>
+            <View style={styles.categoryGrid}>
+              {(familyMembers || []).map((m: any) => {
+                const current = watch('assigned_user_ids') || [];
+                const active = current.includes(m.id);
+                return (
+                  <TouchableOpacity
+                    key={m.id}
+                    style={[styles.categoryButton, active && styles.categoryButtonSelected]}
+                    onPress={() => (active ? removeUser(m.id) : addUser(m.id))}
+                  >
+                    <Text style={[styles.categoryButtonText, active && styles.categoryButtonTextSelected]}>
+                      {m.display_name || m.full_name || m.email || 'User'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Budget fields */}
+          <View style={styles.row}>
+            <View style={[styles.inputGroup, styles.halfWidth]}>
+              <Text style={styles.label}>Estimated Budget</Text>
+              <Controller
+                control={control}
+                name="estimated_budget"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    style={[styles.input, errors.estimated_budget && styles.inputError]}
+                    value={value?.toString() || ''}
+                    onChangeText={(text) => onChange(text ? parseFloat(text) : undefined)}
+                    onBlur={onBlur}
+                    placeholder="0.00"
+                    placeholderTextColor="#999"
+                    keyboardType="numeric"
+                  />
+                )}
+              />
+              {errors.estimated_budget && <Text style={styles.errorText}>{errors.estimated_budget.message}</Text>}
+            </View>
+            <View style={[styles.inputGroup, styles.halfWidth]}>
+              <Text style={styles.label}>Current Spend</Text>
+              <Controller
+                control={control}
+                name="current_spend"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    style={[styles.input, errors.current_spend && styles.inputError]}
+                    value={value?.toString() || ''}
+                    onChangeText={(text) => onChange(text ? parseFloat(text) : undefined)}
+                    onBlur={onBlur}
+                    placeholder="0.00"
+                    placeholderTextColor="#999"
+                    keyboardType="numeric"
+                  />
+                )}
+              />
+              {errors.current_spend && <Text style={styles.errorText}>{errors.current_spend.message}</Text>}
+            </View>
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Final Cost</Text>
+            <Controller
+              control={control}
+              name="final_cost"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput
+                  style={[styles.input, errors.final_cost && styles.inputError]}
+                  value={value?.toString() || ''}
+                  onChangeText={(text) => onChange(text ? parseFloat(text) : undefined)}
+                  onBlur={onBlur}
+                  placeholder="0.00"
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              )}
+            />
+            {errors.final_cost && <Text style={styles.errorText}>{errors.final_cost.message}</Text>}
+          </View>
+
+          {/* Subtasks / Milestones */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Sub-tasks / Milestones</Text>
+            {watch('subtasks')?.map((task, idx) => (
+              <View key={idx} style={{ marginBottom: 10 }}>
+                <TextInput
+                  style={[styles.input]}
+                  value={task.title}
+                  onChangeText={(t) => updateSubtask(idx, 'title', t)}
+                  placeholder={`Milestone ${idx + 1}`}
+                  placeholderTextColor="#999"
+                />
+                <View style={{ height: 10 }} />
+                <DatePicker
+                  label="Due Date"
+                  value={task.due_date || ''}
+                  onChange={(d) => updateSubtask(idx, 'due_date', d || '')}
+                  placeholder="Select due date"
+                />
+                <View style={{ height: 10 }} />
+                <TouchableOpacity onPress={() => removeSubtask(idx)}>
+                  <Text style={{ color: '#e74c3c', fontWeight: '600' }}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+            <TouchableOpacity onPress={addSubtask} style={[styles.categoryButton, { alignSelf: 'flex-start' }]}>
+              <Text style={styles.categoryButtonText}>+ Add Sub-task</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Status */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Status</Text>
+            <View style={styles.statusGrid}>
+              {PROJECT_STATUS.map((s) => (
+                <Controller
+                  key={s}
+                  control={control}
+                  name="status"
+                  render={({ field: { onChange, value } }) => (
+                    <TouchableOpacity
+                      style={[styles.statusButton, value === s && styles.statusButtonSelected]}
+                      onPress={() => onChange(s)}
+                    >
+                      <Text style={[styles.statusButtonText, value === s && styles.statusButtonTextSelected]}>
+                        {s.replace('_', ' ').replace(/\b\w/g, (m) => m.toUpperCase())}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Reminders toggle */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Reminders / Deadlines</Text>
+            <Controller
+              control={control}
+              name="reminders_enabled"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.reminderContainer}>
+                  <TouchableOpacity
+                    style={[styles.reminderButton, value && styles.reminderButtonSelected]}
+                    onPress={() => onChange(!value)}
+                  >
+                    <Text style={[styles.reminderButtonText, value && styles.reminderButtonTextSelected]}>
+                      {value ? 'Yes' : 'No'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            />
+          </View>
+
+          {/* Notes */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Notes</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={formData.notes}
-              onChangeText={(value) => handleInputChange('notes', value)}
-              placeholder="Enter additional notes"
-              placeholderTextColor="#999"
-              multiline
-              numberOfLines={3}
+            <Controller
+              control={control}
+              name="notes"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput
+                  style={[styles.input, styles.textArea, errors.notes && styles.inputError]}
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  placeholder="Enter additional notes"
+                  placeholderTextColor="#999"
+                  multiline
+                  numberOfLines={3}
+                />
+              )}
             />
+            {errors.notes && <Text style={styles.errorText}>{errors.notes.message}</Text>}
           </View>
         </View>
 
@@ -342,7 +515,7 @@ export default function AddProjectScreen() {
 
           <TouchableOpacity
             style={[styles.button, styles.saveButton, loading && styles.buttonDisabled]}
-            onPress={handleSave}
+            onPress={handleSubmit(onSubmit as any)}
             disabled={loading}
           >
             <Text style={styles.saveButtonText}>
@@ -466,30 +639,6 @@ const styles = StyleSheet.create({
   halfWidth: {
     flex: 1,
   },
-  priorityGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  priorityButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#fff',
-  },
-  priorityButtonSelected: {
-    backgroundColor: '#e74c3c',
-    borderColor: '#e74c3c',
-  },
-  priorityButtonText: {
-    fontSize: 12,
-    color: '#2c3e50',
-  },
-  priorityButtonTextSelected: {
-    color: '#fff',
-  },
   statusGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -512,6 +661,29 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
   },
   statusButtonTextSelected: {
+    color: '#fff',
+  },
+  reminderContainer: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  reminderButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+  },
+  reminderButtonSelected: {
+    backgroundColor: '#3498db',
+    borderColor: '#3498db',
+  },
+  reminderButtonText: {
+    fontSize: 16,
+    color: '#2c3e50',
+  },
+  reminderButtonTextSelected: {
     color: '#fff',
   },
   buttonContainer: {

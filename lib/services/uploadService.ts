@@ -20,6 +20,9 @@ export interface UploadOptions {
   maxWidth?: number;
   maxHeight?: number;
   quality?: number;
+  bucketName?: string; // defaults to 'repair-media'
+  targetFolder?: 'repairs' | 'projects';
+  userId?: string; // required to scope paths per user
 }
 
 // File validation constants
@@ -52,7 +55,7 @@ export const validateFile = async (uri: string): Promise<{ valid: boolean; error
     }
 
     return { valid: true };
-  } catch (error) {
+  } catch {
     return { valid: false, error: 'Failed to validate file' };
   }
 };
@@ -95,6 +98,18 @@ export const generateUniqueFileName = (originalUri: string, userId: string): str
 };
 
 /**
+ * Builds a storage path using folder, user and filename
+ */
+const buildStoragePath = (
+  fileName: string,
+  options: Required<Pick<UploadOptions, 'targetFolder' | 'userId'>>
+): string => {
+  const safeFolder = options.targetFolder === 'projects' ? 'projects' : 'repairs';
+  const safeUser = options.userId || 'anon';
+  return `${safeFolder}/${safeUser}/${fileName}`;
+};
+
+/**
  * Compresses image file
  */
 export const compressImage = async (
@@ -102,7 +117,7 @@ export const compressImage = async (
   options: { maxWidth?: number; maxHeight?: number; quality?: number } = {}
 ): Promise<string> => {
   try {
-    const { maxWidth = 1920, maxHeight = 1080, quality = 0.8 } = options;
+    // const { maxWidth = 1920, maxHeight = 1080, quality = 0.8 } = options;
     
     // For now, return original URI as compression would require additional libraries
     // In production, you might want to use expo-image-manipulator for compression
@@ -118,7 +133,6 @@ export const compressImage = async (
  */
 export const uploadFileToSupabase = async (
   uri: string,
-  bucketName: string = 'repair-media',
   options: UploadOptions = {}
 ): Promise<UploadResult> => {
   try {
@@ -134,44 +148,48 @@ export const uploadFileToSupabase = async (
       throw new Error('File does not exist');
     }
 
-    // Generate unique filename
-    const fileName = generateUniqueFileName(uri, 'user'); // You might want to pass actual userId
-    const fileType = getFileType(uri);
-    
-    // Read file as base64
-    const base64 = await FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-
-    // Convert base64 to blob
-    const byteCharacters = atob(base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    const bucketName = options.bucketName || 'profiles';
+    if (!options.userId) {
+      throw new Error('Missing userId for storage path');
     }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray]);
+    if (!options.targetFolder) {
+      throw new Error('Missing targetFolder (repairs|projects)');
+    }
 
-    // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
+    // Generate unique filename and full path under folder/user
+    const fileName = generateUniqueFileName(uri, options.userId);
+    const path = buildStoragePath(fileName, {
+      targetFolder: options.targetFolder,
+      userId: options.userId,
+    });
+    const fileType = getFileType(uri);
+    const mimeType = getMimeTypeFromExtension((uri.split('.').pop() || '').toLowerCase());
+
+    // Create a signed upload URL and PUT the file using FileSystem (RN-safe)
+    const { data: signed, error: signErr } = await supabase.storage
       .from(bucketName)
-      .upload(fileName, blob, {
-        cacheControl: '3600',
-        upsert: false,
-      });
+      .createSignedUploadUrl(path);
+    if (signErr || !signed?.signedUrl) {
+      throw new Error(`Failed to create signed upload url: ${signErr?.message || 'Unknown'}`);
+    }
 
-    if (error) {
-      throw new Error(`Upload failed: ${error.message}`);
+    const uploadRes = await FileSystem.uploadAsync(signed.signedUrl, uri, {
+      httpMethod: 'PUT',
+      headers: {
+        'Content-Type': mimeType,
+      },
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+    });
+    if (uploadRes.status < 200 || uploadRes.status >= 300) {
+      throw new Error(`Upload failed with status ${uploadRes.status}`);
     }
 
     // Get public URL
-    const { data: urlData } = supabase.storage
-      .from(bucketName)
-      .getPublicUrl(fileName);
+    const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(path);
 
     return {
       url: urlData.publicUrl,
-      path: data.path,
+      path,
       size: fileInfo.size || 0,
       type: fileType,
     };
@@ -186,7 +204,6 @@ export const uploadFileToSupabase = async (
  */
 export const uploadMultipleFiles = async (
   uris: string[],
-  bucketName: string = 'repair-media',
   options: UploadOptions = {}
 ): Promise<UploadResult[]> => {
   const results: UploadResult[] = [];
@@ -196,7 +213,9 @@ export const uploadMultipleFiles = async (
   let totalSize = 0;
   for (const uri of uris) {
     const fileInfo = await FileSystem.getInfoAsync(uri);
-    totalSize += fileInfo.size || 0;
+    // FileInfo.size is only on the exists=true variant; guard access
+    const size = (fileInfo as any).size ?? 0;
+    totalSize += size;
   }
 
   if (totalSize > MAX_TOTAL_SIZE) {
@@ -206,7 +225,7 @@ export const uploadMultipleFiles = async (
   // Upload files sequentially to avoid overwhelming the server
   for (let i = 0; i < uris.length; i++) {
     try {
-      const result = await uploadFileToSupabase(uris[i], bucketName, options);
+      const result = await uploadFileToSupabase(uris[i], options);
       results.push(result);
       
       // Report progress
@@ -236,7 +255,7 @@ export const uploadMultipleFiles = async (
  */
 export const deleteFileFromSupabase = async (
   path: string,
-  bucketName: string = 'repair-media'
+  bucketName: string = 'profiles'
 ): Promise<void> => {
   try {
     const { error } = await supabase.storage
@@ -257,7 +276,7 @@ export const deleteFileFromSupabase = async (
  */
 export const deleteMultipleFiles = async (
   paths: string[],
-  bucketName: string = 'repair-media'
+  bucketName: string = 'profiles'
 ): Promise<void> => {
   try {
     const { error } = await supabase.storage
@@ -278,7 +297,7 @@ export const deleteMultipleFiles = async (
  */
 export const getFileInfo = async (
   path: string,
-  bucketName: string = 'repair-media'
+  bucketName: string = 'profiles'
 ): Promise<{ size: number; lastModified: string } | null> => {
   try {
     const { data, error } = await supabase.storage

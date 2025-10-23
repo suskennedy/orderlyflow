@@ -1,15 +1,15 @@
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    Image,
-    Modal,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { uploadMultipleFiles, UploadResult, validateFile } from '../../lib/services/uploadService';
 
@@ -20,6 +20,8 @@ interface PhotoUploaderProps {
   maxFiles?: number;
   existingFiles?: string[];
   disabled?: boolean;
+  targetFolder?: 'repairs' | 'projects';
+  userId?: string;
 }
 
 const { width } = Dimensions.get('window');
@@ -32,6 +34,8 @@ export default function PhotoUploader({
   maxFiles = 10,
   existingFiles = [],
   disabled = false,
+  targetFolder = 'repairs',
+  userId,
 }: PhotoUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -125,7 +129,13 @@ export default function PhotoUploader({
     onUploadStart?.();
 
     try {
-      const results = await uploadMultipleFiles(uris, 'repair-media', {
+      if (!userId) {
+        throw new Error('Missing userId for uploads');
+      }
+      const results = await uploadMultipleFiles(uris, {
+        bucketName: 'profiles',
+        targetFolder,
+        userId,
         onProgress: (progress) => {
           setUploadProgress(progress.percentage);
         },

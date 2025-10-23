@@ -3,15 +3,15 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useFamily } from '../../lib/contexts/FamilyContext';
 import { useRepairs } from '../../lib/contexts/RepairsContext';
@@ -311,6 +311,8 @@ export default function AddRepairScreen() {
               maxFiles={10}
               existingFiles={uploadedFiles}
               disabled={loading || uploadingFiles}
+              targetFolder="repairs"
+              userId={user?.id}
             />
             {uploadedFiles.length > 0 && (
               <MediaPreview
