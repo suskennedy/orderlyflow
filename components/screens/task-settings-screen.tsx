@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProjects } from '../../lib/contexts/ProjectsContext';
@@ -904,7 +904,7 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
         )}
 
         {/* Repairs Section */}
-        <View style={styles.repairsProjectsSection}>
+        <View>
           <TouchableOpacity
             style={[
               styles.categoryCard,
@@ -929,7 +929,7 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
           </TouchableOpacity>
           
           {expandedCategory === 'Repairs' && (
-            <View style={styles.repairsProjectsContent}>
+            <View style={styles.taskCardsContainer}>
               {repairs.map((repair) => (
                 <TouchableOpacity
                   key={repair.id}
@@ -972,7 +972,7 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
         </View>
 
         {/* Projects Section */}
-        <View style={styles.repairsProjectsSection}>
+        <View>
           <TouchableOpacity
             style={[
               styles.categoryCard,
@@ -995,9 +995,8 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
               color={expandedCategory === 'Projects' ? colors.background : colors.textSecondary} 
             />
           </TouchableOpacity>
-          
           {expandedCategory === 'Projects' && (
-            <View style={styles.repairsProjectsContent}>
+            <View style={styles.taskCardsContainer}>
               {projects.map((project) => (
                 <TouchableOpacity
                   key={project.id}
@@ -1040,32 +1039,7 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
         </View>
 
         {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.push('/(tabs)/(tasks)/add' as any)}
-          >
-            <Ionicons name="add" size={16} color={colors.background} />
-            <Text style={[styles.actionButtonText, { color: colors.background }]}>
-               Project
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.actionButton, { 
-              backgroundColor: colors.background,
-              borderColor: colors.primary,
-              borderWidth: 1
-            }]}
-            onPress={() => router.push('/(tabs)/(tasks)/add' as any)}
-          >
-            <Ionicons name="add" size={16} color={colors.primary} />
-            <Text style={[styles.actionButtonText, { color: colors.primary }]}>
-              + Make a List
-            </Text>
-          </TouchableOpacity>
-        
-        </View>
+       
       </ScrollView>
 
       {/* Quick Options Modal */}
@@ -1610,14 +1584,6 @@ const styles = StyleSheet.create({
   },
   emptyVendorsText: {
     fontSize: 16,
-  },
-  repairsProjectsSection: {
-    marginTop: 20,
-  },
-  repairsProjectsContent: {
-    marginTop: 8,
-    marginBottom: 16,
-    paddingHorizontal: 4,
   },
   repairProjectItem: {
     flexDirection: 'row',

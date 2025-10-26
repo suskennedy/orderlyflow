@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,255 +18,324 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { supabase } from '../../lib/supabase';
+import { EditProfileSkeleton } from '../ui/ProfileSkeleton';
+
+interface UserProfile {
+  id: string;
+  full_name: string | null;
+  display_name: string | null;
+  email: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  created_at: string | null;
+  family_account_id: string | null;
+}
 
 export default function EditProfileScreen() {
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const [loading, setLoading] = useState(false);
-  
-  // Form refs for focus management
-  const nameRef = useRef<TextInput>(null);
-  const phoneRef = useRef<TextInput>(null);
-  const locationRef = useRef<TextInput>(null);
+  const { userProfile: userProfileParam } = useLocalSearchParams();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
-    full_name: user?.user_metadata?.full_name || '',
-    phone: user?.user_metadata?.phone || '',
-    location: user?.user_metadata?.location || '',
+    full_name: '',
+    display_name: '',
+    email: '',
+    phone: '',
+    bio: '',
+    avatar_url: null as string | null,
   });
 
-  const [focusedField, setFocusedField] = useState<string | null>(null);
+  useEffect(() => {
+    const initializeFormData = async () => {
+      try {
+        setLoading(true);
+        
+        // Use passed data if available, otherwise fetch from database
+        if (userProfileParam && typeof userProfileParam === 'string') {
+          const profileData: UserProfile = JSON.parse(userProfileParam);
+          setFormData({
+            full_name: profileData.full_name || '',
+            display_name: profileData.display_name || '',
+            email: profileData.email || user?.email || '',
+            phone: profileData.phone || '',
+            bio: profileData.bio || '',
+            avatar_url: profileData.avatar_url,
+          });
+        } else {
+          // Fallback: fetch from database if no data passed
+          if (!user?.id) return;
+          
+          const { data, error } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+          if (error) {
+            console.error('Error fetching user profile:', error);
+            return;
+          }
 
-  const handleInputFocus = (field: string) => {
-    setFocusedField(field);
-  };
-
-  const handleInputBlur = () => {
-    setFocusedField(null);
-  };
-
-  const handleSave = async () => {
-    if (!user) return;
-
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          full_name: formData.full_name,
-          phone: formData.phone,
-          location: formData.location,
+          setFormData({
+            full_name: data.full_name || '',
+            display_name: data.display_name || '',
+            email: data.email || user.email || '',
+            phone: data.phone || '',
+            bio: data.bio || '',
+            avatar_url: data.avatar_url,
+          });
         }
-      });
+      } catch (error) {
+        console.error('Error initializing form data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      if (error) {
-        Alert.alert('Error', error.message);
+    initializeFormData();
+  }, [userProfileParam, user]);
+
+  const getAvatarUrl = () => {
+    if (formData.avatar_url) {
+      return `${supabase.storage.from('profiles').getPublicUrl(`avatar/${formData.avatar_url}`).data.publicUrl}`;
+    }
+    return null;
+  };
+
+  const pickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to photos to upload a profile picture.');
         return;
       }
 
-      // Refresh user data to get updated metadata
-      await refreshUser();
-      
-      Alert.alert(
-        'Success', 
-        'Profile updated successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back()
-          }
-        ]
-      );
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadImage(result.assets[0].uri);
+      }
     } catch (error) {
-      Alert.alert('Error', 'Failed to update profile. Please try again.');
-    } finally {
-      setLoading(false);
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
 
-  const renderHeader = () => (
-    <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => router.back()}
-      >
-        <Ionicons name="arrow-back" size={24} color={colors.text} />
-      </TouchableOpacity>
-      <Text style={[styles.title, { color: colors.text }]}>Edit Profile</Text>
-      <TouchableOpacity
-        style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-        onPress={handleSave}
-        disabled={loading}
-      >
-        <Text style={[styles.saveButtonText, { color: colors.primary }]}>
-          {loading ? 'Saving...' : 'Save'}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderProfileSection = () => (
-    <View style={[styles.section, { backgroundColor: colors.surface }]}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Profile Information</Text>
+  const uploadImage = async (uri: string) => {
+    try {
+      setSaving(true);
       
-      <View style={styles.profileHeader}>
-        <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
-          <Ionicons name="person" size={40} color={colors.primary} />
-        </View>
-        <View style={styles.profileInfo}>
-          <Text style={[styles.name, { color: colors.text }]}>
-            {formData.full_name || 'User Name'}
-          </Text>
-          <Text style={[styles.email, { color: colors.textSecondary }]}>
-            {user?.email || 'user@example.com'}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderForm = () => (
-    <View style={[styles.section, { backgroundColor: colors.surface }]}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Details</Text>
+      // Create a unique filename
+      const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileName = `${user?.id}-${Date.now()}.${fileExt}`;
       
-      {/* Full Name */}
-      <View style={styles.inputGroup}>
-        <Text style={[styles.label, { color: colors.text }]}>Full Name</Text>
-        <TextInput
-          ref={nameRef}
-          style={[
-            styles.input,
-            { 
-              backgroundColor: colors.surfaceVariant,
-              color: colors.text,
-              borderColor: focusedField === 'full_name' ? colors.primary : colors.border
-            }
-          ]}
-          value={formData.full_name}
-          onChangeText={(value) => handleInputChange('full_name', value)}
-          onFocus={() => handleInputFocus('full_name')}
-          onBlur={handleInputBlur}
-          placeholder="Enter your full name"
-          placeholderTextColor={colors.textSecondary}
-          returnKeyType="next"
-          onSubmitEditing={() => phoneRef.current?.focus()}
-        />
-      </View>
-
-      {/* Phone */}
-      <View style={styles.inputGroup}>
-        <Text style={[styles.label, { color: colors.text }]}>Phone Number</Text>
-        <TextInput
-          ref={phoneRef}
-          style={[
-            styles.input,
-            { 
-              backgroundColor: colors.surfaceVariant,
-              color: colors.text,
-              borderColor: focusedField === 'phone' ? colors.primary : colors.border
-            }
-          ]}
-          value={formData.phone}
-          onChangeText={(value) => handleInputChange('phone', value)}
-          onFocus={() => handleInputFocus('phone')}
-          onBlur={handleInputBlur}
-          placeholder="Enter your phone number"
-          placeholderTextColor={colors.textSecondary}
-          keyboardType="phone-pad"
-          returnKeyType="next"
-          onSubmitEditing={() => locationRef.current?.focus()}
-        />
-      </View>
-
-      {/* Location */}
-      <View style={styles.inputGroup}>
-        <Text style={[styles.label, { color: colors.text }]}>Location</Text>
-        <TextInput
-          ref={locationRef}
-          style={[
-            styles.input,
-            { 
-              backgroundColor: colors.surfaceVariant,
-              color: colors.text,
-              borderColor: focusedField === 'location' ? colors.primary : colors.border
-            }
-          ]}
-          value={formData.location}
-          onChangeText={(value) => handleInputChange('location', value)}
-          onFocus={() => handleInputFocus('location')}
-          onBlur={handleInputBlur}
-          placeholder="Enter your location"
-          placeholderTextColor={colors.textSecondary}
-          returnKeyType="done"
-        />
-      </View>
-    </View>
-  );
-
-  const renderAccountInfo = () => (
-    <View style={[styles.section, { backgroundColor: colors.surface }]}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Account Information</Text>
+      // Convert URI to blob
+      const response = await fetch(uri);
+      const blob = await response.blob();
       
-      <View style={styles.infoItem}>
-        <Ionicons name="mail-outline" size={20} color={colors.textSecondary} />
-        <View style={styles.infoContent}>
-          <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Email</Text>
-          <Text style={[styles.infoValue, { color: colors.text }]}>
-            {user?.email || 'Not set'}
-          </Text>
-        </View>
-      </View>
+      // Upload to Supabase Storage
+      const { error } = await supabase.storage
+        .from('profiles')
+        .upload(`avatar/${fileName}`, blob, {
+          contentType: `image/${fileExt}`,
+          upsert: true,
+        });
 
-      <View style={styles.infoItem}>
-        <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
-        <View style={styles.infoContent}>
-          <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Member Since</Text>
-          <Text style={[styles.infoValue, { color: colors.text }]}>
-            {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
-          </Text>
-        </View>
-      </View>
+      if (error) {
+        throw error;
+      }
 
-      <View style={styles.infoItem}>
-        <Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />
-        <View style={styles.infoContent}>
-          <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Account Status</Text>
-          <Text style={[styles.infoValue, { color: colors.text }]}>
-            {user?.email_confirmed_at ? 'Verified' : 'Pending Verification'}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
+      // Update form data with new avatar URL
+      setFormData(prev => ({
+        ...prev,
+        avatar_url: fileName,
+      }));
+
+      Alert.alert('Success', 'Profile picture updated successfully!');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      Alert.alert('Error', 'Failed to upload image. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user?.id) return;
+
+    try {
+      setSaving(true);
+      
+      const { error } = await supabase
+        .from('user_profiles')
+        .upsert({
+          id: user.id,
+          full_name: formData.full_name || null,
+          display_name: formData.display_name || null,
+          email: formData.email || null,
+          phone: formData.phone || null,
+          bio: formData.bio || null,
+          avatar_url: formData.avatar_url,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      Alert.alert('Success', 'Profile updated successfully!', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateFormData = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  if (loading) {
+    return <EditProfileSkeleton />;
+  }
 
   return (
-    <KeyboardAvoidingView
+    <KeyboardAvoidingView 
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { 
-        backgroundColor: colors.background,
-        paddingTop: insets.top,
-      }]}
     >
-      {renderHeader()}
-      
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.title, { color: colors.text }]}>Edit Profile</Text>
+        <TouchableOpacity
+          style={[styles.saveButton, { backgroundColor: colors.primary }]}
+          onPress={handleSave}
+          disabled={saving}
+        >
+          <Text style={styles.saveButtonText}>
+            {saving ? 'Saving...' : 'Save'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.content}>
-          {renderProfileSection()}
-          {renderForm()}
-          {renderAccountInfo()}
+        {/* Profile Photo Section */}
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Profile Photo</Text>
+          
+          <View style={styles.photoSection}>
+            <TouchableOpacity 
+              style={[styles.avatar, { backgroundColor: colors.primaryLight }]}
+              onPress={pickImage}
+              disabled={saving}
+            >
+              {getAvatarUrl() ? (
+                <Image source={{ uri: getAvatarUrl()! }} style={styles.avatarImage} />
+              ) : (
+                <Ionicons name="person" size={40} color={colors.primary} />
+              )}
+              <View style={[styles.editAvatarOverlay, { backgroundColor: colors.primary }]}>
+                <Ionicons name="camera" size={16} color="white" />
+              </View>
+            </TouchableOpacity>
+            <Text style={[styles.photoHint, { color: colors.textSecondary }]}>
+              Tap to change profile photo
+            </Text>
+          </View>
+        </View>
+
+        {/* Personal Information Section */}
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Information</Text>
+          
+          <View style={styles.inputGroup}>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Name</Text>
+            <TextInput
+              style={[styles.textInput, { 
+                backgroundColor: colors.background, 
+                color: colors.text,
+                borderColor: colors.border 
+              }]}
+              value={formData.display_name}
+              onChangeText={(value) => updateFormData('display_name', value)}
+              placeholder="Enter your name"
+              placeholderTextColor={colors.textSecondary}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Email</Text>
+            <TextInput
+              style={[styles.textInput, { 
+                backgroundColor: colors.background, 
+                color: colors.text,
+                borderColor: colors.border 
+              }]}
+              value={formData.email}
+              onChangeText={(value) => updateFormData('email', value)}
+              placeholder="Enter your email"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Phone Number</Text>
+            <TextInput
+              style={[styles.textInput, { 
+                backgroundColor: colors.background, 
+                color: colors.text,
+                borderColor: colors.border 
+              }]}
+              value={formData.phone}
+              onChangeText={(value) => updateFormData('phone', value)}
+              placeholder="Enter your phone number"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="phone-pad"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Location</Text>
+            <TextInput
+              style={[styles.textInput, { 
+                backgroundColor: colors.background, 
+                color: colors.text,
+                borderColor: colors.border 
+              }]}
+              value={formData.bio}
+              onChangeText={(value) => updateFormData('bio', value)}
+              placeholder="Enter your location"
+              placeholderTextColor={colors.textSecondary}
+            />
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -282,6 +353,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
+    paddingTop: 50,
   },
   backButton: {
     padding: 8,
@@ -291,12 +363,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   saveButton: {
-    padding: 8,
-  },
-  saveButtonDisabled: {
-    opacity: 0.5,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   saveButtonText: {
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -306,11 +378,8 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
-  content: {
-    padding: 20,
-    gap: 20,
-  },
   section: {
+    margin: 20,
     borderRadius: 12,
     padding: 20,
     shadowColor: '#000',
@@ -324,61 +393,50 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 16,
   },
-  profileHeader: {
-    flexDirection: 'row',
+  photoSection: {
     alignItems: 'center',
-    gap: 16,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    marginBottom: 12,
+  },
+  avatarImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  editAvatarOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  profileInfo: {
-    flex: 1,
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  email: {
-    fontSize: 16,
+  photoHint: {
+    fontSize: 14,
+    textAlign: 'center',
   },
   inputGroup: {
     marginBottom: 20,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
     marginBottom: 8,
   },
-  input: {
+  textInput: {
+    borderWidth: 1,
+    borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
     fontSize: 16,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-  },
-  infoContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  infoLabel: {
-    fontSize: 14,
-    marginBottom: 2,
-  },
-  infoValue: {
-    fontSize: 16,
-    fontWeight: '500',
   },
 }); 

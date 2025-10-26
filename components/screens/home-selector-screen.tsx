@@ -2,13 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHomes } from '../../lib/contexts/HomesContext';
@@ -96,10 +96,20 @@ export default function HomeSelectorScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Select Home</Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            Choose a home to manage its tasks
-          </Text>
+          <View style={styles.headerTop}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="chevron-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <View style={styles.headerContent}>
+              <Text style={[styles.headerTitle, { color: colors.text }]}>Select Home</Text>
+              <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+                Choose a home to manage its tasks
+              </Text>
+            </View>
+          </View>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -114,10 +124,20 @@ export default function HomeSelectorScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Select Home</Text>
-        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-          Choose a home to manage its tasks
-        </Text>
+        <View style={styles.headerTop}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>Select Home</Text>
+            <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+              Choose a home to manage its tasks
+            </Text>
+          </View>
+        </View>
       </View>
 
       {homes.length === 0 ? (
@@ -157,6 +177,18 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingBottom: 24,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 8,
+    marginTop: -4, // Adjust to align with title
+  },
+  headerContent: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: 28,

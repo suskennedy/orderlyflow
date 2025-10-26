@@ -3,16 +3,16 @@ import * as Contacts from 'expo-contacts';
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
-  Alert,
-  FlatList,
-  Linking,
-  Modal,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    FlatList,
+    Linking,
+    Modal,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
@@ -103,12 +103,33 @@ export default function VendorsScreen() {
     try {
       setLoadingContacts(true);
       
-      // Request permission using Expo Contacts API
-      console.log('Requesting contacts permission...');
-      const { status } = await Contacts.requestPermissionsAsync();
-      console.log('Permission status:', status);
+      // Check current permission status first (iOS-specific)
+      const { status: currentStatus } = await Contacts.getPermissionsAsync();
       
-      if (status !== 'granted') {
+      let permissionStatus = currentStatus;
+      
+      // Handle different permission states
+      if (currentStatus === 'denied') {
+        Alert.alert(
+          'Permission Required', 
+          'Contacts access is required. Please enable it in Settings > Privacy & Security > Contacts.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => {
+              Linking.openURL('app-settings:');
+            }}
+          ]
+        );
+        return;
+      }
+      
+      if (currentStatus === 'undetermined') {
+        // Request permission with proper error handling
+        const { status } = await Contacts.requestPermissionsAsync();
+        permissionStatus = status;
+      }
+      
+      if (permissionStatus !== 'granted') {
         Alert.alert(
           'Permission Required', 
           'Please allow access to contacts to use this feature. You can enable this in your device settings.',
@@ -122,27 +143,41 @@ export default function VendorsScreen() {
         return;
       }
 
-      // Permission granted, load contacts with required fields
-      console.log('Loading contacts with Expo API...');
+      // Permission granted, load contacts with comprehensive fields
       const { data } = await Contacts.getContactsAsync({
         fields: [
           Contacts.Fields.Name,
+          Contacts.Fields.FirstName,
+          Contacts.Fields.LastName,
           Contacts.Fields.PhoneNumbers,
           Contacts.Fields.Emails,
-          Contacts.Fields.Company
+          Contacts.Fields.Company,
+          Contacts.Fields.JobTitle,
+          Contacts.Fields.Nickname
         ],
       });
       
-      console.log('Raw contacts loaded:', data.length);
-      console.log('Sample contact structure:', data.length > 0 ? JSON.stringify(data[0], null, 2) : 'No contacts');
       processExpoContacts(data);
       
     } catch (error) {
-      console.error('Error loading contacts:', error);
-      Alert.alert(
-        'Error', 
-        'Failed to access contacts. Please try again.'
-      );
+      // iOS-specific error handling
+      if (error.message && error.message.includes('permission')) {
+        Alert.alert(
+          'Permission Required', 
+          'Please enable contacts access in Settings > Privacy & Security > Contacts.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => {
+              Linking.openURL('app-settings:');
+            }}
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Error', 
+          'Failed to access contacts. Please try again.'
+        );
+      }
     } finally {
       setLoadingContacts(false);
     }
@@ -151,8 +186,6 @@ export default function VendorsScreen() {
   // Process Expo contacts and show selection
   const processExpoContacts = (allContacts: any[]) => {
     try {
-      console.log('Processing contacts...');
-      
       // Filter contacts that have phone numbers or emails and names
       const validContacts = allContacts
         .filter(contact => {
@@ -160,61 +193,44 @@ export default function VendorsScreen() {
           const hasPhone = contact.phoneNumbers && Array.isArray(contact.phoneNumbers) && contact.phoneNumbers.length > 0;
           // Check for emails - note: expo-contacts uses 'emails' not 'emailAddresses'
           const hasEmail = contact.emails && Array.isArray(contact.emails) && contact.emails.length > 0;
-          // Check for name
-          const hasName = contact.name || contact.firstName || contact.lastName;
+          // Check for name (handle various iOS name formats)
+          const hasName = contact.name || contact.firstName || contact.lastName || contact.nickname;
           
-          const isValid = (hasPhone || hasEmail) && hasName;
-          if (!isValid) {
-            console.log('Filtered out contact:', {
-              hasPhone,
-              hasEmail,
-              hasName,
-              name: contact.name,
-              firstName: contact.firstName,
-              lastName: contact.lastName
-            });
-          }
-          
-          return isValid;
+          return (hasPhone || hasEmail) && hasName;
         })
-        .map((contact, index) => {
-          // Build display name
+        .map((contact) => {
+          // Build display name (handle various iOS name formats)
           const displayName = contact.name || 
             `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
+            contact.nickname ||
             'Unknown Contact';
           
-          // Get phone number
+          // Get phone number (handle multiple phone numbers)
           let phone = '';
           if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
             const phoneObj = contact.phoneNumbers[0];
             phone = phoneObj.number || phoneObj.digits || '';
           }
           
-          // Get email
+          // Get email (handle multiple emails)
           let email = '';
           if (contact.emails && contact.emails.length > 0) {
             const emailObj = contact.emails[0];
             email = emailObj.email || emailObj.address || '';
           }
           
-          const processedContact = {
-            name: contact.company || displayName,
+          // Use company name if available, otherwise use display name
+          const companyName = contact.company || displayName;
+          
+          return {
+            name: companyName,
             contact_name: displayName,
             phone: phone,
             email: email,
             company: contact.company || null
           };
-          
-          if (index < 3) {
-            console.log(`Processed contact ${index}:`, processedContact);
-          }
-          
-          return processedContact;
         })
         .filter(contact => contact.name && contact.name.trim() !== '');
-      
-      console.log('Valid contacts found:', validContacts.length);
-      console.log('First 3 valid contacts:', validContacts.slice(0, 3));
       
       if (validContacts.length === 0) {
         Alert.alert(
@@ -229,7 +245,6 @@ export default function VendorsScreen() {
       setShowContactsModal(true);
       
     } catch (error) {
-      console.error('Error processing contacts:', error);
       Alert.alert(
         'Error', 
         'Failed to process contacts. Please try again.'
@@ -240,7 +255,6 @@ export default function VendorsScreen() {
   // Handle contact selection from modal
   const handleContactSelection = (contact: any) => {
     try {
-      console.log('Selected contact:', contact);
       setShowContactsModal(false);
       
       // Navigate to add vendor with pre-filled data
@@ -256,7 +270,6 @@ export default function VendorsScreen() {
       });
       
     } catch (error) {
-      console.error('Error handling contact selection:', error);
       Alert.alert('Error', 'Failed to select contact. Please try again.');
     }
   };
@@ -374,7 +387,6 @@ export default function VendorsScreen() {
               marginRight: 8 
             }]}
             onPress={() => {
-              console.log('Loading contacts from phone book...');
               loadContactsFromPhoneBook();
             }}
             disabled={loadingContacts}

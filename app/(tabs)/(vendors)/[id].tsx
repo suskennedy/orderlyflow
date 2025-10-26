@@ -187,18 +187,33 @@ export default function VendorDetail() {
             )}
 
             {vendor.phone && (
-              <TouchableOpacity 
-                style={styles.infoRow}
-                onPress={() => Linking.openURL(`tel:${vendor.phone}`)}
-              >
-                <View style={[styles.iconContainer, { backgroundColor: '#10B981' + '15' }]}>
-                  <Ionicons name="call" size={20} color="#10B981" />
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Phone</Text>
-                  <Text style={[styles.infoValue, { color: '#10B981' }]}>{vendor.phone}</Text>
-                </View>
-              </TouchableOpacity>
+              <View style={styles.phoneContainer}>
+                <TouchableOpacity 
+                  style={styles.infoRow}
+                  onPress={() => Linking.openURL(`tel:${vendor.phone}`)}
+                >
+                  <View style={[styles.iconContainer, { backgroundColor: '#10B981' + '15' }]}>
+                    <Ionicons name="call" size={20} color="#10B981" />
+                  </View>
+                  <View style={styles.infoContent}>
+                    <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Phone</Text>
+                    <Text style={[styles.infoValue, { color: '#10B981' }]}>{vendor.phone}</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.infoRow}
+                  onPress={() => Linking.openURL(`sms:${vendor.phone}`)}
+                >
+                  <View style={[styles.iconContainer, { backgroundColor: '#10B981' + '15' }]}>
+                    <Ionicons name="chatbubble" size={20} color="#10B981" />
+                  </View>
+                  <View style={styles.infoContent}>
+                    <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Send Text</Text>
+                    <Text style={[styles.infoValue, { color: '#10B981' }]}>{vendor.phone}</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
             )}
 
             {vendor.email && (
@@ -469,5 +484,8 @@ const styles = StyleSheet.create({
   },
   taskCategory: {
     fontSize: 14,
+  },
+  phoneContainer: {
+    marginBottom: 0,
   },
 }); 

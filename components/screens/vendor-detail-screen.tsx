@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-    Alert,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTasks } from '../../lib/contexts/TasksContext';
@@ -39,13 +39,7 @@ export default function VendorDetailScreen() {
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (id) {
-      fetchVendor();
-    }
-  }, [id]);
-
-  const fetchVendor = async () => {
+  const fetchVendor = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -67,7 +61,13 @@ export default function VendorDetailScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      fetchVendor();
+    }
+  }, [id, fetchVendor]);
 
   // Get tasks assigned to a specific vendor
   const getVendorTasks = (vendorId: string) => {
@@ -132,13 +132,25 @@ export default function VendorDetailScreen() {
           )}
 
           {vendor.phone && (
-            <TouchableOpacity 
-              style={styles.infoRow}
-              onPress={() => Linking.openURL(`tel:${vendor.phone}`)}
-            >
-              <Ionicons name="call" size={20} color={colors.primary} />
-              <Text style={[styles.infoText, { color: colors.primary }]}>{vendor.phone}</Text>
-            </TouchableOpacity>
+            <View style={styles.phoneContainer}>
+              <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 12 }]}>Phone Actions</Text>
+              
+              <TouchableOpacity 
+                style={[styles.phoneButton, { backgroundColor: colors.primary }]}
+                onPress={() => Linking.openURL(`tel:${vendor.phone}`)}
+              >
+                <Ionicons name="call" size={20} color="white" />
+                <Text style={styles.phoneButtonText}>📞 Call {vendor.phone}</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.phoneButton, { backgroundColor: colors.primary }]}
+                onPress={() => Linking.openURL(`sms:${vendor.phone}`)}
+              >
+                <Ionicons name="chatbubble" size={20} color="white" />
+                <Text style={styles.phoneButtonText}>💬 Send Text to {vendor.phone}</Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           {vendor.email && (
@@ -154,13 +166,19 @@ export default function VendorDetailScreen() {
           {vendor.website && (
             <TouchableOpacity 
               style={styles.infoRow}
-              onPress={() => Linking.openURL(vendor.website!)}
+              onPress={() => {
+                let url = vendor.website!;
+                // Ensure URL has proper protocol for iOS
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                  url = 'https://' + url;
+                }
+                Linking.openURL(url);
+              }}
             >
               <Ionicons name="globe" size={20} color={colors.primary} />
               <Text style={[styles.infoText, { color: colors.primary }]}>{vendor.website}</Text>
             </TouchableOpacity>
           )}
-
           {vendor.address && (
             <View style={styles.infoRow}>
               <Ionicons name="location" size={20} color={colors.textTertiary} />
@@ -315,6 +333,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 12,
     flex: 1,
+  },
+  phoneContainer: {
+    marginBottom: 20,
+    gap: 12,
+  },
+  phoneButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  phoneButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   notesText: {
     fontSize: 16,
