@@ -3,7 +3,7 @@
     "name": "OrderlyFlow",
     "slug": "orderlyflow",
     "version": "2.0.0",
-    "buildNumber": "10",
+    "buildNumber": "11",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
@@ -19,7 +19,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.orderlyflow.app",
-      "buildNumber": "10",
+      "buildNumber": "11",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSContactsUsageDescription": "This app needs access to your contacts to help you quickly add vendors from your phone book."
@@ -31,7 +31,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.orderlyflow.app",
-      "versionCode": 10,
+      "versionCode": 11,
       "permissions": [
         "android.permission.READ_CONTACTS"
       ]
