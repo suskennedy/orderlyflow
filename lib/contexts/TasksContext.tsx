@@ -992,9 +992,10 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
 
   // Set up real-time subscription for home_tasks
   const handleHomeTaskChange = useCallback(async (payload: any) => {
-    if (payload.new?.home_id || payload.old?.home_id) {
-      const homeId = payload.new?.home_id || payload.old?.home_id;
-      
+    // Handle changes from home_tasks, repairs, or projects tables
+    const homeId = payload.new?.home_id || payload.old?.home_id;
+    
+    if (homeId) {
       // Clear existing timer
       if (taskUpdateTimerRef.current) {
         clearTimeout(taskUpdateTimerRef.current);
@@ -1015,10 +1016,26 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
     }
   }, [currentHomeId, fetchHomeTasks, fetchAllHomeTasks]);
 
-  // Set up the home_tasks real-time subscription
+  // Set up real-time subscription for home_tasks
   useRealTimeSubscription(
     { 
       table: 'home_tasks',
+    },
+    handleHomeTaskChange
+  );
+
+  // Set up real-time subscription for repairs (affects home_tasks display)
+  useRealTimeSubscription(
+    { 
+      table: 'repairs',
+    },
+    handleHomeTaskChange
+  );
+
+  // Set up real-time subscription for projects (affects home_tasks display)
+  useRealTimeSubscription(
+    { 
+      table: 'projects',
     },
     handleHomeTaskChange
   );

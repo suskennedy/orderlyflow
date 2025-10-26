@@ -1,5 +1,6 @@
-import React, { createContext, ReactNode, useCallback, useContext, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useRealTimeSubscription } from '../hooks/useRealTimeSubscription';
 import { supabase } from '../supabase';
 
 export interface Project {
@@ -7,18 +8,22 @@ export interface Project {
   home_id: string;
   title: string;
   description?: string;
-  category?: string;
-  status: 'planning' | 'in_progress' | 'completed' | 'on_hold';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
+  project_type?: string;
+  status: 'not_started' | 'in_progress' | 'completed' | 'on_hold';
   estimated_budget?: number;
-  actual_budget?: number;
+  current_spend?: number;
+  final_cost?: number;
   start_date?: string;
-  end_date?: string;
+  target_completion_date?: string;
   completion_date?: string;
-  assigned_vendor_id?: string;
-  assigned_user_id?: string;
+  location_in_home?: string;
+  vendor_ids?: string[];
+  assigned_user_ids?: string[];
+  photos_inspiration?: string[];
+  reminders_enabled?: boolean;
+  reminder_date?: string;
   notes?: string;
-  photos?: string[];
+  subtasks?: any[];
   created_at?: string;
   updated_at?: string;
   created_by?: string;
@@ -56,6 +61,9 @@ export const ProjectsProvider = ({ children }: ProjectsProviderProps) => {
   const [currentHome, setCurrentHome] = useState<string | null>(null);
   const { user } = useAuth();
 
+  // Debounce timer for project updates
+  const projectUpdateTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const fetchProjects = useCallback(async (homeId: string) => {
     if (!user?.id) return;
     
@@ -75,6 +83,45 @@ export const ProjectsProvider = ({ children }: ProjectsProviderProps) => {
       setLoading(false);
     }
   }, [user?.id]);
+
+  // Set up real-time subscription for projects
+  const handleProjectChange = useCallback(async (payload: any) => {
+    if (payload.new?.home_id || payload.old?.home_id) {
+      const homeId = payload.new?.home_id || payload.old?.home_id;
+      
+      // Clear existing timer
+      if (projectUpdateTimerRef.current) {
+        clearTimeout(projectUpdateTimerRef.current);
+      }
+      
+      // Set new debounced timer
+      const timer = setTimeout(async () => {
+        // Refresh projects for the affected home
+        if (homeId === currentHome) {
+          await fetchProjects(homeId);
+        }
+      }, 200); // 200ms debounce
+      
+      projectUpdateTimerRef.current = timer;
+    }
+  }, [currentHome, fetchProjects]);
+
+  // Set up the projects real-time subscription
+  useRealTimeSubscription(
+    { 
+      table: 'projects',
+    },
+    handleProjectChange
+  );
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (projectUpdateTimerRef.current) {
+        clearTimeout(projectUpdateTimerRef.current);
+      }
+    };
+  }, []);
 
   const addProject = useCallback(async (projectData: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => {
     if (!user?.id) throw new Error('User not authenticated');

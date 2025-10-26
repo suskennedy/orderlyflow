@@ -57,6 +57,7 @@ export default function AddProjectScreen() {
       final_cost: undefined,
       status: 'not_started',
       reminders_enabled: false,
+      reminder_date: '',
       notes: '',
       subtasks: [],
     },
@@ -97,6 +98,7 @@ export default function AddProjectScreen() {
         final_cost: data.final_cost ?? undefined,
         status: data.status,
         reminders_enabled: data.reminders_enabled ?? false,
+        reminder_date: data.reminders_enabled && data.reminder_date ? data.reminder_date : undefined,
         notes: data.notes || undefined,
         subtasks: data.subtasks && data.subtasks.length ? data.subtasks : undefined,
         created_by: user.id,
@@ -144,7 +146,7 @@ export default function AddProjectScreen() {
     setValue('subtasks', [...current, { title: '', is_done: false }]);
   };
 
-  const updateSubtask = (index: number, field: 'title' | 'is_done' | 'due_date', value: any) => {
+  const updateSubtask = (index: number, field: 'title' | 'is_done' | 'due_date' | 'reminder_date', value: any) => {
     const current = watch('subtasks') || [];
     const copy = [...current];
     copy[index] = { ...copy[index], [field]: value };
@@ -338,7 +340,7 @@ export default function AddProjectScreen() {
                     onPress={() => (active ? removeUser(m.id) : addUser(m.id))}
                   >
                     <Text style={[styles.categoryButtonText, active && styles.categoryButtonTextSelected]}>
-                      {m.display_name || m.full_name || m.email || 'User'}
+                      {m.user?.display_name || m.user?.full_name || 'User'}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -427,6 +429,13 @@ export default function AddProjectScreen() {
                   placeholder="Select due date"
                 />
                 <View style={{ height: 10 }} />
+                <DatePicker
+                  label="Reminder Date"
+                  value={task.reminder_date || ''}
+                  onChange={(d) => updateSubtask(idx, 'reminder_date', d || '')}
+                  placeholder="Select reminder date"
+                />
+                <View style={{ height: 10 }} />
                 <TouchableOpacity onPress={() => removeSubtask(idx)}>
                   <Text style={{ color: '#e74c3c', fontWeight: '600' }}>Remove</Text>
                 </TouchableOpacity>
@@ -481,6 +490,25 @@ export default function AddProjectScreen() {
               )}
             />
           </View>
+
+          {/* Reminder Date - only show when reminders are enabled */}
+          {watch('reminders_enabled') && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Reminder Date</Text>
+              <Controller
+                control={control}
+                name="reminder_date"
+                render={({ field: { onChange, value } }) => (
+                  <DatePicker
+                    label=""
+                    value={value || ''}
+                    onChange={onChange}
+                    placeholder="Select reminder date"
+                  />
+                )}
+              />
+            </View>
+          )}
 
           {/* Notes */}
           <View style={styles.inputGroup}>

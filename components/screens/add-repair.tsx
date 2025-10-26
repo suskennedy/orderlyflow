@@ -107,7 +107,7 @@ export default function AddRepairScreen() {
         cost_estimate: data.cost_estimate || undefined,
         final_cost: data.final_cost || undefined,
         schedule_reminder: data.schedule_reminder || false,
-        reminder_date: data.schedule_reminder ? data.reminder_date : undefined,
+        reminder_date: data.schedule_reminder && data.reminder_date ? data.reminder_date : undefined,
         notes: data.notes || undefined,
         status: data.status,
         created_by: user.id,
@@ -230,7 +230,7 @@ export default function AddRepairScreen() {
                 render={({ field: { onChange, value } }) => (
                   <View style={styles.pickerContainer}>
                     <Text style={styles.pickerText}>
-                      {value ? familyMembers.find(m => m.id === value)?.display_name || 'Select user' : 'Select user'}
+                      {value ? familyMembers.find(m => m.id === value)?.user?.display_name || 'Select user' : 'Select user'}
                     </Text>
                   </View>
                 )}
@@ -254,7 +254,7 @@ export default function AddRepairScreen() {
                         watch('user_id') === member.id && styles.userButtonTextSelected,
                       ]}
                     >
-                      {member.display_name || member.full_name}
+                      {member.user?.display_name || member.user?.full_name || 'User'}
                     </Text>
                   </TouchableOpacity>
                 ))}

@@ -2,20 +2,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Animated,
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
+import { getHomeDisplayText } from '../../lib/utils/homeDisplayUtils';
+import { getVendorDisplayText } from '../../lib/utils/vendorDisplayUtils';
 import TaskCompletionModal from '../TaskCompletionModal';
 import TaskSkeleton from '../ui/TaskSkeleton';
 import TaskSpinner from '../ui/TaskSpinner';
@@ -264,7 +266,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
               </View>
               {item.category && (
                 <Text style={[styles.taskCategory, { color: colors.textSecondary }]}>
-                  {item.category} • {item.homes?.name || 'No home assigned'}
+                  {item.category} • {getHomeDisplayText(item, homes)}
                 </Text>
               )}
               {isCompleted && item.completed_at && (
@@ -318,7 +320,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
             <View style={styles.dropdownRow}>
               <Text style={[styles.dropdownLabel, { color: colors.textSecondary }]}>Assigned Vendor</Text>
               <Text style={[styles.dropdownValue, { color: colors.text }]}>
-                {item.assigned_vendor_id ? vendors.find(v => v.id === item.assigned_vendor_id)?.name : 'Not assigned'}
+                {getVendorDisplayText(item, vendors)}
               </Text>
             </View>
             
@@ -348,7 +350,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
         )}
       </Animated.View>
     );
-  }, [expandedTask, savingTaskId, colors, fadeAnim, slideAnim, handleTaskToggle, handleTaskPress, vendors, getTaskDisplayDate, formatDate, isRecurringTask, getTaskTypeInfo]);
+  }, [expandedTask, savingTaskId, colors, fadeAnim, slideAnim, handleTaskToggle, handleTaskPress, vendors, homes, getTaskDisplayDate, formatDate, isRecurringTask, getTaskTypeInfo]);
 
   const renderEmptyState = () => (
     <Animated.View 

@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProjects } from '../../lib/contexts/ProjectsContext';
@@ -17,6 +17,7 @@ import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
 import { supabase } from '../../lib/supabase';
+import { getVendorDisplayText } from '../../lib/utils/vendorDisplayUtils';
 import DatePicker from '../DatePicker';
 import TimePicker from '../TimePicker';
 
@@ -942,14 +943,14 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
                     <Text style={[styles.repairProjectStatus, { color: colors.textSecondary }]}>
                       Status: {repair.status}
                     </Text>
-                    {repair.assigned_vendor_id && (
+                    {repair.vendor_id && (
                       <Text style={[styles.repairProjectVendor, { color: colors.textSecondary }]}>
-                        Vendor: {vendors.find(v => v.id === repair.assigned_vendor_id)?.name || 'Unknown'}
+                        Vendor: {getVendorDisplayText(repair, vendors)}
                       </Text>
                     )}
-                    {repair.due_date && (
+                    {repair.reminder_date && (
                       <Text style={[styles.repairProjectDue, { color: colors.textSecondary }]}>
-                        Due: {new Date(repair.due_date).toLocaleDateString()}
+                        Due: {new Date(repair.reminder_date).toLocaleDateString()}
                       </Text>
                     )}
                   </View>
@@ -1010,9 +1011,9 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
                     <Text style={[styles.repairProjectStatus, { color: colors.textSecondary }]}>
                       Status: {project.status}
                     </Text>
-                    {project.assigned_vendor_id && (
+                    {(project.vendor_ids && project.vendor_ids.length > 0) && (
                       <Text style={[styles.repairProjectVendor, { color: colors.textSecondary }]}>
-                        Vendor: {vendors.find(v => v.id === project.assigned_vendor_id)?.name || 'Unknown'}
+                        Vendor: {getVendorDisplayText(project, vendors)}
                       </Text>
                     )}
                     {project.estimated_budget && (

@@ -20,6 +20,7 @@ const SubtaskSchema = z.object({
   title: z.string().min(1, 'Subtask title is required').max(255),
   is_done: z.boolean().default(false),
   due_date: z.string().optional(),
+  reminder_date: z.string().optional(),
 });
 
 export const projectFormSchema = z
@@ -38,6 +39,7 @@ export const projectFormSchema = z
     final_cost: z.number().min(0, 'Must be positive').optional(),
     status: z.enum(PROJECT_STATUS).default('not_started'),
     reminders_enabled: z.boolean().default(false),
+    reminder_date: z.string().optional(),
     notes: z.string().max(2000, 'Notes too long').optional(),
     subtasks: z.array(SubtaskSchema).optional(),
   })
