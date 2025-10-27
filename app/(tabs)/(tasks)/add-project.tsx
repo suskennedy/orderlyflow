@@ -1,3 +1,3 @@
-import AddProjectScreen from '../../../components/screens/add-project';
+import AddProjectScreen from '../../../components/tasks/add-project';
 
 export default AddProjectScreen;

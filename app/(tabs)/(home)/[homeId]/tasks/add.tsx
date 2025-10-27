@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import AppLayout from '../../../../../components/layouts/AppLayout';
-import AddTaskScreen from '../../../../../components/screens/add-task-screen';
+import AddTaskScreen from '../../../../../components/tasks/add-task-screen';
 
 export default function AddHomeTask() {
   const { homeId } = useLocalSearchParams();

@@ -37,7 +37,7 @@ export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { 
-    events, 
+    events,   // eslint-disable-line @typescript-eslint/no-unused-vars
     loading: calendarLoading, 
     refreshing, 
     deleteEvent, 
@@ -46,8 +46,9 @@ export default function CalendarScreen() {
     setCurrentHome,
     getFilteredEvents
   } = useCalendar();
-  const { templateTasks, homeTasks, loading: tasksLoading } = useTasks();
-  const { currentHome } = useHomes();
+  const { homeTasks, loading: tasksLoading } = useTasks();
+  const { homes } = useHomes();
+  const currentHome = currentHomeId ? homes.find(home => home.id === currentHomeId) : null;
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);

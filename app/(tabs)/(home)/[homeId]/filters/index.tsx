@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
+import FiltersScreen from '../../../../../components/home/filter/filters-screen';
 import { FiltersProvider } from '../../../../../lib/contexts/FiltersContext';
-import FiltersScreen from '../../../../../components/screens/filters-screen';
 
 export default function FiltersPage() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();

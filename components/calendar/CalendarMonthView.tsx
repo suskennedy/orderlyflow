@@ -5,7 +5,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { Calendar, DateData } from 'react-native-calendars';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { CalendarEvent } from '../../types/database';
-import CalendarEventCard from '../dashboard/CalendarCard';
+import CalendarEventCard from './CalendarCard';
 
 interface MarkingProps {
   selected?: boolean;

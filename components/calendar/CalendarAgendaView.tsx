@@ -2,8 +2,8 @@ import React, { memo } from 'react';
 import { FlatList, RefreshControl, StyleSheet } from 'react-native';
 import { useCalendar } from '../../lib/contexts/CalendarContext';
 import { CalendarEvent } from '../../types/database';
-import CalendarEventCard from '../dashboard/CalendarCard';
 import EmptyState from '../layout/EmptyState';
+import CalendarEventCard from './CalendarCard';
 
 interface CalendarAgendaViewProps {
   refreshing: boolean;
@@ -13,9 +13,9 @@ interface CalendarAgendaViewProps {
 
 // Use React.memo for performance optimization
 const CalendarAgendaView = memo(({
-  refreshing,
+  refreshing,    
   onRefresh,
-  onDeletePress,
+  onDeletePress,     
 }: CalendarAgendaViewProps) => {
   const { getAgendaEvents } = useCalendar();
   
@@ -56,5 +56,7 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
 });
+
+CalendarAgendaView.displayName = 'CalendarAgendaView';
 
 export default CalendarAgendaView;

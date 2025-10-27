@@ -136,12 +136,12 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
     setLoading(true);
     try {
       // Create the task data using database types (simplified schema)
-      const taskData: TaskInsert = {
+        const taskData = {
         title: formData.title.trim(),
         description: formData.description ? formData.description.trim() : null,
         category: formData.category || null,
-        subcategory: null, // TODO: Add subcategory field to form if needed
-      };
+        subcategory: null, // TODO:  eslint-disable-line @typescript-eslint/no-unused-vars
+      } as TaskInsert;
 
       // Create custom task directly in home_tasks table
       if (formData.home_id) {
@@ -149,7 +149,6 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
           title: taskData.title,
           description: taskData.description,
           category: taskData.category,
-          subcategory: taskData.subcategory,
           due_date: formData.due_date || null,
           priority: formData.priority || null,
           assigned_user_id: formData.assigned_user_id || null,

@@ -170,7 +170,7 @@ export default function AddCustomTaskScreen() {
         status: 'pending'
       };
 
-      await createCustomTask(taskData);
+      await createCustomTask(formData.home_id, taskData);
       showToast('Custom task created successfully!', 'success');
       router.back();
     } catch (error) {

@@ -2,35 +2,35 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFilters } from '../../lib/contexts/FiltersContext';
-import { useTheme } from '../../lib/contexts/ThemeContext';
-import FilterCard from '../home/FilterCard';
-import ScreenHeader from '../layout/ScreenHeader';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useWarranties } from '../../../lib/contexts/WarrantiesContext';
+import ScreenHeader from '../../layout/ScreenHeader';
+import WarrantyCard from './WarrantyCard';
 
-export default function FiltersScreen() {
+export default function WarrantiesScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { filters, loading } = useFilters(homeId);
+  const { warranties, loading } = useWarranties(homeId);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <ScreenHeader 
-        title="Filters" 
+        title="Warranties" 
         showBackButton
-        onAddPress={() => router.push(`/(home)/${homeId}/filters/add`)}
+        onAddPress={() => router.push(`/(tabs)/(home)/${homeId}/warranties/add`)}
       />
       {loading ? (
         <ActivityIndicator style={{ flex: 1 }} />
       ) : (
         <FlatList
-          data={filters}
-          renderItem={({ item }) => <FilterCard filter={item as any} />}
+          data={warranties}
+          renderItem={({ item }) => <WarrantyCard warranty={item} />}
           keyExtractor={item => item.id}
           contentContainerStyle={[styles.list, { paddingBottom: 100 }]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyText, {color: colors.text}]}>No filters added yet.</Text>
+              <Text style={[styles.emptyText, {color: colors.text}]}>No warranties added yet.</Text>
             </View>
           }
         />

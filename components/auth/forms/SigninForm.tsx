@@ -42,17 +42,6 @@ export default function SignInForm() {
     password: false
   });
 
-  // Validate on field blur
-  const handleBlur = (field: 'email' | 'password') => {
-    setTouched(prev => ({ ...prev, [field]: true }));
-    
-    if (field === 'email') {
-      setErrors(prev => ({ ...prev, email: validateEmail(email) }));
-    } else if (field === 'password') {
-      setErrors(prev => ({ ...prev, password: validatePassword(password) }));
-    }
-  };
-
   // Validate all fields
   const validateForm = () => {
     const emailError = validateEmail(email);
@@ -75,15 +64,12 @@ export default function SignInForm() {
       setErrors(prev => ({ ...prev, email: validateEmail(text) }));
     }
   };
-
   const handlePasswordChange = (text: string) => {
     setPassword(text);
     if (touched.password) {
       setErrors(prev => ({ ...prev, password: validatePassword(text) }));
     }
   };
-
-  // Redirect if already authenticated
   useEffect(() => {
     if (!authLoading && user) {
       navigate.toDashboard();
@@ -92,7 +78,6 @@ export default function SignInForm() {
 
   const handleSignIn = async () => {
     if (!validateForm()) return;
-
     try {
       setLoading(true);
       await signIn(email.trim(), password);
@@ -106,12 +91,10 @@ export default function SignInForm() {
       setLoading(false);
     }
   };
-
   // Show loading while checking authentication
   if (authLoading) {
     return <LoadingScreen message="Checking authentication..." />;
   }
-
   return (
     <AuthContainer>
       <AuthHeader 

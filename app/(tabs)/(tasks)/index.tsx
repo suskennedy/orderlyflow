@@ -1,6 +1,6 @@
 import React from 'react';
 import AppLayout from '../../../components/layouts/AppLayout';
-import HomeSelectorScreen from '../../../components/screens/home-selector-screen';
+import HomeSelectorScreen from '../../../components/tasks/home-selector-screen';
 
 export default function Tasks() {
   return (

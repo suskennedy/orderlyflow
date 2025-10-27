@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, Resolver, useForm } from 'react-hook-form';
 import {
     Alert,
     KeyboardAvoidingView,
@@ -50,9 +50,8 @@ export default function AddRepairScreen() {
     formState: { errors },
     watch,
     setValue,
-    reset,
   } = useForm<RepairFormData>({
-    resolver: zodResolver(repairFormSchemaWithValidation),
+    resolver: zodResolver(repairFormSchemaWithValidation) as Resolver<RepairFormData, any>,
     defaultValues: {
       title: '',
       vendor_id: '',

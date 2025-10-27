@@ -37,19 +37,6 @@ export default function ForgotPasswordForm() {
     }
   }, [user, authLoading]);
 
-  const handleBlur = () => {
-    setTouched(true);
-    const error = validateEmail(email);
-    setEmailError(error);
-  };
-
-  const handleEmailChange = (text: string) => {
-    setEmail(text);
-    if (touched) {
-      const error = validateEmail(text);
-      setEmailError(error);
-    }
-  };
 
   const validateForm = () => {
     const error = validateEmail(email);
@@ -110,8 +97,8 @@ export default function ForgotPasswordForm() {
               label="Email Address"
               placeholder="Enter your email"
               value={email}
-              onChangeText={handleEmailChange}
-              error={touched ? emailError : ''}
+              onChangeText={(text) => setEmail(text)}
+              error={emailError}
               keyboardType="email-address"
               autoCapitalize="none"
             />

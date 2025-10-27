@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
-import AppliancesScreen from '../../../../../components/screens/appliances-screen';
+import AppliancesScreen from '../../../../../components/home/appliance/appliances-screen';
 import { AppliancesProvider } from '../../../../../lib/contexts/AppliancesContext';
 
 export default function AppliancesPage() {

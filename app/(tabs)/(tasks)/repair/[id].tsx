@@ -1,3 +1,3 @@
-import RepairDetailScreen from '../../../../components/screens/repair-detail';
+import RepairDetailScreen from '../../../../components/tasks/repair-detail';
 
 export default RepairDetailScreen;

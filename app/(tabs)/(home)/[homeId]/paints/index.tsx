@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
-import PaintColorsScreen from '../../../../../components/screens/paint-colors-screen';
+import PaintColorsScreen from '../../../../../components/home/paints/paint-colors-screen';
 import { PaintsProvider } from '../../../../../lib/contexts/PaintsContext';
 
 export default function PaintsPage() {

@@ -41,8 +41,8 @@ interface Task {
 export default function AddCalendarEventScreen() {
   const { user } = useAuth();
   const { addEvent } = useCalendar();
-  const { homes, currentHome } = useHomes();
-  const { homeTasks, createHomeTaskWithCalendar } = useTasks();
+  const { homes } = useHomes();
+  const { createHomeTaskWithCalendar } = useTasks();
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [formData, setFormData] = useState({

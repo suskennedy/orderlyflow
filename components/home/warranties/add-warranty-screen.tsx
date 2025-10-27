@@ -2,19 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useToast } from '../../lib/contexts/ToastContext';
-import { useWarranties } from '../../lib/contexts/WarrantiesContext';
-import DatePicker from '../DatePicker';
-import ScreenHeader from '../layout/ScreenHeader';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useToast } from '../../../lib/contexts/ToastContext';
+import { useWarranties } from '../../../lib/contexts/WarrantiesContext';
+import DatePicker from '../../DatePicker';
+import ScreenHeader from '../../layout/ScreenHeader';
 
 export default function AddWarrantyScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
   const { createWarranty } = useWarranties(homeId);
   const { colors } = useTheme();
   const { showToast } = useToast();
-  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [formData, setFormData] = useState({

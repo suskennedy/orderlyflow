@@ -1,4 +1,4 @@
-import AddHomeScreen from "../../../components/screens/add-homescreen";
+import AddHomeScreen from "../../../components/home/add-homescreen";
 
 export default function AddHomePage() {
   return <AddHomeScreen />;

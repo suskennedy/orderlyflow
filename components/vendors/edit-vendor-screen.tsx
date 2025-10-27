@@ -2,60 +2,58 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
 
+interface Vendor {
+  id: string;
+  name: string;
+  category?: string | null;
+  contact_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  address?: string | null;
+  notes?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  user_id?: string | null;
+}
+
 const VENDOR_CATEGORIES = [
-  'Appliances',
-  'Architect',
-  'Builder',
-  'Carpenter',
-  'Cleaning',
-  'Closets',
-  'Drywall',
-  'Electrician',
-  'Fencing',
-  'Flooring',
-  'Garage Door',
-  'Handyman',
-  'HVAC',
-  'Interior Designs',
-  'Landscape',
-  'Masonry / Concrete',
   'Organizer',
-  'Painter',
-  'Pest Control',
   'Plumber',
-  'Pool / Spa',
+  'Electrician',
+  'HVAC',
+  'Landscaper',
+  'Painter',
+  'Carpenter',
   'Roofing',
+  'Pest Control',
+  'Cleaning Service',
   'Security',
-  'Solar Panel',
-  'Well / Water Treatment',
-  'Windows',
-  'Other',
+  'Other'
 ];
 
-const PRIORITY_OPTIONS = [
-  'Primary',
-  'Secondary'
-];
-
-export default function AddVendorScreen() {
-  const insets = useSafeAreaInsets();
+export default function EditVendorScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { vendors, updateVendor } = useVendors();
   const { colors } = useTheme();
-  const { addVendor } = useVendors();
-  const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
+  const [vendor, setVendor] = useState<Vendor | null>(null);
+  const [loading, setLoading] = useState(false);
   
+  // Form state
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [contactName, setContactName] = useState('');
@@ -63,31 +61,52 @@ export default function AddVendorScreen() {
   const [email, setEmail] = useState('');
   const [website, setWebsite] = useState('');
   const [address, setAddress] = useState('');
-  const [priority, setPriority] = useState('Primary');
-
-  // Pre-fill form with contact data if provided
-  useEffect(() => {
-    if (params.name) {
-      setName(String(params.name));
-    }
-    if (params.contact_name) {
-      setContactName(String(params.contact_name));
-    }
-    if (params.phone) {
-      setPhone(String(params.phone));
-    }
-    if (params.email) {
-      setEmail(String(params.email));
-    }
-    if (params.company) {
-      setName(String(params.company));
-    }
-  }, [params]);
   const [notes, setNotes] = useState('');
-  const [loading, setLoading] = useState(false);
+  
+  // Dropdown state
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [dropdownItems, setDropdownItems] = useState<string[]>([]);
   const [dropdownTitle, setDropdownTitle] = useState('');
+
+  useEffect(() => {
+    if (id && vendors.length > 0) {
+      const foundVendor = vendors.find(v => v.id === id);
+      if (foundVendor) {
+        setVendor(foundVendor);
+        // Populate form with existing data
+        setName(foundVendor.name || '');
+        setCategory(foundVendor.category || '');
+        setContactName(foundVendor.contact_name || '');
+        setPhone(foundVendor.phone || '');
+        setEmail(foundVendor.email || '');
+        setWebsite(foundVendor.website || '');
+        setAddress(foundVendor.address || '');
+        setNotes(foundVendor.notes || '');
+      }
+    }
+  }, [id, vendors]);
+
+  if (!vendor) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={[styles.backButton, { backgroundColor: colors.surface }]}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Vendor Not Found</Text>
+          <View style={styles.headerRight} />
+        </View>
+        <View style={styles.content}>
+          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
+            The vendor you&apos;re looking for doesn&apos;t exist.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   const openDropdown = (type: string, items: string[], title: string) => {
     setActiveDropdown(type);
@@ -104,14 +123,11 @@ export default function AddVendorScreen() {
       case 'category':
         setCategory(value);
         break;
-      case 'priority':
-        setPriority(value);
-        break;
     }
     closeDropdown();
   };
 
-  const handleAddVendor = async () => {
+  const handleUpdateVendor = async () => {
     if (!name.trim()) {
       Alert.alert('Error', 'Please enter a vendor name');
       return;
@@ -125,7 +141,7 @@ export default function AddVendorScreen() {
     try {
       setLoading(true);
 
-      const vendorData = {
+      const vendorUpdates = {
         name: name.trim(),
         category: category,
         contact_name: contactName.trim() || null,
@@ -136,14 +152,14 @@ export default function AddVendorScreen() {
         notes: notes.trim() || null
       };
 
-      const newVendor = await addVendor(vendorData as any);
+      await updateVendor(vendor.id, vendorUpdates);
       
-      Alert.alert('Success', 'Vendor added successfully!', [
+      Alert.alert('Success', 'Vendor updated successfully!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
     } catch (error) {
-      console.error('Error adding vendor:', error);
-      Alert.alert('Error', 'Failed to add vendor. Please try again.');
+      console.error('Error updating vendor:', error);
+      Alert.alert('Error', 'Failed to update vendor. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -172,8 +188,6 @@ export default function AddVendorScreen() {
     switch (activeDropdown) {
       case 'category':
         return category;
-      case 'priority':
-        return priority;
       default:
         return '';
     }
@@ -192,8 +206,16 @@ export default function AddVendorScreen() {
         >
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Add New Vendor</Text>
-        <View style={styles.headerRight} />
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Vendor</Text>
+        <TouchableOpacity
+          style={[styles.saveButton, { 
+            backgroundColor: loading ? colors.textSecondary : colors.primary 
+          }]}
+          onPress={handleUpdateVendor}
+          disabled={loading}
+        >
+          <Ionicons name="checkmark" size={20} color={colors.background} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -321,16 +343,6 @@ export default function AddVendorScreen() {
           />
         </View>
 
-        {/* Priority */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Priority</Text>
-          {renderDropdownButton(
-            priority,
-            () => openDropdown('priority', PRIORITY_OPTIONS, 'Select priority'),
-            'Select priority'
-          )}
-        </View>
-
         {/* Notes */}
         <View style={styles.inputGroup}>
           <Text style={[styles.inputLabel, { color: colors.text }]}>Notes</Text>
@@ -350,17 +362,17 @@ export default function AddVendorScreen() {
           />
         </View>
 
-        {/* Add Vendor Button */}
+        {/* Update Vendor Button */}
         <TouchableOpacity
-          style={[styles.addButton, { 
+          style={[styles.updateButton, { 
             backgroundColor: loading ? colors.textSecondary : colors.primary 
           }]}
-          onPress={handleAddVendor}
+          onPress={handleUpdateVendor}
           disabled={loading}
         >
-          <Ionicons name="add-circle" size={24} color={colors.background} />
-          <Text style={[styles.addButtonText, { color: colors.background }]}>
-            {loading ? 'Adding Vendor...' : 'Add Vendor'}
+          <Ionicons name="save" size={24} color={colors.background} />
+          <Text style={[styles.updateButtonText, { color: colors.background }]}>
+            {loading ? 'Updating...' : 'Update Vendor'}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -430,6 +442,13 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
   },
+  saveButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   headerRight: {
     width: 40,
   },
@@ -477,7 +496,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     flex: 1,
   },
-  addButton: {
+  updateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -486,7 +505,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     gap: 8,
   },
-  addButtonText: {
+  updateButtonText: {
     fontSize: 18,
     fontWeight: '600',
   },
@@ -525,4 +544,14 @@ const styles = StyleSheet.create({
   modalItemText: {
     fontSize: 16,
   },
-}); 
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+});

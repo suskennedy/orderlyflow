@@ -1,3 +1,2 @@
-import CalendarScreen from '../../../components/screens/calendar-screen';
-
+import CalendarScreen from '../../../components/home/calendar-screen';
 export default CalendarScreen; 

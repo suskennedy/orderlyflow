@@ -2,20 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import {
-  ActivityIndicator,
-  Animated,
-  Dimensions,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Animated,
+    Dimensions,
+    FlatList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAppliances } from '../../lib/contexts/AppliancesContext';
-import { useTheme } from '../../lib/contexts/ThemeContext';
+import { useAppliances } from '../../../lib/contexts/AppliancesContext';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
+import ScreenHeader from '../../layout/ScreenHeader';
 import ApplianceCard from '../home/ApplianceCard';
-import ScreenHeader from '../layout/ScreenHeader';
 
 const { width } = Dimensions.get('window');
 

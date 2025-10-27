@@ -37,17 +37,6 @@ interface GroupedVendors {
   [key: string]: Vendor[];
 }
 
-// Contact interface removed - using direct phone book integration
-
-// Comprehensive vendor categories (for future dropdown implementation)
-// const VENDOR_CATEGORIES = [
-//   'HVAC', 'Plumbing', 'Electrical', 'Landscaping', 'Cleaning', 'Pest Control',
-//   'Roofing', 'Painting', 'Flooring', 'Appliance Repair', 'Security Systems',
-//   'Pool/Spa Service', 'General Contractor', 'Handyman', 'Window/Door',
-//   'Concrete/Masonry', 'Tree Service', 'Carpet Cleaning', 'Gutter Cleaning',
-//   'Snow Removal', 'Other'
-// ];
-
 export default function VendorsScreen() {
   const { vendors, loading, refreshing, onRefresh, deleteVendor } = useVendors();
   const { colors } = useTheme();
@@ -59,12 +48,6 @@ export default function VendorsScreen() {
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [showContactsModal, setShowContactsModal] = useState(false);
   const [contacts, setContacts] = useState<any[]>([]);
-  
-  // Category dropdown state (for future use)
-  // const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  // const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  
-  // Removed flatListRef - no longer needed without alphabet index
 
   // Filter vendors based on search query
   const filteredVendors = useMemo(() => {
@@ -159,7 +142,7 @@ export default function VendorsScreen() {
       
       processExpoContacts(data);
       
-    } catch (error) {
+    } catch (error: any) {
       // iOS-specific error handling
       if (error.message && error.message.includes('permission')) {
         Alert.alert(
@@ -259,7 +242,7 @@ export default function VendorsScreen() {
       
       // Navigate to add vendor with pre-filled data
       router.push({
-        pathname: '/(vendors)/add',
+        pathname: '/(tabs)/(vendors)/add',
         params: {
           name: contact.name || '',
           contact_name: contact.contact_name || '',
@@ -273,10 +256,6 @@ export default function VendorsScreen() {
       Alert.alert('Error', 'Failed to select contact. Please try again.');
     }
   };
-
-  // Removed old selectContact function - using direct phone book integration now
-
-  // Removed old action handlers - contact info is now directly clickable
 
   const handleDelete = (vendor: Vendor) => {
     Alert.alert(
@@ -307,7 +286,7 @@ export default function VendorsScreen() {
 
         <TouchableOpacity
           style={styles.vendorHeader}
-          onPress={() => router.push(`/(vendors)/${item.id}`)}
+          onPress={() => router.push(`/(tabs)/(vendors)/${item.id}`)}
         >
           {/* Company Name */}
           <View style={styles.vendorMainInfo}>
@@ -322,30 +301,6 @@ export default function VendorsScreen() {
             )}
           </View>
         </TouchableOpacity>
-
-        {/* Contact Information with Labels */}
-        {/* <View style={styles.contactInfoSection}>
-          {item.contact_name && (
-            <View style={styles.contactRow}>
-              <View style={styles.contactLabelContainer}>
-                <Ionicons name="person" size={14} color={colors.textTertiary} />
-                <Text style={[styles.contactLabel, { color: colors.textTertiary }]}>Contact:</Text>
-              </View>
-              <Text style={[styles.contactValue, { color: colors.text }]}>{item.contact_name}</Text>
-            </View>
-          )}
-          
-          {item.phone && (
-            <View style={styles.contactRow}>
-              <View style={styles.contactLabelContainer}>
-                <Ionicons name="call" size={14} color={colors.textTertiary} />
-                <Text style={[styles.contactLabel, { color: colors.textTertiary }]}>Phone:</Text>
-              </View>
-              <Text style={[styles.contactValue, { color: colors.text }]}>{item.phone}</Text>
-            </View>
-          )}
-        </View>
-         */}
       </View>
     );
   };
@@ -355,8 +310,6 @@ export default function VendorsScreen() {
       <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
     </View>
   );
-
-  // Removed alphabet sidebar - was causing UI issues
 
   if (loading) {
     return (
@@ -399,7 +352,7 @@ export default function VendorsScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.addButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.push('/(vendors)/add')}
+            onPress={() => router.push('/(tabs)/(vendors)/add')}
           >
             <Ionicons name="add" size={20} color={colors.textInverse} />
           </TouchableOpacity>
@@ -438,7 +391,7 @@ export default function VendorsScreen() {
             {!searchQuery && (
               <TouchableOpacity
                 style={[styles.addFirstButton, { backgroundColor: colors.primary }]}
-                onPress={() => router.push('/(vendors)/add')}
+                onPress={() => router.push('/(tabs)/(vendors)/add')}
               >
                 <Ionicons name="add" size={16} color={colors.textInverse} />
                 <Text style={[styles.addFirstButtonText, { color: colors.textInverse }]}>
@@ -682,36 +635,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  contactInfoSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
-  },
-  contactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    paddingVertical: 2,
-  },
-  contactLabelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: 80,
-    marginRight: 12,
-  },
-  contactLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  contactValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    flex: 1,
-  },
   deleteButtonTopRight: {
     position: 'absolute',
     top: 12,
@@ -736,7 +659,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  // Alphabet index styles removed
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',

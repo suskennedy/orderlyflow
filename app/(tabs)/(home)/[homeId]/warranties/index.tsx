@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
+import WarrantiesScreen from '../../../../../components/home/warranties/warranties-screen';
 import { WarrantiesProvider } from '../../../../../lib/contexts/WarrantiesContext';
-import WarrantiesScreen from '../../../../../components/screens/warranties-screen';
 
 export default function WarrantiesPage() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();

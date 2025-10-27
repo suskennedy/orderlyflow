@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
+import MaterialsScreen from '../../../../../components/home/material/materials-screen';
 import { MaterialsProvider } from '../../../../../lib/contexts/MaterialsContext';
-import MaterialsScreen from '../../../../../components/screens/materials-screen';
 
 export default function MaterialsPage() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();

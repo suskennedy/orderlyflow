@@ -1,3 +1,3 @@
-import ProjectDetailScreen from '../../../../components/screens/project-detail';
+import ProjectDetailScreen from '../../../../components/tasks/project-detail';
 
 export default ProjectDetailScreen;

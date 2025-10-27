@@ -1,6 +1,6 @@
 import React from 'react';
-import AddVendorScreen from '../../../components/screens/AddVendorScreen';
+import AddVendorScreen from '../../../components/vendors/AddVendorScreen';
 
-export default function AddVendor() {
+export default function AddVendorPage() {
   return <AddVendorScreen />;
 } 
