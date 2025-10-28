@@ -1,29 +1,29 @@
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
+import { Resolver, useForm } from 'react-hook-form';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useAuth } from '../../lib/hooks/useAuth';
-import { Database } from '../../supabase-types';
+import { TaskFormData, taskFormSchema, transformTaskFormData } from '../../lib/schemas/tasks/taskFormSchema';
 import DatePicker from '../DatePicker';
 import TaskSpinner from '../ui/TaskSpinner';
-
-type TaskInsert = Database['public']['Tables']['tasks']['Insert'];
 
 const TASK_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'];
 const TASK_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
@@ -49,6 +49,35 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
   const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
   
+  // React Hook Form setup
+  const {
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+    clearErrors,
+  } = useForm<TaskFormData>({
+    resolver: zodResolver(taskFormSchema) as unknown as Resolver<TaskFormData>,
+    defaultValues: {
+      title: '',
+      description: '',
+      category: undefined,
+      priority: 'medium',
+      status: 'pending',
+      due_date: '',
+      home_id: homeId || '',
+      is_recurring: false,
+      recurrence_pattern: undefined,
+      recurrence_end_date: '',
+      assigned_user_id: '',
+      assigned_vendor_id: '',
+      room_location: '',
+      notes: '',
+    },
+  });
+
+  const formData = watch();
+  
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -56,108 +85,35 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
       router.replace('/(auth)/signin');
     }
   }, [authLoading, isAuthenticated]);
-  
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: '',
-    priority: 'Medium',
-    status: 'Pending',
-    due_date: '',
-    home_id: homeId || '',
-    is_recurring: false,
-    recurrence_pattern: '',
-    recurrence_end_date: '',
-    notes: '',
-    assigned_user_id: '',
-    assigned_vendor_id: '',
-    room_location: '',
-  });
-  
-  // Validation states
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
-  
-  // Memoized validation
-  const validateForm = useCallback(() => {
-    const newErrors: {[key: string]: string} = {};
-
-    if (!formData.title.trim()) {
-      newErrors.title = 'Task title is required';
-    }
-
-    if (!formData.home_id) {
-      newErrors.home_id = 'Please select a home for this task';
-    }
-
-    if (formData.is_recurring && !formData.recurrence_pattern.trim()) {
-      newErrors.recurrence_pattern = 'Please specify recurrence pattern';
-    }
-
-    if (formData.due_date && formData.recurrence_end_date) {
-      const dueDate = new Date(formData.due_date);
-      const endDate = new Date(formData.recurrence_end_date);
-      
-      if (endDate < dueDate) {
-        newErrors.recurrence_end_date = 'End date must be after due date';
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [formData]);
-
-  // Memoized form field updater
-  const updateFormField = useCallback((field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error for this field when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
-  }, [errors]);
 
 
 
-  const handleSave = useCallback(async () => {
+  const onSubmit = useCallback(async (data: TaskFormData) => {
     // Check if user is authenticated
     if (!user?.id) {
       Alert.alert('Error', 'You must be logged in to add tasks');
       return;
     }
     
-    // Validate form
-    if (!validateForm()) {
-      const firstError = Object.values(errors)[0];
-      if (firstError) {
-        Alert.alert('Validation Error', firstError);
-      }
-      return;
-    }
-    
     setLoading(true);
     try {
-      // Create the task data using database types (simplified schema)
-        const taskData = {
-        title: formData.title.trim(),
-        description: formData.description ? formData.description.trim() : null,
-        category: formData.category || null,
-        subcategory: null, // TODO:  eslint-disable-line @typescript-eslint/no-unused-vars
-      } as TaskInsert;
+      const taskData = transformTaskFormData(data);
 
       // Create custom task directly in home_tasks table
-      if (formData.home_id) {
-        await createCustomTask(formData.home_id, {
+      if (data.home_id) {
+        await createCustomTask(data.home_id, {
           title: taskData.title,
           description: taskData.description,
           category: taskData.category,
-          due_date: formData.due_date || null,
-          priority: formData.priority || null,
-          assigned_user_id: formData.assigned_user_id || null,
-          assigned_vendor_id: formData.assigned_vendor_id || null,
-          notes: formData.notes || null,
-          room_location: formData.room_location || null,
-          is_recurring: formData.is_recurring || false,
-          recurrence_pattern: formData.recurrence_pattern || null,
-          recurrence_end_date: formData.recurrence_end_date || null,
+          due_date: taskData.due_date,
+          priority: taskData.priority,
+          assigned_user_id: taskData.assigned_user_id,
+          assigned_vendor_id: taskData.assigned_vendor_id,
+          notes: taskData.notes,
+          room_location: taskData.room_location,
+          is_recurring: taskData.is_recurring,
+          recurrence_pattern: taskData.recurrence_pattern,
+          recurrence_end_date: taskData.recurrence_end_date,
         });
       }
 
@@ -171,7 +127,7 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
     } finally {
       setLoading(false);
     }
-  }, [user, formData, validateForm, errors, createCustomTask]);
+  }, [user, createCustomTask]);
 
   return (
     <KeyboardAvoidingView 
@@ -191,7 +147,7 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
         <Text style={[styles.title, { color: colors.text }]}>Add New Task</Text>
         <TouchableOpacity
           style={[styles.saveButton, { backgroundColor: colors.primary }, loading && { opacity: 0.6 }]}
-          onPress={handleSave}
+          onPress={handleSubmit(onSubmit)}
           disabled={loading}
         >
           {loading ? (
@@ -213,19 +169,25 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Task Title *</Text>
             <TextInput
-              style={[styles.input, { 
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-                color: colors.text
-              }]}
+              style={[
+                styles.input, 
+                { 
+                  borderColor: errors.title ? colors.error : colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }
+              ]}
               placeholder="e.g., Fix leaky faucet in kitchen"
               value={formData.title}
-              onChangeText={(text) => updateFormField('title', text)}
+              onChangeText={(text) => {
+                setValue('title', text);
+                if (errors.title) clearErrors('title');
+              }}
               placeholderTextColor={colors.textTertiary}
             />
             {errors.title && (
               <Text style={[styles.errorText, { color: colors.error }]}>
-                {errors.title}
+                {errors.title.message}
               </Text>
             )}
           </View>
@@ -233,29 +195,44 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Description</Text>
             <TextInput
-              style={[styles.input, styles.textArea, { 
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-                color: colors.text
-              }]}
+              style={[
+                styles.input, 
+                styles.textArea, 
+                { 
+                  borderColor: errors.description ? colors.error : colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }
+              ]}
               placeholder="Detailed description of the task..."
-              value={formData.description}
-              onChangeText={(text) => updateFormField('description', text)}
+              value={formData.description || ''}
+              onChangeText={(text) => {
+                setValue('description', text);
+                if (errors.description) clearErrors('description');
+              }}
               placeholderTextColor={colors.textTertiary}
               multiline
               numberOfLines={3}
             />
+            {errors.description && (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {errors.description.message}
+              </Text>
+            )}
           </View>
           
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Category</Text>
             <View style={[styles.pickerContainer, { 
               backgroundColor: colors.surface,
-              borderColor: colors.border 
+              borderColor: errors.category ? colors.error : colors.border 
             }]}>
               <Picker
-                selectedValue={formData.category}
-                onValueChange={(itemValue) => updateFormField('category', itemValue)}
+                selectedValue={formData.category || ''}
+                onValueChange={(itemValue) => {
+                  setValue('category', itemValue as any);
+                  if (errors.category) clearErrors('category');
+                }}
                 style={[styles.picker, { color: colors.text }]}
               >
                 <Picker.Item label="Select a category..." value="" />
@@ -264,6 +241,11 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
                 ))}
               </Picker>
             </View>
+            {errors.category && (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {errors.category.message}
+              </Text>
+            )}
           </View>
         </View>
 
@@ -274,11 +256,14 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
               <Text style={[styles.label, { color: colors.textSecondary }]}>Priority</Text>
               <View style={[styles.pickerContainer, { 
                 backgroundColor: colors.surface,
-                borderColor: colors.border 
+                borderColor: errors.priority ? colors.error : colors.border 
               }]}>
                 <Picker
                   selectedValue={formData.priority}
-                  onValueChange={(itemValue) => updateFormField('priority', itemValue)}
+                  onValueChange={(itemValue) => {
+                    setValue('priority', itemValue);
+                    if (errors.priority) clearErrors('priority');
+                  }}
                   style={[styles.picker, { color: colors.text }]}
                 >
                   {TASK_PRIORITIES.map((priority) => (
@@ -291,11 +276,14 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
               <Text style={[styles.label, { color: colors.textSecondary }]}>Status</Text>
               <View style={[styles.pickerContainer, { 
                 backgroundColor: colors.surface,
-                borderColor: colors.border 
+                borderColor: errors.status ? colors.error : colors.border 
               }]}>
                 <Picker
                   selectedValue={formData.status}
-                  onValueChange={(itemValue) => updateFormField('status', itemValue)}
+                  onValueChange={(itemValue) => {
+                    setValue('status', itemValue);
+                    if (errors.status) clearErrors('status');
+                  }}
                   style={[styles.picker, { color: colors.text }]}
                 >
                   {TASK_STATUSES.map((status) => (
@@ -308,24 +296,35 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
           <View style={styles.inputGroup}>
             <DatePicker
               label="Due Date"
-              value={formData.due_date}
+              value={formData.due_date || null}
               placeholder="Select a due date"
-              onChange={(dateString: string | null) => updateFormField('due_date', dateString || '')}
+              onChange={(dateString: string | null) => {
+                setValue('due_date', dateString || '');
+                if (errors.due_date) clearErrors('due_date');
+              }}
               helperText="When this task should be completed (will appear in calendar)"
               isOptional={true}
               testID="due-date-picker"
             />
+            {errors.due_date && (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {errors.due_date.message}
+              </Text>
+            )}
           </View>
           
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Assign to Home</Text>
             <View style={[styles.pickerContainer, { 
               backgroundColor: colors.surface,
-              borderColor: colors.border 
+              borderColor: errors.home_id ? colors.error : colors.border 
             }]}>
               <Picker
                 selectedValue={formData.home_id}
-                onValueChange={(itemValue) => updateFormField('home_id', itemValue)}
+                onValueChange={(itemValue) => {
+                  setValue('home_id', itemValue);
+                  if (errors.home_id) clearErrors('home_id');
+                }}
                 style={[styles.picker, { color: colors.text }]}
               >
                 <Picker.Item label="Select a home..." value="" />
@@ -336,7 +335,7 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
             </View>
             {errors.home_id && (
               <Text style={[styles.errorText, { color: colors.error }]}>
-                {errors.home_id}
+                {errors.home_id.message}
               </Text>
             )}
           </View>
@@ -348,11 +347,19 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
             <Text style={[styles.switchLabel, { color: colors.textSecondary }]}>Make this a recurring task</Text>
             <Switch
               value={formData.is_recurring}
-              onValueChange={(value) => updateFormField('is_recurring', value)}
+              onValueChange={(value) => {
+                setValue('is_recurring', value);
+                if (errors.is_recurring) clearErrors('is_recurring');
+              }}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={formData.is_recurring ? colors.textInverse : colors.surface}
             />
           </View>
+          {errors.is_recurring && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.is_recurring.message}
+            </Text>
+          )}
           
           {formData.is_recurring && (
             <>
@@ -360,11 +367,14 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
                 <Text style={[styles.label, { color: colors.textSecondary }]}>Recurrence Pattern</Text>
                 <View style={[styles.pickerContainer, { 
                   backgroundColor: colors.surface,
-                  borderColor: colors.border 
+                  borderColor: errors.recurrence_pattern ? colors.error : colors.border 
                 }]}>
                   <Picker
-                    selectedValue={formData.recurrence_pattern}
-                    onValueChange={(itemValue) => updateFormField('recurrence_pattern', itemValue)}
+                    selectedValue={formData.recurrence_pattern || ''}
+                    onValueChange={(itemValue) => {
+                      setValue('recurrence_pattern', itemValue as any);
+                      if (errors.recurrence_pattern) clearErrors('recurrence_pattern');
+                    }}
                     style={[styles.picker, { color: colors.text }]}
                   >
                     <Picker.Item label="Select a recurrence pattern..." value="" />
@@ -379,20 +389,28 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
                 </View>
                 {errors.recurrence_pattern && (
                   <Text style={[styles.errorText, { color: colors.error }]}>
-                    {errors.recurrence_pattern}
+                    {errors.recurrence_pattern.message}
                   </Text>
                 )}
               </View>
               <View style={styles.inputGroup}>
                 <DatePicker
                   label="Recurrence End Date"
-                  value={formData.recurrence_end_date}
+                  value={formData.recurrence_end_date || null}
                   placeholder="Select an end date (optional)"
-                  onChange={(dateString: string | null) => updateFormField('recurrence_end_date', dateString || '')}
+                  onChange={(dateString: string | null) => {
+                    setValue('recurrence_end_date', dateString || '');
+                    if (errors.recurrence_end_date) clearErrors('recurrence_end_date');
+                  }}
                   helperText="When recurring task should stop"
                   isOptional={true}
                   testID="recurrence-end-date-picker"
                 />
+                {errors.recurrence_end_date && (
+                  <Text style={[styles.errorText, { color: colors.error }]}>
+                    {errors.recurrence_end_date.message}
+                  </Text>
+                )}
               </View>
             </>
           )}
@@ -402,18 +420,30 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Additional Notes</Text>
           <View style={styles.inputGroup}>
             <TextInput
-              style={[styles.input, styles.textArea, { 
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-                color: colors.text
-              }]}
+              style={[
+                styles.input, 
+                styles.textArea, 
+                { 
+                  borderColor: errors.notes ? colors.error : colors.border,
+                  backgroundColor: colors.surface,
+                  color: colors.text
+                }
+              ]}
               placeholder="Any additional notes, instructions, or reminders..."
-              value={formData.notes}
-              onChangeText={(text) => updateFormField('notes', text)}
+              value={formData.notes || ''}
+              onChangeText={(text) => {
+                setValue('notes', text);
+                if (errors.notes) clearErrors('notes');
+              }}
               placeholderTextColor={colors.textTertiary}
               multiline
               numberOfLines={4}
             />
+            {errors.notes && (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {errors.notes.message}
+              </Text>
+            )}
           </View>
         </View>
         

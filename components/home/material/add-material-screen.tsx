@@ -1,10 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMaterials } from '../../../lib/contexts/MaterialsContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { MaterialFormData, materialFormSchema, transformMaterialFormData } from '../../../lib/schemas/home/materialFormSchema';
 import DatePicker from '../../DatePicker';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
@@ -15,15 +18,28 @@ export default function AddMaterialScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    room: '',
-    type: '',
-    brand: '',
-    source: '',
-    purchase_date: '' as string | null,
-    notes: '',
+
+  const { 
+    control, 
+    handleSubmit, 
+    watch, 
+    setValue, 
+    clearErrors, 
+    formState: { errors } 
+  } = useForm<MaterialFormData>({
+    resolver: zodResolver(materialFormSchema),
+    defaultValues: {
+      name: '',
+      room: '',
+      type: '',
+      brand: '',
+      source: '',
+      purchase_date: '',
+      notes: '',
+    }
   });
+
+  const formData = watch();
 
   // Refs for input fields
   const nameRef = useRef<TextInput>(null);
@@ -33,24 +49,11 @@ export default function AddMaterialScreen() {
   const sourceRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
-  const handleSave = async () => {
-    if (!formData.name.trim()) {
-      Alert.alert('Error', 'Please enter a material name');
-      nameRef.current?.focus();
-      return;
-    }
-
+  const onSubmit = async (data: MaterialFormData) => {
     setLoading(true);
     try {
-      await createMaterial({
-        name: formData.name.trim(),
-        room: formData.room.trim() || null,
-        type: formData.type.trim() || null,
-        brand: formData.brand.trim() || null,
-        source: formData.source.trim() || null,
-        purchase_date: formData.purchase_date || null,
-        notes: formData.notes.trim() || null,
-      });
+      const transformedData = transformMaterialFormData(data);
+      await createMaterial(transformedData);
       router.back();
     } catch (error) {
       Alert.alert('Error', 'Failed to add material. Please try again.');
@@ -106,9 +109,15 @@ export default function AddMaterialScreen() {
           <Text style={[styles.label, { color: colors.text }]}>Material Name *</Text>
           <TextInput
             ref={nameRef}
-            style={getInputStyle('name')}
+            style={[
+              getInputStyle('name'),
+              errors.name && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.name}
-            onChangeText={text => setFormData({ ...formData, name: text })}
+            onChangeText={text => {
+              setValue('name', text);
+              if (errors.name) clearErrors('name');
+            }}
             placeholder="e.g., Carpet, Tile, Paint, Light Fixture"
             placeholderTextColor={colors.textSecondary}
             onFocus={() => handleFocus('name')}
@@ -116,13 +125,24 @@ export default function AddMaterialScreen() {
             returnKeyType="next"
             onSubmitEditing={() => roomRef.current?.focus()}
           />
+          {errors.name && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.name.message}
+            </Text>
+          )}
 
-          <Text style={[styles.label, { color: colors.text }]}>Room</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Room *</Text>
           <TextInput
             ref={roomRef}
-            style={getInputStyle('room')}
+            style={[
+              getInputStyle('room'),
+              errors.room && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.room}
-            onChangeText={text => setFormData({ ...formData, room: text })}
+            onChangeText={text => {
+              setValue('room', text);
+              if (errors.room) clearErrors('room');
+            }}
             placeholder="e.g., Living Room, Kitchen, Bathroom"
             placeholderTextColor={colors.textSecondary}
             onFocus={() => handleFocus('room')}
@@ -130,15 +150,26 @@ export default function AddMaterialScreen() {
             returnKeyType="next"
             onSubmitEditing={() => typeRef.current?.focus()}
           />
+          {errors.room && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.room.message}
+            </Text>
+          )}
 
           <View style={styles.row}>
             <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Type</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Type *</Text>
               <TextInput
                 ref={typeRef}
-                style={getInputStyle('type')}
+                style={[
+                  getInputStyle('type'),
+                  errors.type && { borderColor: colors.error, borderWidth: 2 }
+                ]}
                 value={formData.type}
-                onChangeText={text => setFormData({ ...formData, type: text })}
+                onChangeText={text => {
+                  setValue('type', text);
+                  if (errors.type) clearErrors('type');
+                }}
                 placeholder="e.g., Carpet, Tile, Paint, Light"
                 placeholderTextColor={colors.textSecondary}
                 onFocus={() => handleFocus('type')}
@@ -146,14 +177,25 @@ export default function AddMaterialScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => brandRef.current?.focus()}
               />
+              {errors.type && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.type.message}
+                </Text>
+              )}
             </View>
             <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Brand</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Brand *</Text>
               <TextInput
                 ref={brandRef}
-                style={getInputStyle('brand')}
+                style={[
+                  getInputStyle('brand'),
+                  errors.brand && { borderColor: colors.error, borderWidth: 2 }
+                ]}
                 value={formData.brand}
-                onChangeText={text => setFormData({ ...formData, brand: text })}
+                onChangeText={text => {
+                  setValue('brand', text);
+                  if (errors.brand) clearErrors('brand');
+                }}
                 placeholder="e.g., Home Depot, Lowe's, Sherwin-Williams"
                 placeholderTextColor={colors.textSecondary}
                 onFocus={() => handleFocus('brand')}
@@ -161,15 +203,26 @@ export default function AddMaterialScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => sourceRef.current?.focus()}
               />
+              {errors.brand && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.brand.message}
+                </Text>
+              )}
             </View>
           </View>
 
-          <Text style={[styles.label, { color: colors.text }]}>Source</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Source *</Text>
           <TextInput
             ref={sourceRef}
-            style={getInputStyle('source')}
+            style={[
+              getInputStyle('source'),
+              errors.source && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.source}
-            onChangeText={text => setFormData({ ...formData, source: text })}
+            onChangeText={text => {
+              setValue('source', text);
+              if (errors.source) clearErrors('source');
+            }}
             placeholder="e.g., Home Depot, Local Store, Online"
             placeholderTextColor={colors.textSecondary}
             onFocus={() => handleFocus('source')}
@@ -177,6 +230,11 @@ export default function AddMaterialScreen() {
             returnKeyType="next"
             onSubmitEditing={() => notesRef.current?.focus()}
           />
+          {errors.source && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.source.message}
+            </Text>
+          )}
 
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Purchase Information</Text>
 
@@ -184,17 +242,31 @@ export default function AddMaterialScreen() {
             label="Purchase Date"
             value={formData.purchase_date || null}
             placeholder="Select purchase date"
-            onChange={(date) => setFormData({ ...formData, purchase_date: date })}
+            onChange={(date) => {
+              setValue('purchase_date', date || '');
+              if (errors.purchase_date) clearErrors('purchase_date');
+            }}
             helperText="When did you purchase this material?"
             isOptional={true}
           />
+          {errors.purchase_date && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.purchase_date.message}
+            </Text>
+          )}
 
           <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
           <TextInput
             ref={notesRef}
-            style={getTextAreaStyle()}
+            style={[
+              getTextAreaStyle(),
+              errors.notes && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.notes}
-            onChangeText={text => setFormData({ ...formData, notes: text })}
+            onChangeText={text => {
+              setValue('notes', text);
+              if (errors.notes) clearErrors('notes');
+            }}
             placeholder="Any additional notes about this material..."
             placeholderTextColor={colors.textSecondary}
             multiline
@@ -204,10 +276,15 @@ export default function AddMaterialScreen() {
             onBlur={handleBlur}
             returnKeyType="done"
           />
+          {errors.notes && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.notes.message}
+            </Text>
+          )}
 
           <TouchableOpacity
             style={[styles.saveButton, { backgroundColor: colors.primary }]}
-            onPress={handleSave}
+            onPress={handleSubmit(onSubmit)}
             disabled={loading}
           >
             <Ionicons name="construct" size={24} color={colors.textInverse} />
@@ -278,5 +355,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    marginTop: 4,
+    marginLeft: 4,
   },
 }); 

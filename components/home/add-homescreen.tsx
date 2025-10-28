@@ -1,11 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useForm } from 'react-hook-form';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
+import { HomeFormData, homeFormSchema, transformHomeFormData } from '../../lib/schemas/home/homeFormSchema';
 import { googlePlacesService, PlaceDetails } from '../../lib/services/GooglePlacesService';
 import DatePicker from '../DatePicker';
 import AddressAutocomplete from '../forms/AddressAutocomplete';
@@ -21,24 +24,38 @@ export default function AddHomeScreen() {
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [placeDetails, setPlaceDetails] = useState<PlaceDetails | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    address: '',
-    city: '',
-    state: '',
-    zip: '',
-    bedrooms: '',
-    bathrooms: '',
-    square_footage: '',
-    year_built: '',
-    purchase_date: '' as string | null,
-    foundation_type: '',
-    warranty_info: '',
-    notes: '',
-    image_url: '',
-    latitude: null as number | null,
-    longitude: null as number | null,
+
+  // React Hook Form setup
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+    clearErrors,
+  } = useForm<HomeFormData>({
+    resolver: zodResolver(homeFormSchema),
+    defaultValues: {
+      name: '',
+      address: '',
+      city: '',
+      state: '',
+      zip: '',
+      bedrooms: '',
+      bathrooms: '',
+      square_footage: '',
+      year_built: '',
+      purchase_date: '',
+      foundation_type: undefined,
+      warranty_info: '',
+      notes: '',
+      image_url: '',
+      latitude: undefined,
+      longitude: undefined,
+    },
   });
+
+  const formData = watch();
 
   // Generate a temporary home ID for image uploads
   const tempHomeId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -59,15 +76,13 @@ export default function AddHomeScreen() {
       const details = await googlePlacesService.getPlaceDetails(placeId);
       if (details) {
         setPlaceDetails(details);
-        setFormData(prev => ({
-          ...prev,
-          address: details.address,
-          city: details.city,
-          state: details.state,
-          zip: details.zip,
-          latitude: details.latitude,
-          longitude: details.longitude,
-        }));
+        setValue('address', details.address);
+        setValue('city', details.city);
+        setValue('state', details.state);
+        setValue('zip', details.zip);
+        setValue('latitude', details.latitude);
+        setValue('longitude', details.longitude);
+        clearErrors(['address', 'city', 'state', 'zip']);
       }
     } catch (error) {
       console.error('Error fetching place details:', error);
@@ -75,23 +90,18 @@ export default function AddHomeScreen() {
   };
 
   const handleImageUpload = (imageUrl: string) => {
-    setFormData(prev => ({ ...prev, image_url: imageUrl }));
+    setValue('image_url', imageUrl);
+    clearErrors('image_url');
   };
 
   const handleImageRemove = () => {
-    setFormData(prev => ({ ...prev, image_url: '' }));
+    setValue('image_url', '');
   };
 
-  const handleSave = async () => {
+  const onSubmit = async (data: HomeFormData) => {
     // Prevent duplicate submissions
     if (isSubmittingRef.current || loading) {
       console.log('Submission already in progress, ignoring duplicate click');
-      return;
-    }
-
-    if (!formData.name.trim()) {
-      Alert.alert('Error', 'Please enter a home name');
-      nameRef.current?.focus();
       return;
     }
 
@@ -99,29 +109,11 @@ export default function AddHomeScreen() {
     setLoading(true);
     
     try {
-      const homeData = {
-        name: formData.name.trim(),
-        address: formData.address.trim() || null,
-        city: formData.city.trim() || null,
-        state: formData.state.trim() || null,
-        zip: formData.zip.trim() || null,
-        bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
-        bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : null,
-        square_footage: formData.square_footage ? parseInt(formData.square_footage) : null,
-        year_built: formData.year_built ? parseInt(formData.year_built) : null,
-        purchase_date: formData.purchase_date || null,
-        foundation_type: formData.foundation_type || null,
-        warranty_info: formData.warranty_info.trim() || null,
-        notes: formData.notes.trim() || null,
-        image_url: formData.image_url || null,
-        latitude: formData.latitude,
-        longitude: formData.longitude,
-      };
-
+      const homeData = transformHomeFormData(data);
       console.log('Creating home with data:', homeData);
       await createHome(homeData);
       
-      showToast(`${formData.name} home added successfully!`, 'success');
+      showToast(`${data.name} home added successfully!`, 'success');
       
       // Navigate back after a short delay to ensure toast is visible
       setTimeout(() => {
@@ -203,9 +195,15 @@ export default function AddHomeScreen() {
           <Text style={[styles.label, { color: colors.text }]}>Home Name *</Text>
           <TextInput
             ref={nameRef}
-            style={getInputStyle('name')}
+            style={[
+              getInputStyle('name'),
+              errors.name && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.name}
-            onChangeText={text => setFormData({ ...formData, name: text })}
+            onChangeText={text => {
+              setValue('name', text);
+              if (errors.name) clearErrors('name');
+            }}
             placeholder="e.g., Lake House, Main Residence"
             placeholderTextColor={colors.textSecondary}
             onFocus={() => handleFocus('name')}
@@ -213,25 +211,44 @@ export default function AddHomeScreen() {
             returnKeyType="next"
             onSubmitEditing={() => bedroomsRef.current?.focus()}
           />
+          {errors.name && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.name.message}
+            </Text>
+          )}
 
           <AddressAutocomplete
             label="Address"
-            value={formData.address}
+            value={formData.address || ''}
             placeholder="Start typing your address..."
-            onChange={(address) => setFormData({ ...formData, address })}
+            onChange={(address) => {
+              setValue('address', address);
+              if (errors.address) clearErrors('address');
+            }}
             onPlaceSelect={handlePlaceSelect}
             isFocused={focusedField === 'address'}
             onFocus={() => handleFocus('address')}
             onBlur={handleBlur}
           />
+          {errors.address && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.address.message}
+            </Text>
+          )}
 
           <View style={styles.row}>
             <View style={styles.halfWidth}>
               <Text style={[styles.label, { color: colors.text }]}>City</Text>
               <TextInput
-                style={getInputStyle('city')}
-                value={formData.city}
-                onChangeText={text => setFormData({ ...formData, city: text })}
+                style={[
+                  getInputStyle('city'),
+                  errors.city && { borderColor: colors.error, borderWidth: 2 }
+                ]}
+                value={formData.city || ''}
+                onChangeText={text => {
+                  setValue('city', text);
+                  if (errors.city) clearErrors('city');
+                }}
                 placeholder="City"
                 placeholderTextColor={colors.textSecondary}
                 onFocus={() => handleFocus('city')}
@@ -239,13 +256,24 @@ export default function AddHomeScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => bedroomsRef.current?.focus()}
               />
+              {errors.city && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.city.message}
+                </Text>
+              )}
             </View>
             <View style={styles.halfWidth}>
               <Text style={[styles.label, { color: colors.text }]}>State</Text>
               <TextInput
-                style={getInputStyle('state')}
-                value={formData.state}
-                onChangeText={text => setFormData({ ...formData, state: text })}
+                style={[
+                  getInputStyle('state'),
+                  errors.state && { borderColor: colors.error, borderWidth: 2 }
+                ]}
+                value={formData.state || ''}
+                onChangeText={text => {
+                  setValue('state', text);
+                  if (errors.state) clearErrors('state');
+                }}
                 placeholder="State"
                 placeholderTextColor={colors.textSecondary}
                 onFocus={() => handleFocus('state')}
@@ -253,14 +281,25 @@ export default function AddHomeScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => bedroomsRef.current?.focus()}
               />
+              {errors.state && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.state.message}
+                </Text>
+              )}
             </View>
           </View>
 
           <Text style={[styles.label, { color: colors.text }]}>ZIP Code</Text>
           <TextInput
-            style={getInputStyle('zip')}
-            value={formData.zip}
-            onChangeText={text => setFormData({ ...formData, zip: text })}
+            style={[
+              getInputStyle('zip'),
+              errors.zip && { borderColor: colors.error, borderWidth: 2 }
+            ]}
+            value={formData.zip || ''}
+            onChangeText={text => {
+              setValue('zip', text);
+              if (errors.zip) clearErrors('zip');
+            }}
             placeholder="12345"
             placeholderTextColor={colors.textSecondary}
             keyboardType="numeric"
@@ -269,16 +308,26 @@ export default function AddHomeScreen() {
             returnKeyType="next"
             onSubmitEditing={() => bedroomsRef.current?.focus()}
           />
+          {errors.zip && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.zip.message}
+            </Text>
+          )}
 
           <PhotoManager
             label="Home Photo"
             homeId={tempHomeId}
-            currentImageUrl={formData.image_url}
+            currentImageUrl={formData.image_url || ''}
             onImageUpload={handleImageUpload}
             onImageRemove={handleImageRemove}
             latitude={formData.latitude || undefined}
             longitude={formData.longitude || undefined}
           />
+          {errors.image_url && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.image_url.message}
+            </Text>
+          )}
 
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Property Details</Text>
 
@@ -287,9 +336,15 @@ export default function AddHomeScreen() {
               <Text style={[styles.label, { color: colors.text }]}>Bedrooms</Text>
               <TextInput
                 ref={bedroomsRef}
-                style={getInputStyle('bedrooms')}
-                value={formData.bedrooms}
-                onChangeText={text => setFormData({ ...formData, bedrooms: text })}
+                style={[
+                  getInputStyle('bedrooms'),
+                  errors.bedrooms && { borderColor: colors.error, borderWidth: 2 }
+                ]}
+                value={formData.bedrooms || ''}
+                onChangeText={text => {
+                  setValue('bedrooms', text);
+                  if (errors.bedrooms) clearErrors('bedrooms');
+                }}
                 placeholder="3"
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="numeric"
@@ -298,14 +353,25 @@ export default function AddHomeScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => bathroomsRef.current?.focus()}
               />
+              {errors.bedrooms && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.bedrooms.message}
+                </Text>
+              )}
             </View>
             <View style={styles.halfWidth}>
               <Text style={[styles.label, { color: colors.text }]}>Bathrooms</Text>
               <TextInput
                 ref={bathroomsRef}
-                style={getInputStyle('bathrooms')}
-                value={formData.bathrooms}
-                onChangeText={text => setFormData({ ...formData, bathrooms: text })}
+                style={[
+                  getInputStyle('bathrooms'),
+                  errors.bathrooms && { borderColor: colors.error, borderWidth: 2 }
+                ]}
+                value={formData.bathrooms || ''}
+                onChangeText={text => {
+                  setValue('bathrooms', text);
+                  if (errors.bathrooms) clearErrors('bathrooms');
+                }}
                 placeholder="2.5"
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="numeric"
@@ -314,6 +380,11 @@ export default function AddHomeScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => squareFootageRef.current?.focus()}
               />
+              {errors.bathrooms && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.bathrooms.message}
+                </Text>
+              )}
             </View>
           </View>
 
@@ -322,9 +393,15 @@ export default function AddHomeScreen() {
               <Text style={[styles.label, { color: colors.text }]}>Square Footage</Text>
               <TextInput
                 ref={squareFootageRef}
-                style={getInputStyle('square_footage')}
-                value={formData.square_footage}
-                onChangeText={text => setFormData({ ...formData, square_footage: text })}
+                style={[
+                  getInputStyle('square_footage'),
+                  errors.square_footage && { borderColor: colors.error, borderWidth: 2 }
+                ]}
+                value={formData.square_footage || ''}
+                onChangeText={text => {
+                  setValue('square_footage', text);
+                  if (errors.square_footage) clearErrors('square_footage');
+                }}
                 placeholder="2500"
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="numeric"
@@ -333,14 +410,25 @@ export default function AddHomeScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => yearBuiltRef.current?.focus()}
               />
+              {errors.square_footage && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.square_footage.message}
+                </Text>
+              )}
             </View>
             <View style={styles.halfWidth}>
               <Text style={[styles.label, { color: colors.text }]}>Year Built</Text>
               <TextInput
                 ref={yearBuiltRef}
-                style={getInputStyle('year_built')}
-                value={formData.year_built}
-                onChangeText={text => setFormData({ ...formData, year_built: text })}
+                style={[
+                  getInputStyle('year_built'),
+                  errors.year_built && { borderColor: colors.error, borderWidth: 2 }
+                ]}
+                value={formData.year_built || ''}
+                onChangeText={text => {
+                  setValue('year_built', text);
+                  if (errors.year_built) clearErrors('year_built');
+                }}
                 placeholder="1995"
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="numeric"
@@ -349,33 +437,60 @@ export default function AddHomeScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => warrantyRef.current?.focus()}
               />
+              {errors.year_built && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.year_built.message}
+                </Text>
+              )}
             </View>
           </View>
 
           <FoundationSelector
             label="Foundation Type"
-            value={formData.foundation_type}
-            onChange={(value) => setFormData({ ...formData, foundation_type: value })}
+            value={formData.foundation_type || ''}
+            onChange={(value) => {
+              setValue('foundation_type', value as any);
+              if (errors.foundation_type) clearErrors('foundation_type');
+            }}
             isFocused={focusedField === 'foundation_type'}
             onFocus={() => handleFocus('foundation_type')}
             onBlur={handleBlur}
           />
+          {errors.foundation_type && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.foundation_type.message}
+            </Text>
+          )}
 
           <DatePicker
             label="Purchase Date"
             value={formData.purchase_date || null}
             placeholder="Select purchase date"
-            onChange={(date) => setFormData({ ...formData, purchase_date: date })}
+            onChange={(date) => {
+              setValue('purchase_date', date || '');
+              if (errors.purchase_date) clearErrors('purchase_date');
+            }}
             helperText="When did you purchase this home?"
             isOptional={true}
           />
+          {errors.purchase_date && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.purchase_date.message}
+            </Text>
+          )}
 
           <Text style={[styles.label, { color: colors.text }]}>Warranty Information</Text>
           <TextInput
             ref={warrantyRef}
-            style={getInputStyle('warranty_info')}
-            value={formData.warranty_info}
-            onChangeText={text => setFormData({ ...formData, warranty_info: text })}
+            style={[
+              getInputStyle('warranty_info'),
+              errors.warranty_info && { borderColor: colors.error, borderWidth: 2 }
+            ]}
+            value={formData.warranty_info || ''}
+            onChangeText={text => {
+              setValue('warranty_info', text);
+              if (errors.warranty_info) clearErrors('warranty_info');
+            }}
             placeholder="Enter warranty details, expiration dates, etc."
             placeholderTextColor={colors.textSecondary}
             multiline
@@ -386,13 +501,24 @@ export default function AddHomeScreen() {
             returnKeyType="next"
             onSubmitEditing={() => notesRef.current?.focus()}
           />
+          {errors.warranty_info && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.warranty_info.message}
+            </Text>
+          )}
 
           <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
           <TextInput
             ref={notesRef}
-            style={getTextAreaStyle()}
-            value={formData.notes}
-            onChangeText={text => setFormData({ ...formData, notes: text })}
+            style={[
+              getTextAreaStyle(),
+              errors.notes && { borderColor: colors.error, borderWidth: 2 }
+            ]}
+            value={formData.notes || ''}
+            onChangeText={text => {
+              setValue('notes', text);
+              if (errors.notes) clearErrors('notes');
+            }}
             placeholder="Any additional notes about your home..."
             placeholderTextColor={colors.textSecondary}
             multiline
@@ -402,10 +528,15 @@ export default function AddHomeScreen() {
             onBlur={handleBlur}
             returnKeyType="done"
           />
+          {errors.notes && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.notes.message}
+            </Text>
+          )}
 
           <TouchableOpacity
             style={[styles.saveButton, { backgroundColor: colors.primary }]}
-            onPress={handleSave}
+            onPress={handleSubmit(onSubmit)}
             disabled={loading}
           >
             <Ionicons name="home" size={24} color={colors.textInverse} />
@@ -509,5 +640,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
+  },
+  errorText: {
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '500',
   },
 });

@@ -1,10 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
 import { useWarranties } from '../../../lib/contexts/WarrantiesContext';
+import { WarrantyFormData, transformWarrantyFormData, warrantyFormSchema } from '../../../lib/schemas/home/warrantyFormSchema';
 import DatePicker from '../../DatePicker';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
@@ -15,46 +18,35 @@ export default function AddWarrantyScreen() {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    item_name: '',
-    room: '',
-    warranty_start_date: '' as string | null,
-    warranty_end_date: '' as string | null,
-    provider: '',
-    notes: '',
+
+  // React Hook Form setup
+  const {
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+    clearErrors,
+  } = useForm<WarrantyFormData>({
+    resolver: zodResolver(warrantyFormSchema),
+    defaultValues: {
+      item_name: '',
+      room: '',
+      provider: '',
+      warranty_start_date: '',
+      warranty_end_date: '',
+      notes: '',
+    },
   });
 
-  // Refs for input fields
-  const itemNameRef = useRef<TextInput>(null);
-  const roomRef = useRef<TextInput>(null);
-  const providerRef = useRef<TextInput>(null);
-  const notesRef = useRef<TextInput>(null);
+  const formData = watch();
 
-  const handleSave = async () => {
-    if (!formData.item_name.trim()) {
-      Alert.alert('Error', 'Please enter an item name');
-      itemNameRef.current?.focus();
-      return;
-    }
-
-    if (!formData.room.trim()) {
-      Alert.alert('Error', 'Please enter a room');
-      roomRef.current?.focus();
-      return;
-    }
-
+  const onSubmit = async (data: WarrantyFormData) => {
     setLoading(true);
     try {
-      await createWarranty({
-        item_name: formData.item_name.trim(),
-        room: formData.room.trim(),
-        warranty_start_date: formData.warranty_start_date || null,
-        warranty_end_date: formData.warranty_end_date || null,
-        provider: formData.provider.trim() || null,
-        notes: formData.notes.trim() || null,
-      });
+      const warrantyData = transformWarrantyFormData(data);
+      await createWarranty(warrantyData);
       
-      showToast(`${formData.item_name} warranty added successfully!`, 'success');
+      showToast(`${data.item_name} warranty added successfully!`, 'success');
       
       // Navigate back after a short delay to ensure toast is visible
       setTimeout(() => {
@@ -114,45 +106,72 @@ export default function AddWarrantyScreen() {
           
           <Text style={[styles.label, { color: colors.text }]}>Item Name *</Text>
           <TextInput
-            ref={itemNameRef}
-            style={getInputStyle('item_name')}
+            style={[
+              getInputStyle('item_name'),
+              errors.item_name && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.item_name}
-            onChangeText={text => setFormData({ ...formData, item_name: text })}
+            onChangeText={text => {
+              setValue('item_name', text);
+              if (errors.item_name) clearErrors('item_name');
+            }}
             placeholder="e.g., HVAC System, Roof, Appliances"
             placeholderTextColor={colors.textSecondary}
             onFocus={() => handleFocus('item_name')}
             onBlur={handleBlur}
             returnKeyType="next"
-            onSubmitEditing={() => roomRef.current?.focus()}
           />
+          {errors.item_name && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.item_name.message}
+            </Text>
+          )}
 
           <Text style={[styles.label, { color: colors.text }]}>Room *</Text>
           <TextInput
-            ref={roomRef}
-            style={getInputStyle('room')}
+            style={[
+              getInputStyle('room'),
+              errors.room && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.room}
-            onChangeText={text => setFormData({ ...formData, room: text })}
+            onChangeText={text => {
+              setValue('room', text);
+              if (errors.room) clearErrors('room');
+            }}
             placeholder="e.g., Kitchen, Living Room, Exterior"
             placeholderTextColor={colors.textSecondary}
             onFocus={() => handleFocus('room')}
             onBlur={handleBlur}
             returnKeyType="next"
-            onSubmitEditing={() => providerRef.current?.focus()}
           />
+          {errors.room && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.room.message}
+            </Text>
+          )}
 
-          <Text style={[styles.label, { color: colors.text }]}>Provider</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Provider *</Text>
           <TextInput
-            ref={providerRef}
-            style={getInputStyle('provider')}
+            style={[
+              getInputStyle('provider'),
+              errors.provider && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.provider}
-            onChangeText={text => setFormData({ ...formData, provider: text })}
+            onChangeText={text => {
+              setValue('provider', text);
+              if (errors.provider) clearErrors('provider');
+            }}
             placeholder="e.g., Home Warranty Company, Manufacturer"
             placeholderTextColor={colors.textSecondary}
             onFocus={() => handleFocus('provider')}
             onBlur={handleBlur}
             returnKeyType="next"
-            onSubmitEditing={() => notesRef.current?.focus()}
           />
+          {errors.provider && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.provider.message}
+            </Text>
+          )}
 
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Warranty Dates</Text>
 
@@ -160,26 +179,47 @@ export default function AddWarrantyScreen() {
             label="Warranty Start Date"
             value={formData.warranty_start_date || null}
             placeholder="Select warranty start date"
-            onChange={(date) => setFormData({ ...formData, warranty_start_date: date })}
+            onChange={(date) => {
+              setValue('warranty_start_date', date || '');
+              if (errors.warranty_start_date) clearErrors('warranty_start_date');
+            }}
             helperText="When did the warranty begin?"
             isOptional={true}
           />
+          {errors.warranty_start_date && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.warranty_start_date.message}
+            </Text>
+          )}
 
           <DatePicker
             label="Warranty End Date"
             value={formData.warranty_end_date || null}
             placeholder="Select warranty end date"
-            onChange={(date) => setFormData({ ...formData, warranty_end_date: date })}
+            onChange={(date) => {
+              setValue('warranty_end_date', date || '');
+              if (errors.warranty_end_date) clearErrors('warranty_end_date');
+            }}
             helperText="When does the warranty expire?"
             isOptional={true}
           />
+          {errors.warranty_end_date && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.warranty_end_date.message}
+            </Text>
+          )}
 
           <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
           <TextInput
-            ref={notesRef}
-            style={getTextAreaStyle()}
-            value={formData.notes}
-            onChangeText={text => setFormData({ ...formData, notes: text })}
+            style={[
+              getTextAreaStyle(),
+              errors.notes && { borderColor: colors.error, borderWidth: 2 }
+            ]}
+            value={formData.notes || ''}
+            onChangeText={text => {
+              setValue('notes', text);
+              if (errors.notes) clearErrors('notes');
+            }}
             placeholder="Any additional notes about this warranty..."
             placeholderTextColor={colors.textSecondary}
             multiline
@@ -189,10 +229,15 @@ export default function AddWarrantyScreen() {
             onBlur={handleBlur}
             returnKeyType="done"
           />
+          {errors.notes && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.notes.message}
+            </Text>
+          )}
 
           <TouchableOpacity
             style={[styles.saveButton, { backgroundColor: colors.primary }]}
-            onPress={handleSave}
+            onPress={handleSubmit(onSubmit)}
             disabled={loading}
           >
             <Ionicons name="shield-checkmark" size={24} color={colors.textInverse} />
@@ -256,5 +301,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  errorText: {
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '500',
   },
 }); 

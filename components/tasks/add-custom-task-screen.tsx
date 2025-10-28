@@ -1,15 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
+import { Resolver, useForm } from 'react-hook-form';
 import {
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHomes } from '../../lib/contexts/HomesContext';
@@ -17,6 +18,7 @@ import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
+import { CustomTaskFormData, customTaskFormSchema, transformCustomTaskFormData } from '../../lib/schemas/tasks/customTaskFormSchema';
 import DatePicker from '../DatePicker';
 
 const PRIORITY_OPTIONS = [
@@ -60,117 +62,75 @@ export default function AddCustomTaskScreen() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: '',
-    priority: 'medium',
-    due_date: null as string | null,
-    is_recurring: false,
-    recurrence_pattern: null as string | null,
-    recurrence_end_date: null as string | null,
-    home_id: '',
-    notes: '',
-    assigned_vendor_id: '',
-    assigned_user_id: '',
-    instructions: '',
-    estimated_cost: '',
-    room_location: '',
-    equipment_required: '',
-    safety_notes: '',
-    estimated_duration_minutes: '',
-    priority_level: 'medium'
+  // React Hook Form setup
+  const {
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+    clearErrors,
+  } = useForm<CustomTaskFormData>({
+    resolver: zodResolver(customTaskFormSchema) as unknown as Resolver<CustomTaskFormData>,
+    defaultValues: {  
+      title: '',
+      description: '',
+      category: undefined,
+      priority: 'medium',
+      due_date: '',
+      is_recurring: false,
+      recurrence_pattern: undefined,
+      recurrence_end_date: '',
+      home_id: '',
+      notes: '',
+      assigned_vendor_id: '',
+      assigned_user_id: '',
+      instructions: '',
+      estimated_cost: null,
+      room_location: '',
+      equipment_required: '',
+      safety_notes: '',
+      estimated_duration_minutes: null,
+    },
   });
 
-  const updateFormData = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  const formData = watch();
 
   const handleVendorSelection = (vendorId: string) => {
-    updateFormData('assigned_vendor_id', vendorId);
+    setValue('assigned_vendor_id', vendorId);
+    if (errors.assigned_vendor_id) clearErrors('assigned_vendor_id');
     setShowVendorModal(false);
   };
 
   const handleHomeSelection = (homeId: string) => {
-    updateFormData('home_id', homeId);
+    setValue('home_id', homeId);
+    if (errors.home_id) clearErrors('home_id');
     setShowHomeModal(false);
   };
 
   const handlePrioritySelection = (priority: string) => {
-    updateFormData('priority', priority);
-    updateFormData('priority_level', priority);
+    setValue('priority', priority as any);
+    if (errors.priority) clearErrors('priority');
     setShowPriorityModal(false);
   };
 
   const handleRecurrenceSelection = (pattern: string | null) => {
-    updateFormData('recurrence_pattern', pattern);
-    updateFormData('is_recurring', pattern !== null);
+    setValue('recurrence_pattern', pattern as any);
+    setValue('is_recurring', pattern !== null);
+    if (errors.recurrence_pattern) clearErrors('recurrence_pattern');
     setShowRecurrenceModal(false);
   };
 
   const handleCategorySelection = (category: string) => {
-    updateFormData('category', category);
+    setValue('category', category as any);
+    if (errors.category) clearErrors('category');
     setShowCategoryModal(false);
   };
 
-  const handleSubmit = async () => {
-    if (!formData.title.trim()) {
-      Alert.alert('Error', 'Task title is required');
-      return;
-    }
-
-    if (!formData.category.trim()) {
-      Alert.alert('Error', 'Category is required');
-      return;
-    }
-
+  const onSubmit = async (data: CustomTaskFormData) => {
     setLoading(true);
     try {
-      // Determine task_type based on category
-      const getTaskType = (category: string) => {
-        switch (category) {
-          case 'Deep Cleaning':
-            return 'deep_cleaning';
-          case 'Health + Safety':
-            return 'health_safety';
-          case 'Home Maintenance':
-            return 'home_maintenance';
-          case 'Repairs':
-            return 'repairs';
-          case 'Custom':
-            return 'custom';
-          default:
-            return 'custom';
-        }
-      };
-
-      const taskData = {
-        title: formData.title.trim(),
-        description: formData.description.trim() || null,
-        category: formData.category.trim(),
-        subcategory: null,
-        priority: formData.priority.toLowerCase(),
-        priority_level: formData.priority_level.toLowerCase(),
-        due_date: formData.due_date || null,
-        is_recurring: formData.is_recurring,
-        recurrence_pattern: formData.recurrence_pattern,
-        recurrence_end_date: formData.recurrence_end_date || null,
-        home_id: formData.home_id || null,
-        notes: formData.notes.trim() || null,
-        assigned_vendor_id: formData.assigned_vendor_id || null,
-        assigned_user_id: formData.assigned_user_id || null,
-        instructions: formData.instructions.trim() || null,
-        estimated_cost: formData.estimated_cost ? parseFloat(formData.estimated_cost) : null,
-        room_location: formData.room_location.trim() || null,
-        equipment_required: formData.equipment_required.trim() || null,
-        safety_notes: formData.safety_notes.trim() || null,
-        estimated_duration_minutes: formData.estimated_duration_minutes ? parseInt(formData.estimated_duration_minutes) : null,
-        task_type: getTaskType(formData.category),
-        is_active: true,
-        status: 'pending'
-      };
-
-      await createCustomTask(formData.home_id, taskData);
+      const taskData = transformCustomTaskFormData(data);
+      await createCustomTask(data.home_id, taskData);
       showToast('Custom task created successfully!', 'success');
       router.back();
     } catch (error) {
@@ -308,7 +268,7 @@ export default function AddCustomTaskScreen() {
         <Text style={[styles.headerTitle, { color: colors.text }]}>Project</Text>
         <TouchableOpacity
           style={[styles.saveButton, { backgroundColor: colors.primary }]}
-          onPress={handleSubmit}
+          onPress={handleSubmit(onSubmit)}
           disabled={loading}
         >
           {loading ? (
@@ -331,24 +291,45 @@ export default function AddCustomTaskScreen() {
           {renderFormField(
             'Task Title *',
             formData.title,
-            (text) => updateFormData('title', text),
+            (text) => {
+              setValue('title', text);
+              if (errors.title) clearErrors('title');
+            },
             'Enter task title'
+          )}
+          {errors.title && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.title.message}
+            </Text>
           )}
           
           {renderFormField(
             'Description',
-            formData.description,
-            (text) => updateFormData('description', text),
+            formData.description || '',
+            (text) => {
+              setValue('description', text);
+              if (errors.description) clearErrors('description');
+            },
             'Enter task description',
             true
+          )}
+          {errors.description && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.description.message}
+            </Text>
           )}
           
           {renderDropdownField(
             'Category',
-            formData.category,
+            formData.category || '',
             () => setShowCategoryModal(true),
             'Select category',
             CATEGORY_OPTIONS.find(opt => opt.value === formData.category)?.label
+          )}
+          {errors.category && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.category.message}
+            </Text>
           )}
           
           {renderDropdownField(
@@ -357,6 +338,11 @@ export default function AddCustomTaskScreen() {
             () => setShowPriorityModal(true),
             'Select priority',
             PRIORITY_OPTIONS.find(opt => opt.value === formData.priority)?.label
+          )}
+          {errors.priority && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.priority.message}
+            </Text>
           )}
         </View>
 
@@ -368,10 +354,18 @@ export default function AddCustomTaskScreen() {
             <Text style={[styles.formLabel, { color: colors.text }]}>Due Date</Text>
             <DatePicker
               label=""
-              value={formData.due_date}
-              onChange={(date) => updateFormData('due_date', date)}
+              value={formData.due_date || null}
+              onChange={(date) => {
+                setValue('due_date', date || '');
+                if (errors.due_date) clearErrors('due_date');
+              }}
               placeholder="Select due date"
             />
+            {errors.due_date && (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {errors.due_date.message}
+              </Text>
+            )}
           </View>
           
           {renderDropdownField(
@@ -381,16 +375,29 @@ export default function AddCustomTaskScreen() {
             'Select recurrence pattern',
             RECURRENCE_OPTIONS.find(opt => opt.value === formData.recurrence_pattern)?.label
           )}
+          {errors.recurrence_pattern && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.recurrence_pattern.message}
+            </Text>
+          )}
           
           {formData.is_recurring && (
             <View style={styles.formField}>
               <Text style={[styles.formLabel, { color: colors.text }]}>Recurrence End Date</Text>
               <DatePicker
                 label=""
-                value={formData.recurrence_end_date}
-                onChange={(date) => updateFormData('recurrence_end_date', date)}
+                value={formData.recurrence_end_date || null}
+                onChange={(date) => {
+                  setValue('recurrence_end_date', date || '');
+                  if (errors.recurrence_end_date) clearErrors('recurrence_end_date');
+                }}
                 placeholder="Select end date (optional)"
               />
+              {errors.recurrence_end_date && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.recurrence_end_date.message}
+                </Text>
+              )}
             </View>
           )}
         </View>
@@ -406,20 +413,38 @@ export default function AddCustomTaskScreen() {
             'Select home',
             homes.find(h => h.id === formData.home_id)?.name
           )}
+          {errors.home_id && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.home_id.message}
+            </Text>
+          )}
           
           {renderDropdownField(
             'Assigned Vendor',
-            formData.assigned_vendor_id,
+            formData.assigned_vendor_id || '',
             () => setShowVendorModal(true),
             'Select vendor',
             vendors.find(v => v.id === formData.assigned_vendor_id)?.name
           )}
+          {errors.assigned_vendor_id && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.assigned_vendor_id.message}
+            </Text>
+          )}
           
           {renderFormField(
             'Room/Location',
-            formData.room_location,
-            (text) => updateFormData('room_location', text),
+            formData.room_location || '',
+            (text) => {
+              setValue('room_location', text);
+              if (errors.room_location) clearErrors('room_location');
+            },
             'e.g., Kitchen, Master Bathroom'
+          )}
+          {errors.room_location && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.room_location.message}
+            </Text>
           )}
         </View>
 
@@ -429,52 +454,100 @@ export default function AddCustomTaskScreen() {
           
           {renderFormField(
             'Instructions',
-            formData.instructions,
-            (text) => updateFormData('instructions', text),
+            formData.instructions || '',
+            (text) => {
+              setValue('instructions', text);
+              if (errors.instructions) clearErrors('instructions');
+            },
             'Enter detailed instructions',
             true
+          )}
+          {errors.instructions && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.instructions.message}
+            </Text>
           )}
           
           {renderFormField(
             'Equipment Required',
-            formData.equipment_required,
-            (text) => updateFormData('equipment_required', text),
+            formData.equipment_required || '',
+            (text) => {
+              setValue('equipment_required', text);
+              if (errors.equipment_required) clearErrors('equipment_required');
+            },
             'List required equipment',
             true
+          )}
+          {errors.equipment_required && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.equipment_required.message}
+            </Text>
           )}
           
           {renderFormField(
             'Safety Notes',
-            formData.safety_notes,
-            (text) => updateFormData('safety_notes', text),
+            formData.safety_notes || '',
+            (text) => {
+              setValue('safety_notes', text);
+              if (errors.safety_notes) clearErrors('safety_notes');
+            },
             'Enter safety considerations',
             true
+          )}
+          {errors.safety_notes && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.safety_notes.message}
+            </Text>
           )}
           
           {renderFormField(
             'Estimated Cost ($)',
-            formData.estimated_cost,
-            (text) => updateFormData('estimated_cost', text),
+            formData.estimated_cost?.toString() || '',
+            (text) => {
+              setValue('estimated_cost', parseFloat(text));
+              if (errors.estimated_cost) clearErrors('estimated_cost');
+            },
             '0.00',
             false,
             'numeric'
           )}
+          {errors.estimated_cost && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.estimated_cost.message}
+            </Text>
+          )}
           
           {renderFormField(
             'Estimated Duration (minutes)',
-            formData.estimated_duration_minutes,
-            (text) => updateFormData('estimated_duration_minutes', text),
+            formData.estimated_duration_minutes?.toString() || '',
+            (text) => {
+              setValue('estimated_duration_minutes', parseInt(text) || null);
+              if (errors.estimated_duration_minutes) clearErrors('estimated_duration_minutes');
+            },
             '60',
             false,
             'numeric'
           )}
+          {errors.estimated_duration_minutes && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.estimated_duration_minutes.message}
+            </Text>
+          )}
           
           {renderFormField(
             'Notes',
-            formData.notes,
-            (text) => updateFormData('notes', text),
+            formData.notes || '',
+            (text) => {
+              setValue('notes', text);
+              if (errors.notes) clearErrors('notes');
+            },
             'Additional notes',
             true
+          )}
+          {errors.notes && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.notes.message}
+            </Text>
           )}
         </View>
       </ScrollView>
@@ -638,6 +711,11 @@ const styles = StyleSheet.create({
   },
   modalOptionText: {
     fontSize: 16,
+    fontWeight: '500',
+  },
+  errorText: {
+    fontSize: 12,
+    marginTop: 4,
     fontWeight: '500',
   },
 }); 

@@ -1,32 +1,47 @@
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useForm } from 'react-hook-form';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useFilters } from '../../../lib/contexts/FiltersContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
+import { FilterFormData, filterFormSchema, transformFilterFormData } from '../../../lib/schemas/home/filterFormSchema';
 import DatePicker from '../../DatePicker';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
-export default function   AddFilterScreen() {
+export default function AddFilterScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
   const { createFilter } = useFilters(homeId);
   const { colors } = useTheme();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    room: '',
-    type: '',
-    brand: '',
-    model: '',
-    size: '',
-    last_replaced: '' as string | null,
-    replacement_frequency: '',
-    notes: '',
+
+  const { 
+    control, 
+    handleSubmit, 
+    watch, 
+    setValue, 
+    clearErrors, 
+    formState: { errors } 
+  } = useForm<FilterFormData>({
+    resolver: zodResolver(filterFormSchema),
+    defaultValues: {
+      name: '',
+      room: '',
+      type: '',
+      brand: '',
+      model: '',
+      size: '',
+      last_replaced: '',
+      replacement_frequency: '',
+      notes: '',
+    }
   });
+
+  const formData = watch();
 
   // Refs for input fields
   const nameRef = useRef<TextInput>(null);
@@ -38,34 +53,13 @@ export default function   AddFilterScreen() {
   const replacementFreqRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
-  const handleSave = async () => {
-    if (!formData.name.trim()) {
-      Alert.alert('Error', 'Please enter a filter name');
-      nameRef.current?.focus();
-      return;
-    }
-
-    if (!formData.room.trim()) {
-      Alert.alert('Error', 'Please enter a room');
-      roomRef.current?.focus();
-      return;
-    }
-
+  const onSubmit = async (data: FilterFormData) => {
     setLoading(true);
     try {
-      await createFilter({
-        name: formData.name.trim(),
-        room: formData.room.trim(),
-        type: formData.type.trim() || null,
-        brand: formData.brand.trim() || null,
-        model: formData.model.trim() || null,
-        size: formData.size.trim() || null,
-        last_replaced: formData.last_replaced || null,
-        replacement_frequency: formData.replacement_frequency ? parseInt(formData.replacement_frequency) : null,
-        notes: formData.notes.trim() || null,
-      });
+      const transformedData = transformFilterFormData(data);
+      await createFilter(transformedData);
       
-      showToast(`${formData.name} filter added successfully!`, 'success');
+      showToast(`${data.name} filter added successfully!`, 'success');
       
       // Navigate back after a short delay to ensure toast is visible
       setTimeout(() => {
@@ -126,9 +120,15 @@ export default function   AddFilterScreen() {
           <Text style={[styles.label, { color: colors.text }]}>Filter Name *</Text>
           <TextInput
             ref={nameRef}
-            style={getInputStyle('name')}
+            style={[
+              getInputStyle('name'),
+              errors.name && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.name}
-            onChangeText={text => setFormData({ ...formData, name: text })}
+            onChangeText={text => {
+              setValue('name', text);
+              if (errors.name) clearErrors('name');
+            }}
             placeholder="e.g., Air Filter, Water Filter, HVAC Filter"
             placeholderTextColor={colors.textSecondary}
             onFocus={() => handleFocus('name')}
@@ -136,13 +136,24 @@ export default function   AddFilterScreen() {
             returnKeyType="next"
             onSubmitEditing={() => roomRef.current?.focus()}
           />
+          {errors.name && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.name.message}
+            </Text>
+          )}
 
           <Text style={[styles.label, { color: colors.text }]}>Room *</Text>
           <TextInput
             ref={roomRef}
-            style={getInputStyle('room')}
+            style={[
+              getInputStyle('room'),
+              errors.room && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.room}
-            onChangeText={text => setFormData({ ...formData, room: text })}
+            onChangeText={text => {
+              setValue('room', text);
+              if (errors.room) clearErrors('room');
+            }}
             placeholder="e.g., Living Room, Kitchen, Basement"
             placeholderTextColor={colors.textSecondary}
             onFocus={() => handleFocus('room')}
@@ -150,15 +161,26 @@ export default function   AddFilterScreen() {
             returnKeyType="next"
             onSubmitEditing={() => typeRef.current?.focus()}
           />
+          {errors.room && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.room.message}
+            </Text>
+          )}
 
           <View style={styles.row}>
             <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Type</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Type *</Text>
               <TextInput
                 ref={typeRef}
-                style={getInputStyle('type')}
+                style={[
+                  getInputStyle('type'),
+                  errors.type && { borderColor: colors.error, borderWidth: 2 }
+                ]}
                 value={formData.type}
-                onChangeText={text => setFormData({ ...formData, type: text })}
+                onChangeText={text => {
+                  setValue('type', text);
+                  if (errors.type) clearErrors('type');
+                }}
                 placeholder="e.g., HEPA, Carbon, Pleated"
                 placeholderTextColor={colors.textSecondary}
                 onFocus={() => handleFocus('type')}
@@ -166,14 +188,25 @@ export default function   AddFilterScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => brandRef.current?.focus()}
               />
+              {errors.type && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.type.message}
+                </Text>
+              )}
             </View>
             <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Brand</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Brand *</Text>
               <TextInput
                 ref={brandRef}
-                style={getInputStyle('brand')}
+                style={[
+                  getInputStyle('brand'),
+                  errors.brand && { borderColor: colors.error, borderWidth: 2 }
+                ]}
                 value={formData.brand}
-                onChangeText={text => setFormData({ ...formData, brand: text })}
+                onChangeText={text => {
+                  setValue('brand', text);
+                  if (errors.brand) clearErrors('brand');
+                }}
                 placeholder="e.g., 3M, Honeywell, Filtrete"
                 placeholderTextColor={colors.textSecondary}
                 onFocus={() => handleFocus('brand')}
@@ -181,17 +214,28 @@ export default function   AddFilterScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => modelRef.current?.focus()}
               />
+              {errors.brand && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.brand.message}
+                </Text>
+              )}
             </View>
           </View>
 
           <View style={styles.row}>
             <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Model</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Model *</Text>
               <TextInput
                 ref={modelRef}
-                style={getInputStyle('model')}
+                style={[
+                  getInputStyle('model'),
+                  errors.model && { borderColor: colors.error, borderWidth: 2 }
+                ]}
                 value={formData.model}
-                onChangeText={text => setFormData({ ...formData, model: text })}
+                onChangeText={text => {
+                  setValue('model', text);
+                  if (errors.model) clearErrors('model');
+                }}
                 placeholder="e.g., FPR-10, MERV-13"
                 placeholderTextColor={colors.textSecondary}
                 onFocus={() => handleFocus('model')}
@@ -199,14 +243,25 @@ export default function   AddFilterScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => sizeRef.current?.focus()}
               />
+              {errors.model && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.model.message}
+                </Text>
+              )}
             </View>
             <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Size</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Size *</Text>
               <TextInput
                 ref={sizeRef}
-                style={getInputStyle('size')}
+                style={[
+                  getInputStyle('size'),
+                  errors.size && { borderColor: colors.error, borderWidth: 2 }
+                ]}
                 value={formData.size}
-                onChangeText={text => setFormData({ ...formData, size: text })}
+                onChangeText={text => {
+                  setValue('size', text);
+                  if (errors.size) clearErrors('size');
+                }}
                 placeholder="e.g., 16x20x1, 14x14x1"
                 placeholderTextColor={colors.textSecondary}
                 onFocus={() => handleFocus('size')}
@@ -214,6 +269,11 @@ export default function   AddFilterScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => replacementFreqRef.current?.focus()}
               />
+              {errors.size && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.size.message}
+                </Text>
+              )}
             </View>
           </View>
 
@@ -223,17 +283,31 @@ export default function   AddFilterScreen() {
             label="Last Replaced"
             value={formData.last_replaced || null}
             placeholder="Select last replacement date"
-            onChange={(date) => setFormData({ ...formData, last_replaced: date })}
+            onChange={(date) => {
+              setValue('last_replaced', date || '');
+              if (errors.last_replaced) clearErrors('last_replaced');
+            }}
             helperText="When was this filter last replaced?"
             isOptional={true}
           />
+          {errors.last_replaced && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.last_replaced.message}
+            </Text>
+          )}
 
           <Text style={[styles.label, { color: colors.text }]}>Replacement Frequency (months)</Text>
           <TextInput
             ref={replacementFreqRef}
-            style={getInputStyle('replacement_frequency')}
+            style={[
+              getInputStyle('replacement_frequency'),
+              errors.replacement_frequency && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.replacement_frequency}
-            onChangeText={text => setFormData({ ...formData, replacement_frequency: text })}
+            onChangeText={text => {
+              setValue('replacement_frequency', text);
+              if (errors.replacement_frequency) clearErrors('replacement_frequency');
+            }}
             placeholder="e.g., 3, 6, 12"
             placeholderTextColor={colors.textSecondary}
             keyboardType="numeric"
@@ -242,13 +316,24 @@ export default function   AddFilterScreen() {
             returnKeyType="next"
             onSubmitEditing={() => notesRef.current?.focus()}
           />
+          {errors.replacement_frequency && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.replacement_frequency.message}
+            </Text>
+          )}
 
           <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
           <TextInput
             ref={notesRef}
-            style={getTextAreaStyle()}
+            style={[
+              getTextAreaStyle(),
+              errors.notes && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.notes}
-            onChangeText={text => setFormData({ ...formData, notes: text })}
+            onChangeText={text => {
+              setValue('notes', text);
+              if (errors.notes) clearErrors('notes');
+            }}
             placeholder="Any additional notes about this filter..."
             placeholderTextColor={colors.textSecondary}
             multiline
@@ -258,10 +343,15 @@ export default function   AddFilterScreen() {
             onBlur={handleBlur}
             returnKeyType="done"
           />
+          {errors.notes && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.notes.message}
+            </Text>
+          )}
 
           <TouchableOpacity
             style={[styles.saveButton, { backgroundColor: colors.primary }]}
-            onPress={handleSave}
+            onPress={handleSubmit(onSubmit)}
             disabled={loading}
           >
             <Ionicons name="funnel" size={24} color={colors.textInverse} />
@@ -332,5 +422,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    marginTop: 4,
+    marginLeft: 4,
   },
 }); 

@@ -1,11 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePaints } from '../../../lib/contexts/PaintsContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
+import { PaintColorFormData, paintColorFormSchema, transformPaintColorFormData } from '../../../lib/schemas/home/paintColorFormSchema';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 // Paint color database for autopopulation
@@ -75,66 +78,55 @@ export default function AddPaintColorScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    room: '',
-    brand: '',
-    color_code: '',
-    color_hex: '',
-    notes: '',
+
+  // React Hook Form setup
+  const {
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+    clearErrors,
+  } = useForm<PaintColorFormData>({
+    resolver: zodResolver(paintColorFormSchema),
+    defaultValues: {
+      name: '',
+      room: '',
+      brand: '',
+      color_code: '',
+      color_hex: '',
+      notes: '',
+    },
   });
 
-  // Refs for input fields
-  const nameRef = useRef<TextInput>(null);
-  const roomRef = useRef<TextInput>(null);
-  const brandRef = useRef<TextInput>(null);
-  const colorCodeRef = useRef<TextInput>(null);
-  const colorHexRef = useRef<TextInput>(null);
-  const notesRef = useRef<TextInput>(null);
+  const formData = watch();
 
   const handlePaintNameChange = (text: string) => {
-    setFormData({ ...formData, name: text });
+    setValue('name', text);
+    if (errors.name) clearErrors('name');
     
     // Auto-populate color based on paint name
     const paintName = text.toLowerCase().trim();
     const matchingColor = PAINT_COLORS[paintName];
     
     if (matchingColor) {
-      setFormData(prev => ({
-        ...prev,
-        name: text,
-        color_hex: matchingColor.color_hex,
-        color_code: matchingColor.color_code,
-        brand: matchingColor.brand || prev.brand,
-      }));
+      setValue('color_hex', matchingColor.color_hex);
+      setValue('color_code', matchingColor.color_code);
+      if (matchingColor.brand) {
+        setValue('brand', matchingColor.brand);
+      }
+      // Clear any errors for auto-populated fields
+      if (errors.color_hex) clearErrors('color_hex');
+      if (errors.color_code) clearErrors('color_code');
     }
   };
 
-  const handleSave = async () => {
-    if (!formData.name.trim()) {
-      Alert.alert('Error', 'Please enter a paint name');
-      nameRef.current?.focus();
-      return;
-    }
-
-    if (!formData.room.trim()) {
-      Alert.alert('Error', 'Please enter a room');
-      roomRef.current?.focus();
-      return;
-    }
-
+  const onSubmit = async (data: PaintColorFormData) => {
     setLoading(true);
     try {
-      await createPaint({
-        name: formData.name.trim(),
-        room: formData.room.trim(),
-        brand: formData.brand.trim() || null,
-        color_code: formData.color_code.trim() || null,
-        color_hex: formData.color_hex.trim() || null,
-        notes: formData.notes.trim() || null,
-      });
+      const paintData = transformPaintColorFormData(data);
+      await createPaint(paintData);
       
-      showToast(`${formData.name} paint color added successfully!`, 'success');
+      showToast(`${data.name} paint color added successfully!`, 'success');
       
       // Navigate back after a short delay to ensure toast is visible
       setTimeout(() => {
@@ -194,8 +186,10 @@ export default function AddPaintColorScreen() {
           
           <Text style={[styles.label, { color: colors.text }]}>Paint Name *</Text>
           <TextInput
-            ref={nameRef}
-            style={getInputStyle('name')}
+            style={[
+              getInputStyle('name'),
+              errors.name && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.name}
             onChangeText={handlePaintNameChange}
             placeholder="e.g., White, Navy Blue, Sage Green"
@@ -203,69 +197,109 @@ export default function AddPaintColorScreen() {
             onFocus={() => handleFocus('name')}
             onBlur={handleBlur}
             returnKeyType="next"
-            onSubmitEditing={() => roomRef.current?.focus()}
           />
+          {errors.name && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.name.message}
+            </Text>
+          )}
 
           <Text style={[styles.label, { color: colors.text }]}>Room *</Text>
           <TextInput
-            ref={roomRef}
-            style={getInputStyle('room')}
+            style={[
+              getInputStyle('room'),
+              errors.room && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.room}
-            onChangeText={text => setFormData({ ...formData, room: text })}
+            onChangeText={text => {
+              setValue('room', text);
+              if (errors.room) clearErrors('room');
+            }}
             placeholder="e.g., Living Room, Kitchen, Bedroom"
             placeholderTextColor={colors.textSecondary}
             onFocus={() => handleFocus('room')}
             onBlur={handleBlur}
             returnKeyType="next"
-            onSubmitEditing={() => brandRef.current?.focus()}
           />
+          {errors.room && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.room.message}
+            </Text>
+          )}
 
-          <Text style={[styles.label, { color: colors.text }]}>Brand</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Brand *</Text>
           <TextInput
-            ref={brandRef}
-            style={getInputStyle('brand')}
+            style={[
+              getInputStyle('brand'),
+              errors.brand && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.brand}
-            onChangeText={text => setFormData({ ...formData, brand: text })}
+            onChangeText={text => {
+              setValue('brand', text);
+              if (errors.brand) clearErrors('brand');
+            }}
             placeholder="e.g., Sherwin-Williams, Behr, Benjamin Moore"
             placeholderTextColor={colors.textSecondary}
             onFocus={() => handleFocus('brand')}
             onBlur={handleBlur}
             returnKeyType="next"
-            onSubmitEditing={() => colorCodeRef.current?.focus()}
           />
+          {errors.brand && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.brand.message}
+            </Text>
+          )}
 
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Color Information</Text>
 
           <View style={styles.row}>
             <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Color Code</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Color Code *</Text>
               <TextInput
-                ref={colorCodeRef}
-                style={getInputStyle('color_code')}
+                style={[
+                  getInputStyle('color_code'),
+                  errors.color_code && { borderColor: colors.error, borderWidth: 2 }
+                ]}
                 value={formData.color_code}
-                onChangeText={text => setFormData({ ...formData, color_code: text })}
+                onChangeText={text => {
+                  setValue('color_code', text);
+                  if (errors.color_code) clearErrors('color_code');
+                }}
                 placeholder="e.g., SW-7005, BM-OC-17"
                 placeholderTextColor={colors.textSecondary}
                 onFocus={() => handleFocus('color_code')}
                 onBlur={handleBlur}
                 returnKeyType="next"
-                onSubmitEditing={() => colorHexRef.current?.focus()}
               />
+              {errors.color_code && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.color_code.message}
+                </Text>
+              )}
             </View>
             <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Color Hex</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Color Hex *</Text>
               <TextInput
-                ref={colorHexRef}
-                style={getInputStyle('color_hex')}
+                style={[
+                  getInputStyle('color_hex'),
+                  errors.color_hex && { borderColor: colors.error, borderWidth: 2 }
+                ]}
                 value={formData.color_hex}
-                onChangeText={text => setFormData({ ...formData, color_hex: text })}
+                onChangeText={text => {
+                  setValue('color_hex', text);
+                  if (errors.color_hex) clearErrors('color_hex');
+                }}
                 placeholder="e.g., #FFFFFF"
                 placeholderTextColor={colors.textSecondary}
                 onFocus={() => handleFocus('color_hex')}
                 onBlur={handleBlur}
                 returnKeyType="next"
-                onSubmitEditing={() => notesRef.current?.focus()}
               />
+              {errors.color_hex && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.color_hex.message}
+                </Text>
+              )}
             </View>
           </View>
 
@@ -279,9 +313,15 @@ export default function AddPaintColorScreen() {
           <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
           <TextInput
             ref={notesRef}
-            style={getTextAreaStyle()}
+            style={[
+              getTextAreaStyle(),
+              errors.notes && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.notes}
-            onChangeText={text => setFormData({ ...formData, notes: text })}
+            onChangeText={text => {
+              setValue('notes', text);
+              if (errors.notes) clearErrors('notes');
+            }}
             placeholder="Any additional notes about this paint color..."
             placeholderTextColor={colors.textSecondary}
             multiline
@@ -291,10 +331,15 @@ export default function AddPaintColorScreen() {
             onBlur={handleBlur}
             returnKeyType="done"
           />
+          {errors.notes && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.notes.message}
+            </Text>
+          )}
 
           <TouchableOpacity
             style={[styles.saveButton, { backgroundColor: colors.primary }]}
-            onPress={handleSave}
+            onPress={handleSubmit(onSubmit)}
             disabled={loading}
           >
             <Ionicons name="color-palette" size={24} color={colors.textInverse} />

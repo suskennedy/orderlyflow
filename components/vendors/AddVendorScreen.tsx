@@ -1,54 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import {
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useVendors } from '../../lib/contexts/VendorsContext';
-
-const VENDOR_CATEGORIES = [
-  'Appliances',
-  'Architect',
-  'Builder',
-  'Carpenter',
-  'Cleaning',
-  'Closets',
-  'Drywall',
-  'Electrician',
-  'Fencing',
-  'Flooring',
-  'Garage Door',
-  'Handyman',
-  'HVAC',
-  'Interior Designs',
-  'Landscape',
-  'Masonry / Concrete',
-  'Organizer',
-  'Painter',
-  'Pest Control',
-  'Plumber',
-  'Pool / Spa',
-  'Roofing',
-  'Security',
-  'Solar Panel',
-  'Well / Water Treatment',
-  'Windows',
-  'Other',
-];
-
-const PRIORITY_OPTIONS = [
-  'Primary',
-  'Secondary'
-];
+import { PRIORITY_OPTIONS, transformVendorFormData, VENDOR_CATEGORIES, VendorFormData, vendorFormSchema } from '../../lib/schemas/vendors/vendorFormSchema';
 
 export default function AddVendorScreen() {
   const insets = useSafeAreaInsets();
@@ -56,38 +24,52 @@ export default function AddVendorScreen() {
   const { addVendor } = useVendors();
   const params = useLocalSearchParams();
   
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState('');
-  const [contactName, setContactName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [website, setWebsite] = useState('');
-  const [address, setAddress] = useState('');
-  const [priority, setPriority] = useState('Primary');
-
-  // Pre-fill form with contact data if provided
-  useEffect(() => {
-    if (params.name) {
-      setName(String(params.name));
-    }
-    if (params.contact_name) {
-      setContactName(String(params.contact_name));
-    }
-    if (params.phone) {
-      setPhone(String(params.phone));
-    }
-    if (params.email) {
-      setEmail(String(params.email));
-    }
-    if (params.company) {
-      setName(String(params.company));
-    }
-  }, [params]);
-  const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [dropdownItems, setDropdownItems] = useState<string[]>([]);
   const [dropdownTitle, setDropdownTitle] = useState('');
+
+  const { 
+    handleSubmit, 
+    watch, 
+    setValue, 
+    clearErrors, 
+    formState: { errors } 
+  } = useForm<VendorFormData>({
+    resolver: zodResolver(vendorFormSchema) as any,
+    defaultValues: {
+      name: '',
+      category: 'Appliances' as any,
+      contact_name: '',
+      phone: '',
+      email: '',
+      website: '',
+      address: '',
+      priority: 'Primary',
+      notes: '',
+    }
+  });
+
+  const formData = watch();
+
+  // Pre-fill form with contact data if provided
+  useEffect(() => {
+    if (params.name) {
+      setValue('name', String(params.name));
+    }
+    if (params.contact_name) {
+      setValue('contact_name', String(params.contact_name));
+    }
+    if (params.phone) {
+      setValue('phone', String(params.phone));
+    }
+    if (params.email) {
+      setValue('email', String(params.email));
+    }
+    if (params.company) {
+      setValue('name', String(params.company));
+    }
+  }, [params, setValue]);
 
   const openDropdown = (type: string, items: string[], title: string) => {
     setActiveDropdown(type);
@@ -102,41 +84,23 @@ export default function AddVendorScreen() {
   const handleDropdownSelect = (value: string) => {
     switch (activeDropdown) {
       case 'category':
-        setCategory(value);
+        setValue('category', value as any);
+        if (errors.category) clearErrors('category');
         break;
       case 'priority':
-        setPriority(value);
+        setValue('priority', value as any);
+        if (errors.priority) clearErrors('priority');
         break;
     }
     closeDropdown();
   };
 
-  const handleAddVendor = async () => {
-    if (!name.trim()) {
-      Alert.alert('Error', 'Please enter a vendor name');
-      return;
-    }
-
-    if (!category) {
-      Alert.alert('Error', 'Please select a category');
-      return;
-    }
-
+  const onSubmit = async (data: VendorFormData) => {
     try {
       setLoading(true);
 
-      const vendorData = {
-        name: name.trim(),
-        category: category,
-        contact_name: contactName.trim() || null,
-        phone: phone.trim() || null,
-        email: email.trim() || null,
-        website: website.trim() || null,
-        address: address.trim() || null,
-        notes: notes.trim() || null
-      };
-
-      const newVendor = await addVendor(vendorData as any);
+      const transformedData = transformVendorFormData(data);
+      await addVendor(transformedData as any);
       
       Alert.alert('Success', 'Vendor added successfully!', [
         { text: 'OK', onPress: () => router.back() }
@@ -171,9 +135,9 @@ export default function AddVendorScreen() {
   const getSelectedValue = () => {
     switch (activeDropdown) {
       case 'category':
-        return category;
+        return formData.category;
       case 'priority':
-        return priority;
+        return formData.priority;
       default:
         return '';
     }
@@ -209,23 +173,37 @@ export default function AddVendorScreen() {
             style={[styles.textInput, { 
               backgroundColor: colors.surface,
               color: colors.text,
-              borderColor: colors.border 
+              borderColor: errors.name ? colors.error : colors.border,
+              borderWidth: errors.name ? 2 : 1
             }]}
             placeholder="Enter vendor name"
             placeholderTextColor={colors.textSecondary}
-            value={name}
-            onChangeText={setName}
+            value={formData.name}
+            onChangeText={text => {
+              setValue('name', text);
+              if (errors.name) clearErrors('name');
+            }}
             maxLength={255}
           />
+          {errors.name && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.name.message}
+            </Text>
+          )}
         </View>
 
         {/* Category */}
         <View style={styles.inputGroup}>
           <Text style={[styles.inputLabel, { color: colors.text }]}>Category *</Text>
           {renderDropdownButton(
-            category,
-            () => openDropdown('category', VENDOR_CATEGORIES, 'Select category'),
+            formData.category,
+            () => openDropdown('category', VENDOR_CATEGORIES as unknown as string[], 'Select category'),
             'Select category'
+          )}
+          {errors.category && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.category.message}
+            </Text>
           )}
         </View>
 
@@ -236,14 +214,23 @@ export default function AddVendorScreen() {
             style={[styles.textInput, { 
               backgroundColor: colors.surface,
               color: colors.text,
-              borderColor: colors.border 
+              borderColor: errors.contact_name ? colors.error : colors.border,
+              borderWidth: errors.contact_name ? 2 : 1
             }]}
             placeholder="Enter contact person name"
             placeholderTextColor={colors.textSecondary}
-            value={contactName}
-            onChangeText={setContactName}
+            value={formData.contact_name}
+            onChangeText={text => {
+              setValue('contact_name', text);
+              if (errors.contact_name) clearErrors('contact_name');
+            }}
             maxLength={255}
           />
+          {errors.contact_name && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.contact_name.message}
+            </Text>
+          )}
         </View>
 
         {/* Phone */}
@@ -253,15 +240,24 @@ export default function AddVendorScreen() {
             style={[styles.textInput, { 
               backgroundColor: colors.surface,
               color: colors.text,
-              borderColor: colors.border 
+              borderColor: errors.phone ? colors.error : colors.border,
+              borderWidth: errors.phone ? 2 : 1
             }]}
             placeholder="Enter phone number"
             placeholderTextColor={colors.textSecondary}
-            value={phone}
-            onChangeText={setPhone}
+            value={formData.phone}
+            onChangeText={text => {
+              setValue('phone', text);
+              if (errors.phone) clearErrors('phone');
+            }}
             keyboardType="phone-pad"
             maxLength={20}
           />
+          {errors.phone && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.phone.message}
+            </Text>
+          )}
         </View>
 
         {/* Email */}
@@ -271,16 +267,25 @@ export default function AddVendorScreen() {
             style={[styles.textInput, { 
               backgroundColor: colors.surface,
               color: colors.text,
-              borderColor: colors.border 
+              borderColor: errors.email ? colors.error : colors.border,
+              borderWidth: errors.email ? 2 : 1
             }]}
             placeholder="Enter email address"
             placeholderTextColor={colors.textSecondary}
-            value={email}
-            onChangeText={setEmail}
+            value={formData.email}
+            onChangeText={text => {
+              setValue('email', text);
+              if (errors.email) clearErrors('email');
+            }}
             keyboardType="email-address"
             autoCapitalize="none"
             maxLength={255}
           />
+          {errors.email && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.email.message}
+            </Text>
+          )}
         </View>
 
         {/* Website */}
@@ -290,16 +295,25 @@ export default function AddVendorScreen() {
             style={[styles.textInput, { 
               backgroundColor: colors.surface,
               color: colors.text,
-              borderColor: colors.border 
+              borderColor: errors.website ? colors.error : colors.border,
+              borderWidth: errors.website ? 2 : 1
             }]}
             placeholder="Enter website URL"
             placeholderTextColor={colors.textSecondary}
-            value={website}
-            onChangeText={setWebsite}
+            value={formData.website}
+            onChangeText={text => {
+              setValue('website', text);
+              if (errors.website) clearErrors('website');
+            }}
             keyboardType="url"
             autoCapitalize="none"
             maxLength={255}
           />
+          {errors.website && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.website.message}
+            </Text>
+          )}
         </View>
 
         {/* Address */}
@@ -309,25 +323,39 @@ export default function AddVendorScreen() {
             style={[styles.textArea, { 
               backgroundColor: colors.surface,
               color: colors.text,
-              borderColor: colors.border 
+              borderColor: errors.address ? colors.error : colors.border,
+              borderWidth: errors.address ? 2 : 1
             }]}
             placeholder="Enter address"
             placeholderTextColor={colors.textSecondary}
-            value={address}
-            onChangeText={setAddress}
+            value={formData.address}
+            onChangeText={text => {
+              setValue('address', text);
+              if (errors.address) clearErrors('address');
+            }}
             multiline
             numberOfLines={3}
             maxLength={500}
           />
+          {errors.address && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.address.message}
+            </Text>
+          )}
         </View>
 
         {/* Priority */}
         <View style={styles.inputGroup}>
           <Text style={[styles.inputLabel, { color: colors.text }]}>Priority</Text>
           {renderDropdownButton(
-            priority,
-            () => openDropdown('priority', PRIORITY_OPTIONS, 'Select priority'),
+            formData.priority,
+            () => openDropdown('priority', PRIORITY_OPTIONS as unknown as string[], 'Select priority'),
             'Select priority'
+          )}
+          {errors.priority && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.priority.message}
+            </Text>
           )}
         </View>
 
@@ -338,16 +366,25 @@ export default function AddVendorScreen() {
             style={[styles.textArea, { 
               backgroundColor: colors.surface,
               color: colors.text,
-              borderColor: colors.border 
+              borderColor: errors.notes ? colors.error : colors.border,
+              borderWidth: errors.notes ? 2 : 1
             }]}
             placeholder="Enter additional notes"
             placeholderTextColor={colors.textSecondary}
-            value={notes}
-            onChangeText={setNotes}
+            value={formData.notes}
+            onChangeText={text => {
+              setValue('notes', text);
+              if (errors.notes) clearErrors('notes');
+            }}
             multiline
             numberOfLines={4}
             maxLength={1000}
           />
+          {errors.notes && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.notes.message}
+            </Text>
+          )}
         </View>
 
         {/* Add Vendor Button */}
@@ -355,7 +392,7 @@ export default function AddVendorScreen() {
           style={[styles.addButton, { 
             backgroundColor: loading ? colors.textSecondary : colors.primary 
           }]}
-          onPress={handleAddVendor}
+          onPress={handleSubmit(onSubmit as any)}
           disabled={loading}
         >
           <Ionicons name="add-circle" size={24} color={colors.background} />
@@ -524,5 +561,10 @@ const styles = StyleSheet.create({
   },
   modalItemText: {
     fontSize: 16,
+  },
+  errorText: {
+    fontSize: 14,
+    marginTop: 4,
+    marginLeft: 4,
   },
 }); 

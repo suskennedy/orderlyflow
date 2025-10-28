@@ -1,11 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useForm } from 'react-hook-form';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppliances } from '../../../lib/contexts/AppliancesContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
+import { ApplianceFormData, applianceFormSchema, transformApplianceFormData } from '../../../lib/schemas/home/applianceFormSchema';
 import DatePicker from '../../DatePicker';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
@@ -17,17 +20,30 @@ export default function AddApplianceScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    brand: '',
-    model: '',
-    room: '',
-    purchase_date: '' as string | null,
-    warranty_expiration: '' as string | null,
-    manual_url: '',
-    purchased_store: '',
-    notes: '',
+
+  const { 
+    control, 
+    handleSubmit, 
+    watch, 
+    setValue, 
+    clearErrors, 
+    formState: { errors } 
+  } = useForm<ApplianceFormData>({
+    resolver: zodResolver(applianceFormSchema),
+    defaultValues: {
+      name: '',
+      brand: '',
+      model: '',
+      room: '',
+      purchase_date: '',
+      warranty_expiration: '',
+      manual_url: '',
+      purchased_store: '',
+      notes: '',
+    }
   });
+
+  const formData = watch();
 
   // Refs for input fields
   const nameRef = useRef<TextInput>(null);
@@ -38,28 +54,13 @@ export default function AddApplianceScreen() {
   const purchasedStoreRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
-  const handleSave = async () => {
-    if (!formData.name.trim()) {
-      Alert.alert('Error', 'Please enter an appliance name');
-      nameRef.current?.focus();
-      return;
-    }
-
+  const onSubmit = async (data: ApplianceFormData) => {
     setLoading(true);
     try {
-      await createAppliance({
-        name: formData.name.trim(),
-        brand: formData.brand.trim() || null,
-        model: formData.model.trim() || null,
-        purchase_date: formData.purchase_date || null,
-        warranty_expiration: formData.warranty_expiration || null,
-        manual_url: formData.manual_url.trim() || null,
-        notes: formData.notes.trim() || null,
-        room: formData.room.trim() || null,
-        purchased_store: formData.purchased_store.trim() || null,
-      });
+      const transformedData = transformApplianceFormData(data);
+      await createAppliance(transformedData);
       
-      showToast(`${formData.name} added successfully!`, 'success');
+      showToast(`${data.name} added successfully!`, 'success');
       
       // Navigate back after a short delay to ensure toast is visible
       setTimeout(() => {
@@ -120,9 +121,15 @@ export default function AddApplianceScreen() {
           <Text style={[styles.label, { color: colors.text }]}>Appliance Name *</Text>
           <TextInput
             ref={nameRef}
-            style={getInputStyle('name')}
+            style={[
+              getInputStyle('name'),
+              errors.name && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.name}
-            onChangeText={text => setFormData({ ...formData, name: text })}
+            onChangeText={text => {
+              setValue('name', text);
+              if (errors.name) clearErrors('name');
+            }}
             placeholder="e.g., Oven 1, Refrigerator, Dishwasher"
             placeholderTextColor={colors.textSecondary}
             onFocus={() => handleFocus('name')}
@@ -130,15 +137,26 @@ export default function AddApplianceScreen() {
             returnKeyType="next"
             onSubmitEditing={() => brandRef.current?.focus()}
           />
+          {errors.name && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.name.message}
+            </Text>
+          )}
 
           <View style={styles.row}>
             <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Brand</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Brand *</Text>
               <TextInput
                 ref={brandRef}
-                style={getInputStyle('brand')}
+                style={[
+                  getInputStyle('brand'),
+                  errors.brand && { borderColor: colors.error, borderWidth: 2 }
+                ]}
                 value={formData.brand}
-                onChangeText={text => setFormData({ ...formData, brand: text })}
+                onChangeText={text => {
+                  setValue('brand', text);
+                  if (errors.brand) clearErrors('brand');
+                }}
                 placeholder="e.g., Samsung, LG, Whirlpool"
                 placeholderTextColor={colors.textSecondary}
                 onFocus={() => handleFocus('brand')}
@@ -146,14 +164,25 @@ export default function AddApplianceScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => modelRef.current?.focus()}
               />
+              {errors.brand && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.brand.message}
+                </Text>
+              )}
             </View>
             <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Model</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Model *</Text>
               <TextInput
                 ref={modelRef}
-                style={getInputStyle('model')}
+                style={[
+                  getInputStyle('model'),
+                  errors.model && { borderColor: colors.error, borderWidth: 2 }
+                ]}
                 value={formData.model}
-                onChangeText={text => setFormData({ ...formData, model: text })}
+                onChangeText={text => {
+                  setValue('model', text);
+                  if (errors.model) clearErrors('model');
+                }}
                 placeholder="e.g., WF45R6100AW"
                 placeholderTextColor={colors.textSecondary}
                 onFocus={() => handleFocus('model')}
@@ -161,15 +190,26 @@ export default function AddApplianceScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => roomRef.current?.focus()}
               />
+              {errors.model && (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {errors.model.message}
+                </Text>
+              )}
             </View>
           </View>
 
-          <Text style={[styles.label, { color: colors.text }]}>Room</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Room *</Text>
           <TextInput
             ref={roomRef}
-            style={getInputStyle('room')}
+            style={[
+              getInputStyle('room'),
+              errors.room && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.room}
-            onChangeText={text => setFormData({ ...formData, room: text })}
+            onChangeText={text => {
+              setValue('room', text);
+              if (errors.room) clearErrors('room');
+            }}
             placeholder="e.g., Kitchen, Living Room, Basement"
             placeholderTextColor={colors.textSecondary}
             onFocus={() => handleFocus('room')}
@@ -177,6 +217,11 @@ export default function AddApplianceScreen() {
             returnKeyType="next"
             onSubmitEditing={() => manualUrlRef.current?.focus()}
           />
+          {errors.room && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.room.message}
+            </Text>
+          )}
 
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Purchase Information</Text>
 
@@ -184,41 +229,74 @@ export default function AddApplianceScreen() {
             label="Purchase Date"
             value={formData.purchase_date || null}
             placeholder="Select purchase date"
-            onChange={(date) => setFormData({ ...formData, purchase_date: date })}
+            onChange={(date) => {
+              setValue('purchase_date', date || '');
+              if (errors.purchase_date) clearErrors('purchase_date');
+            }}
             helperText="When did you purchase this appliance?"
             isOptional={true}
           />
+          {errors.purchase_date && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.purchase_date.message}
+            </Text>
+          )}
 
           <DatePicker
             label="Warranty Expiration"
             value={formData.warranty_expiration || null}
             placeholder="Select warranty expiration date"
-            onChange={(date) => setFormData({ ...formData, warranty_expiration: date })}
+            onChange={(date) => {
+              setValue('warranty_expiration', date || '');
+              if (errors.warranty_expiration) clearErrors('warranty_expiration');
+            }}
             helperText="When does the warranty expire?"
             isOptional={true}
           />
+          {errors.warranty_expiration && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.warranty_expiration.message}
+            </Text>
+          )}
 
           <Text style={[styles.label, { color: colors.text }]}>Manual URL</Text>
           <TextInput
             ref={manualUrlRef}
-            style={getInputStyle('manual_url')}
+            style={[
+              getInputStyle('manual_url'),
+              errors.manual_url && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.manual_url}
-            onChangeText={text => setFormData({ ...formData, manual_url: text })}
+            onChangeText={text => {
+              setValue('manual_url', text);
+              if (errors.manual_url) clearErrors('manual_url');
+            }}
             placeholder="https://example.com/manual.pdf"
             placeholderTextColor={colors.textSecondary}
             keyboardType="url"
             onFocus={() => handleFocus('manual_url')}
             onBlur={handleBlur}
             returnKeyType="next"
-            onSubmitEditing={() => notesRef.current?.focus()}
+            onSubmitEditing={() => purchasedStoreRef.current?.focus()}
           />
+          {errors.manual_url && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.manual_url.message}
+            </Text>
+          )}
 
-          <Text style={[styles.label, { color: colors.text }]}>Purchased Store</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Purchased Store *</Text>
           <TextInput
             ref={purchasedStoreRef}
-            style={getInputStyle('purchased_store')}
+            style={[
+              getInputStyle('purchased_store'),
+              errors.purchased_store && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.purchased_store}
-            onChangeText={text => setFormData({ ...formData, purchased_store: text })}
+            onChangeText={text => {
+              setValue('purchased_store', text);
+              if (errors.purchased_store) clearErrors('purchased_store');
+            }}
             placeholder="e.g., Home Depot, Best Buy, Local Store"
             placeholderTextColor={colors.textSecondary}
             onFocus={() => handleFocus('purchased_store')}
@@ -226,13 +304,24 @@ export default function AddApplianceScreen() {
             returnKeyType="next"
             onSubmitEditing={() => notesRef.current?.focus()}
           />
+          {errors.purchased_store && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.purchased_store.message}
+            </Text>
+          )}
 
           <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
           <TextInput
             ref={notesRef}
-            style={getTextAreaStyle()}
+            style={[
+              getTextAreaStyle(),
+              errors.notes && { borderColor: colors.error, borderWidth: 2 }
+            ]}
             value={formData.notes}
-            onChangeText={text => setFormData({ ...formData, notes: text })}
+            onChangeText={text => {
+              setValue('notes', text);
+              if (errors.notes) clearErrors('notes');
+            }}
             placeholder="Any additional notes about this appliance..."
             placeholderTextColor={colors.textSecondary}
             multiline
@@ -242,10 +331,15 @@ export default function AddApplianceScreen() {
             onBlur={handleBlur}
             returnKeyType="done"
           />
+          {errors.notes && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.notes.message}
+            </Text>
+          )}
 
           <TouchableOpacity
             style={[styles.saveButton, { backgroundColor: colors.primary }]}
-            onPress={handleSave}
+            onPress={handleSubmit(onSubmit)}
             disabled={loading}
           >
             <Ionicons name="hardware-chip" size={24} color={colors.textInverse} />
@@ -316,5 +410,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    marginTop: 4,
+    marginLeft: 4,
   },
 }); 
