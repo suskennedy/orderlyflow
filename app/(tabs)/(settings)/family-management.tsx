@@ -1,4 +1,4 @@
-import FamilyManagementScreen from '../../../components/screens/family-management-screen';
+import FamilyManagementScreen from '../../../components/settings/family-management-screen';
 
 export default function FamilyManagementRoute() {
   return <FamilyManagementScreen />;

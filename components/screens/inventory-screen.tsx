@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import reusable components
-import InventoryItemCard from '../../components/dashboard/InventoryItemCard';
+import InventoryItemCard from '../home/InventoryItemCard';
 import EmptyState from '../../components/layout/EmptyState';
 import LoadingState from '../../components/layout/LoadingState';
 import ScreenHeader from '../../components/layout/ScreenHeader';

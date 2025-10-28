@@ -9,7 +9,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import reusable components
-import HomeCard from '../../components/dashboard/HomeCard';
+import HomeCard from '../home/HomeCard';
 import EmptyState from '../../components/layout/EmptyState';
 import LoadingState from '../../components/layout/LoadingState';
 import ScreenHeader from '../../components/layout/ScreenHeader';

@@ -1,4 +1,4 @@
-import HomeScreen from "../../../components/dashboard/HomeScreen";
+import HomeScreen from "../../../components/home/HomeScreen";
 import AppLayout from "../../../components/layouts/AppLayout";
 
 export default function DashboardPage() {
