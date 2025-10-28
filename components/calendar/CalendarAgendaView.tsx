@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { FlatList, RefreshControl, StyleSheet } from 'react-native';
 import { useCalendar } from '../../lib/contexts/CalendarContext';
 import { CalendarEvent } from '../../types/database';
-import EmptyState from '../layout/EmptyState';
+import EmptyState from '../layouts/layout/EmptyState';
 import CalendarEventCard from './CalendarCard';
 
 interface CalendarAgendaViewProps {

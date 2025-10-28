@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from './useAuth';
 
@@ -43,16 +43,16 @@ export function useDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = useCallback(async () => {
     if (!user?.id) return;
 
     try {
       // Fetch all data in parallel
       const [
         homesResponse,
-        tasksResponse,
+        homeTasksResponse,
         vendorsResponse,
-        inventoryResponse,
+        appliancesResponse,
       ] = await Promise.all([
         supabase
           .from('homes')
@@ -60,9 +60,9 @@ export function useDashboard() {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
         supabase
-          .from('tasks')
+          .from('home_tasks')
           .select('id, title, status, due_date, created_at, priority')
-          .eq('user_id', user.id)
+          .eq('is_active', true)
           .order('created_at', { ascending: false }),
         supabase
           .from('vendors')
@@ -72,24 +72,23 @@ export function useDashboard() {
         supabase
           .from('appliances')
           .select('id, name, warranty_expiration, created_at')
-          .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
       ]);
 
       const homes = homesResponse.data || [];
-      const tasks = tasksResponse.data || [];
+      const tasks = homeTasksResponse.data || [];
       const vendors = vendorsResponse.data || [];
-      const inventory = inventoryResponse.data || [];
+      const inventory = appliancesResponse.data || [];
 
       // Calculate task stats
       const today = new Date().toISOString().split('T')[0];
       const taskStats = {
         total: tasks.length,
-        pending: tasks.filter(t => t.status === 'Pending').length,
-        inProgress: tasks.filter(t => t.status === 'In Progress').length,
-        completed: tasks.filter(t => t.status === 'Completed').length,
+        pending: tasks.filter(t => t.status === 'pending').length,
+        inProgress: tasks.filter(t => t.status === 'in_progress').length,
+        completed: tasks.filter(t => t.status === 'completed').length,
         overdue: tasks.filter(t => 
-          t.status !== 'Completed' && 
+          t.status !== 'completed' && 
           t.due_date && 
           t.due_date < today
         ).length,
@@ -175,7 +174,7 @@ export function useDashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [user?.id]);
 
   const refreshStats = async () => {
     setRefreshing(true);
@@ -186,7 +185,7 @@ export function useDashboard() {
     if (user?.id) {
       fetchDashboardStats();
     }
-  }, [user?.id]);
+  }, [user?.id, fetchDashboardStats]);
 
   return {
     stats,

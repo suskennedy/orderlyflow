@@ -20,6 +20,7 @@ import { supabase } from '../../lib/supabase';
 import { getVendorDisplayText } from '../../lib/utils/vendorDisplayUtils';
 import DatePicker from '../DatePicker';
 import TimePicker from '../TimePicker';
+import { Vendor } from '../../types/database';
 
 
 // Define the three main categories from the database
@@ -945,7 +946,7 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
                     </Text>
                     {repair.vendor_id && (
                       <Text style={[styles.repairProjectVendor, { color: colors.textSecondary }]}>
-                        Vendor: {getVendorDisplayText(repair, vendors)}
+                        Vendor: {getVendorDisplayText(repair, vendors as Vendor[])}
                       </Text>
                     )}
                     {repair.reminder_date && (
@@ -1012,7 +1013,7 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
                     </Text>
                     {(project.vendor_ids && project.vendor_ids.length > 0) && (
                       <Text style={[styles.repairProjectVendor, { color: colors.textSecondary }]}>
-                        Vendor: {getVendorDisplayText(project, vendors)}
+                        Vendor: {getVendorDisplayText(project, vendors as Vendor[])}
                       </Text>
                     )}
                     {project.estimated_budget && (

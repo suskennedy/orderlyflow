@@ -7,7 +7,7 @@ import { useFilters } from '../../../lib/contexts/FiltersContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
 import DatePicker from '../../DatePicker';
-import ScreenHeader from '../../layout/ScreenHeader';
+import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 export default function   AddFilterScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();

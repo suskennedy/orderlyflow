@@ -11,7 +11,7 @@ import DatePicker from '../DatePicker';
 import AddressAutocomplete from '../forms/AddressAutocomplete';
 import FoundationSelector from '../forms/FoundationSelector';
 import PhotoManager from '../forms/PhotoManager';
-import ScreenHeader from '../layout/ScreenHeader';
+import ScreenHeader from '../layouts/layout/ScreenHeader';
 
 export default function AddHomeScreen() {
   const { createHome } = useHomes();

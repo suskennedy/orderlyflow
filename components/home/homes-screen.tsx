@@ -5,8 +5,8 @@ import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View }
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import HomeCard from '../home/HomeCard';
-import ScreenHeader from '../layout/ScreenHeader';
+import HomeCard from './HomeCard';
+import ScreenHeader from '../layouts/layout/ScreenHeader';
 
 export default function HomesScreen() {
   const { homes, loading } = useHomes();
@@ -67,7 +67,7 @@ export default function HomesScreen() {
       ) : (
         <FlatList
           data={homes}
-          renderItem={({ item }) => <HomeCard home={item} />}
+          renderItem={({ item }) => <HomeCard home={item} onDelete={() => {}} />}
           keyExtractor={item => item.id}
           contentContainerStyle={[styles.listContainer, { paddingBottom: 100 }]}
           ListFooterComponent={renderFooter}

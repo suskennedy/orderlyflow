@@ -14,8 +14,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppliances } from '../../../lib/contexts/AppliancesContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import ScreenHeader from '../../layout/ScreenHeader';
-import ApplianceCard from '../home/ApplianceCard';
+import ScreenHeader from '../../layouts/layout/ScreenHeader';
+import ApplianceCard from './ApplianceCard';
 
 const { width } = Dimensions.get('window');
 

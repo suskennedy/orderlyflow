@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useTheme } from '../../lib/contexts/ThemeContext';
-import { Appliance } from '../../types/database';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { Appliance } from '../../../types/database';
 
 interface ApplianceCardProps {
   appliance: Appliance;

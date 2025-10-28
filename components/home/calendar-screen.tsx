@@ -6,11 +6,11 @@ import { DateData } from 'react-native-calendars';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import reusable components
-import CalendarAgendaView from '../../components/calendar/CalendarAgendaView';
-import CalendarMonthView from '../../components/calendar/CalendarMonthView';
-import CalendarViewToggle from '../../components/calendar/CalendarViewToggle';
-import LoadingState from '../../components/layout/LoadingState';
-import DeleteConfirmationModal from '../../components/ui/DeleteConfirmationModal';
+  import CalendarAgendaView from '../calendar/CalendarAgendaView';
+import CalendarMonthView from '../calendar/CalendarMonthView';
+import CalendarViewToggle from '../calendar/CalendarViewToggle';
+import LoadingState from '../layouts/layout/LoadingState';
+import DeleteConfirmationModal from '../ui/DeleteConfirmationModal';
 
 // Import hooks and utilities
 import { useCalendar } from '../../lib/contexts/CalendarContext';

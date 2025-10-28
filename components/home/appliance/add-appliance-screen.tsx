@@ -3,11 +3,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAppliances } from '../../lib/contexts/AppliancesContext';
-import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useToast } from '../../lib/contexts/ToastContext';
-import DatePicker from '../DatePicker';
-import ScreenHeader from '../layout/ScreenHeader';
+import { useAppliances } from '../../../lib/contexts/AppliancesContext';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useToast } from '../../../lib/contexts/ToastContext';
+import DatePicker from '../../DatePicker';
+import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 export default function AddApplianceScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();

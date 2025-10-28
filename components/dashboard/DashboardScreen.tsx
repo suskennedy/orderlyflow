@@ -99,7 +99,7 @@ export default function DashboardScreen() {
         total: allTasks.length
       });
     }
-  }, [allTasks, getTasksForThisWeek, getTasksForThisMonth, getTasksForThisYear]);
+  }, [allTasks]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -786,7 +786,7 @@ export default function DashboardScreen() {
     <View style={styles.recentActivityContainer}>
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
-        <TouchableOpacity onPress={() => router.push(routes.tasks.index as any)}>
+        <TouchableOpacity onPress={() => router.push(routes.tasks.selector as any)}>
           <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
         </TouchableOpacity>
       </View>
@@ -839,7 +839,7 @@ export default function DashboardScreen() {
         <View style={styles.upcomingTasksContainer}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Upcoming Tasks</Text>
-            <TouchableOpacity onPress={() => router.push(routes.tasks.index as any)}>
+            <TouchableOpacity onPress={() => router.push(routes.tasks.selector as any)}>
               <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -847,7 +847,7 @@ export default function DashboardScreen() {
             <Ionicons name="checkmark-circle-outline" size={48} color={colors.textTertiary} />
             <Text style={[styles.emptyStateTitle, { color: colors.text }]}>No Upcoming Tasks</Text>
             <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
-              You're all caught up! Add new tasks to see them here.
+              You&apos;re all caught up! Add new tasks to see them here.
             </Text>
             <TouchableOpacity
               style={[styles.addTaskButton, { backgroundColor: colors.primary }]}
@@ -865,7 +865,7 @@ export default function DashboardScreen() {
       <View style={styles.upcomingTasksContainer}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Upcoming Tasks</Text>
-          <TouchableOpacity onPress={() => router.push(routes.tasks.index as any)}>
+          <TouchableOpacity onPress={() => router.push(routes.tasks.selector as any)}>
             <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
           </TouchableOpacity>
         </View>
@@ -909,7 +909,7 @@ export default function DashboardScreen() {
                 { backgroundColor: colors.surface },
                 isOverdue && { borderLeftWidth: 4, borderLeftColor: colors.error }
               ]}
-              onPress={() => router.push(routes.tasks.index as any)}
+              onPress={() => router.push(routes.tasks.selector as any)}
             >
               <View style={styles.taskCardHeader}>
                 <View style={styles.taskCardLeft}>

@@ -28,9 +28,10 @@ interface Filter {
 }
 
 function FilterDetailScreen() {
+  const { homeId } = useLocalSearchParams<{ homeId: string }>();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { filters, deleteFilter } = useFilters();
+  const { filters, deleteFilter } = useFilters(homeId);
   const params = useLocalSearchParams();
   const filterId = params.id as string;
 
@@ -39,7 +40,7 @@ function FilterDetailScreen() {
   useEffect(() => {
     const foundFilter = filters.find((f: any) => f.id === filterId);
     if (foundFilter) {
-      setFilter(foundFilter);
+      setFilter(foundFilter as Filter);
     }
   }, [filters, filterId]);
 

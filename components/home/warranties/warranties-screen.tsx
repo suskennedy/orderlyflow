@@ -4,7 +4,7 @@ import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useWarranties } from '../../../lib/contexts/WarrantiesContext';
-import ScreenHeader from '../../layout/ScreenHeader';
+import ScreenHeader from '../../layouts/layout/ScreenHeader';
 import WarrantyCard from './WarrantyCard';
 
 export default function WarrantiesScreen() {

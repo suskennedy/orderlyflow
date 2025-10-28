@@ -3,10 +3,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useMaterials } from '../../lib/contexts/MaterialsContext';
-import { useTheme } from '../../lib/contexts/ThemeContext';
-import DatePicker from '../DatePicker';
-import ScreenHeader from '../layout/ScreenHeader';
+import { useMaterials } from '../../../lib/contexts/MaterialsContext';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
+import DatePicker from '../../DatePicker';
+import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 export default function AddMaterialScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();

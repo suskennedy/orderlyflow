@@ -3,10 +3,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePaints } from '../../lib/contexts/PaintsContext';
-import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useToast } from '../../lib/contexts/ToastContext';
-import ScreenHeader from '../layout/ScreenHeader';
+import { usePaints } from '../../../lib/contexts/PaintsContext';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useToast } from '../../../lib/contexts/ToastContext';
+import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 // Paint color database for autopopulation
 const PAINT_COLORS: { [key: string]: { color_hex: string; color_code: string; brand?: string } } = {

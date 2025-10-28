@@ -76,7 +76,7 @@ export const ProjectsProvider = ({ children }: ProjectsProviderProps) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProjects(data || []);
+      setProjects(data as Project[] || []);
     } catch (error) {
       console.error('Error fetching projects:', error);
     } finally {
@@ -143,7 +143,7 @@ export const ProjectsProvider = ({ children }: ProjectsProviderProps) => {
       // Calendar event will be created automatically by database trigger
       // if start_date is provided
       
-      setProjects(prev => [data, ...prev]);
+      setProjects(prev => [data as Project, ...prev]);
     } catch (error) {
       console.error('Error adding project:', error);
       throw error;
@@ -165,7 +165,7 @@ export const ProjectsProvider = ({ children }: ProjectsProviderProps) => {
       if (error) throw error;
       
       setProjects(prev => prev.map(project => 
-        project.id === id ? data : project
+        project.id === id ? data as Project : project
       ));
     } catch (error) {
       console.error('Error updating project:', error);

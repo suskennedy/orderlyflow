@@ -168,7 +168,7 @@ export default function HomeScreen() {
   };
 
   // Filter tasks, repairs, and projects based on current date and time
-  const filterTasksByTimePeriod = () => {
+  const filterTasksByTimePeriod = (): { thisWeekTasks: any[], thisMonthTasks: any[], thisYearTasks: any[] } => {
     const now = new Date();
     const { startOfWeek, endOfWeek } = getCurrentWeekRange();
     const { startOfMonth, endOfMonth } = getCurrentMonthRange();
@@ -192,35 +192,9 @@ export default function HomeScreen() {
     const repairTasks = (repairs || []).map(repair => ({
       ...repair,
       title: `🔧 ${repair.title}`,
-      due_date: repair.due_date,
-      status: repair.status === 'completed' ? 'completed' : 'pending',
-      category: 'Repairs',
-      is_active: true
+        due_date: repair.reminder_date || null,
+      status: repair.status === 'complete' ? 'completed' : 'pending',
     }));
-
-    // Convert projects to task-like format for filtering
-    const projectTasks = (projects || []).map(project => ({
-      ...project,
-      title: `🏗️ ${project.title}`,
-      due_date: project.start_date,
-      status: project.status === 'completed' ? 'completed' : 'pending',
-      category: 'Projects',
-      is_active: true
-    }));
-
-    // Combine all items
-    const allItems = [...userTasks, ...repairTasks, ...projectTasks];
-
-    // Filter items for this week
-    const thisWeekTasks = allItems.filter(task => {
-      if (task.status === 'completed') return false; // Already filtered for active tasks
-      
-      const dueDate = getTaskDueDate(task);
-      if (!dueDate) return false;
-      
-      const taskDueDate = new Date(dueDate);
-      return isDateInRange(taskDueDate, startOfWeek, endOfWeek);
-    });
 
     // Filter tasks for this month (excluding this week)
     const thisMonthTasks = userTasks.filter(task => {
@@ -237,7 +211,7 @@ export default function HomeScreen() {
     });
 
     // Filter items for this year (excluding this week and this month)
-    const thisYearTasks = allItems.filter(task => {
+    const thisYearTasks = [...userTasks, ...repairTasks].filter(task => {
       if (task.status === 'completed') return false; // Already filtered for active tasks
       
       const dueDate = getTaskDueDate(task);
@@ -252,11 +226,7 @@ export default function HomeScreen() {
     });
 
     console.log('Item counts:', {
-      total: allItems.length,
-      tasks: userTasks.length,
-      repairs: repairTasks.length,
-      projects: projectTasks.length,
-      thisWeek: thisWeekTasks.length,
+        total: [...userTasks, ...repairTasks].length,
       thisMonth: thisMonthTasks.length,
       thisYear: thisYearTasks.length
     });

@@ -6,7 +6,7 @@ import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
 import { useWarranties } from '../../../lib/contexts/WarrantiesContext';
 import DatePicker from '../../DatePicker';
-import ScreenHeader from '../../layout/ScreenHeader';
+import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 export default function AddWarrantyScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();

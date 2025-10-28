@@ -4,8 +4,8 @@ import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFilters } from '../../../lib/contexts/FiltersContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import FilterCard from '../home/FilterCard';
-import ScreenHeader from '../../layout/ScreenHeader';
+import FilterCard from './FilterCard';
+import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 export default function FiltersScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();

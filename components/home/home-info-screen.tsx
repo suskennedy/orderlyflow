@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, S
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import ScreenHeader from '../layout/ScreenHeader';
+import ScreenHeader from '../layouts/layout/ScreenHeader';
 
 export default function HomeInfoScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();

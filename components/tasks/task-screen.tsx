@@ -21,6 +21,7 @@ import { getVendorDisplayText } from '../../lib/utils/vendorDisplayUtils';
 import TaskCompletionModal from '../TaskCompletionModal';
 import TaskSkeleton from '../ui/TaskSkeleton';
 import TaskSpinner from '../ui/TaskSpinner';
+import { Vendor } from '../../types/database';
 
 interface TasksScreenProps {
   homeId?: string;
@@ -320,7 +321,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
             <View style={styles.dropdownRow}>
               <Text style={[styles.dropdownLabel, { color: colors.textSecondary }]}>Assigned Vendor</Text>
               <Text style={[styles.dropdownValue, { color: colors.text }]}>
-                {getVendorDisplayText(item, vendors)}
+                {getVendorDisplayText(item, vendors as Vendor[])}
               </Text>
             </View>
             

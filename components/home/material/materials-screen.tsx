@@ -4,7 +4,7 @@ import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMaterials } from '../../../lib/contexts/MaterialsContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import ScreenHeader from '../../layout/ScreenHeader';
+import ScreenHeader from '../../layouts/layout/ScreenHeader';
 import MaterialCard from './MaterialCard';
 
 export default function MaterialsScreen() {

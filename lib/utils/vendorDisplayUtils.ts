@@ -1,5 +1,6 @@
 // lib/utils/vendorDisplayUtils.ts
-import { Vendor } from '../contexts/VendorsContext';
+
+import { Vendor } from "../../types/database";
 
 export interface VendorDisplayInfo {
   vendorNames: string[];

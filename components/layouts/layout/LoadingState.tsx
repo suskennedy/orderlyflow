@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { useTheme } from '../../lib/contexts/ThemeContext';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
 
 interface LoadingStateProps {
   message?: string;

@@ -1,4 +1,4 @@
-import { Database } from '../../supabase';
+import { Database } from '../../supabase-types';
 import { supabase } from '../supabase';
 
 // Define the inventory item types based on your schema
