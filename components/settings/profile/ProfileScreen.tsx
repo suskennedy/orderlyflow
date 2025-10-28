@@ -3,11 +3,11 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFamily } from '../../lib/contexts/FamilyContext';
-import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useAuth } from '../../lib/hooks/useAuth';
-import { supabase } from '../../lib/supabase';
-import { ProfileSkeleton } from '../ui/ProfileSkeleton';
+import { useFamily } from '../../../lib/contexts/FamilyContext';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useAuth } from '../../../lib/hooks/useAuth';
+import { supabase } from '../../../lib/supabase';
+import { ProfileSkeleton } from '../../ui/ProfileSkeleton';
 
 interface UserProfile {
   id: string;

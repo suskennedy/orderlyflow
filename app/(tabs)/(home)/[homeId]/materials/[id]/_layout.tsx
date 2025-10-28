@@ -1,13 +1,3 @@
-import { Stack } from 'expo-router';
+import DetailLayout from '../../../../../../components/layouts/DetailLayout';
 
-export default function MaterialDetailLayout() {
-  return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Stack.Screen name="edit" />
-    </Stack>
-  );
-} 
+export default DetailLayout; 

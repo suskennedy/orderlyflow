@@ -1,27 +1,3 @@
-import { Stack } from 'expo-router';
-import React from 'react';
+import HomeDetailLayout from '../../../../components/layouts/HomeDetailLayout';
 
-export default function HomeDetailLayout() {
-  return (
-    <Stack 
-      screenOptions={{ 
-        headerShown: false,
-        contentStyle: {
-          backgroundColor: '#fff',
-        },
-        animation: "slide_from_right",
-      }}
-    >
-      <Stack.Screen name="index" />
-      <Stack.Screen name="edit" />
-      <Stack.Screen name="info" />
-      <Stack.Screen name="appliances" />
-      <Stack.Screen name="paints" />
-      <Stack.Screen name="warranties" />
-      <Stack.Screen name="materials" />
-      <Stack.Screen name="filters" />
-      <Stack.Screen name="tasks" />
-      <Stack.Screen name="calendar" />
-    </Stack>
-  );
-} 
+export default HomeDetailLayout; 

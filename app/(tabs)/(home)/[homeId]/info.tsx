@@ -1,4 +1,4 @@
-import HomeInfoScreen from '../../../../components/screens/home-info-screen';
+import HomeInfoScreen from '../../../../components/home/home-info-screen';
 
 export default function HomeInfoPage() {
   return <HomeInfoScreen />;

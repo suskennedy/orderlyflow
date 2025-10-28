@@ -3,9 +3,9 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useAuth } from '../../lib/hooks/useAuth';
-import { supabase } from '../../lib/supabase';
+import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useAuth } from '../../../lib/hooks/useAuth';
+import { supabase } from '../../../lib/supabase';
 interface ProfileData {
   full_name: string | null;
   display_name: string | null;

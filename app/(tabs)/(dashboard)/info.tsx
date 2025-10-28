@@ -1,5 +1,5 @@
 import React from 'react'
-import InfoScreen from '../../../components/screens/Info-Screen'
+import InfoScreen from '../../../components/settings/Info-Screen'
 
 const Info = () => {
   return (

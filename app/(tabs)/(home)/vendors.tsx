@@ -1,3 +1,3 @@
-import VendorsScreen from '../../../components/home/VendorsScreen';
+import VendorsScreen from '../../../components/vendors/vendors-screen';
 
 export default VendorsScreen; 

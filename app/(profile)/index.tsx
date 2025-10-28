@@ -1,5 +1,5 @@
 import React from 'react';
-import ProfileScreen from '../../components/screens/ProfileScreen';
+import ProfileScreen from '../../components/settings/profile/ProfileScreen';
 
 export default function ProfileIndex() {
   return <ProfileScreen />;

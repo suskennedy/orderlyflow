@@ -1,0 +1,28 @@
+import { Stack } from 'expo-router';
+import React from 'react';
+import BaseStackLayout from './BaseStackLayout';
+
+export default function HomeTasksLayout() {
+  return (
+    <BaseStackLayout headerShown={false}>
+      <Stack.Screen
+        name="index"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="settings"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="add"
+        options={{
+          headerShown: false,
+        }}
+      />
+    </BaseStackLayout>
+  );
+}

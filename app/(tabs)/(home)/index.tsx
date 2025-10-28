@@ -1,5 +1,5 @@
+import HomesScreen from '../../../components/home/homes-screen';
 import AppLayout from '../../../components/layouts/AppLayout';
-import HomesScreen from '../../../components/screens/homes-screen';
 
 export default function App() {
   return (
