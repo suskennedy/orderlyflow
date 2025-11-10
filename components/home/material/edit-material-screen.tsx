@@ -13,8 +13,8 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useMaterials } from '../../../lib/contexts/MaterialsContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useMaterials } from '../../../lib/hooks/useMaterials';
 import DatePicker from '../../DatePicker';
 
 interface Material {

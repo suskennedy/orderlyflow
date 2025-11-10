@@ -2,25 +2,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useProjects } from '../../lib/contexts/ProjectsContext';
-import { useRepairs } from '../../lib/contexts/RepairsContext';
-import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
-import { useVendors } from '../../lib/contexts/VendorsContext';
+import { useProjects } from '../../lib/hooks/useProjects';
+import { useRepairs } from '../../lib/hooks/useRepairs';
+import { useTasks } from '../../lib/hooks/useTasks';
+import { useVendors } from '../../lib/hooks/useVendors';
 import { supabase } from '../../lib/supabase';
 import { getVendorDisplayText } from '../../lib/utils/vendorDisplayUtils';
+import { Vendor } from '../../types/database';
 import DatePicker from '../DatePicker';
 import TimePicker from '../TimePicker';
-import { Vendor } from '../../types/database';
 
 
 // Define the three main categories from the database
@@ -62,15 +62,24 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
   const { projects, fetchProjects } = useProjects();
   const { showToast } = useToast();
 
-  // Set current home when component mounts
+  // Set current home when component mounts - use ref to prevent loops
+  const lastHomeIdRef = React.useRef<string | undefined>(undefined);
+  const hasInitializedRef = React.useRef(false);
+  
   useEffect(() => {
-    if (homeId) {
+    if (!homeId || homeId === lastHomeIdRef.current) return;
+    
+    lastHomeIdRef.current = homeId;
+    
+    if (!hasInitializedRef.current) {
+      hasInitializedRef.current = true;
       fetchTemplateTasks();
       setCurrentHome(homeId);
       fetchRepairs(homeId);
       fetchProjects(homeId);
     }
-  }, [homeId, setCurrentHome, fetchRepairs, fetchProjects, fetchTemplateTasks]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homeId]); // Only depend on homeId - functions are stable
   
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());

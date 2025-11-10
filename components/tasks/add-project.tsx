@@ -13,11 +13,11 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { useFamily } from '../../lib/contexts/FamilyContext';
-import { useProjects } from '../../lib/contexts/ProjectsContext';
-import { useVendors } from '../../lib/contexts/VendorsContext';
 import { useAuth } from '../../lib/hooks/useAuth';
+import { useFamily } from '../../lib/hooks/useFamily';
 import { useHomes } from '../../lib/hooks/useHomes';
+import { useProjects } from '../../lib/hooks/useProjects';
+import { useVendors } from '../../lib/hooks/useVendors';
 import { PROJECT_STATUS, PROJECT_TYPES, ProjectFormData, projectFormSchema } from '../../lib/schemas/projectSchema';
 import DatePicker from '../DatePicker';
 import PhotoUploader from '../ui/PhotoUploader';
@@ -63,12 +63,15 @@ export default function AddProjectScreen() {
     },
   });
 
-  // Load home context if needed
+  // Load home context if needed - use ref to prevent loops
+  const lastHomeIdRef = React.useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (homeId && typeof homeId === 'string') {
+    if (homeId && typeof homeId === 'string' && homeId !== lastHomeIdRef.current) {
+      lastHomeIdRef.current = homeId;
       getHomeById(homeId);
     }
-  }, [homeId, getHomeById]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homeId]); // Only depend on homeId - getHomeById is stable
 
   const onSubmit: (data: ProjectFormData) => Promise<void> = async (data: ProjectFormData) => {
     if (!homeId || typeof homeId !== 'string') {

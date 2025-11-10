@@ -13,12 +13,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useFamily } from '../../lib/contexts/FamilyContext';
-import { useProjects } from '../../lib/contexts/ProjectsContext';
-import { useVendors } from '../../lib/contexts/VendorsContext';
 import { useAuth } from '../../lib/hooks/useAuth';
+import { useFamily } from '../../lib/hooks/useFamily';
+import { useProjects } from '../../lib/hooks/useProjects';
+import { useVendors } from '../../lib/hooks/useVendors';
 import { PROJECT_STATUS, PROJECT_TYPES } from '../../lib/schemas/projectSchema';
 import { UploadResult } from '../../lib/services/uploadService';
+import { supabase } from '../../lib/supabase';
 import DatePicker from '../DatePicker';
 import MediaPreview from '../ui/MediaPreview';
 import PhotoUploader from '../ui/PhotoUploader';
@@ -29,7 +30,6 @@ export default function ProjectDetailScreen() {
   const { projects, updateProject, deleteProject } = useProjects();
   const { vendors } = useVendors();
   const { familyMembers } = useFamily();
-  const { user } = useAuth();
 
   const [project, setProject] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -58,34 +58,88 @@ export default function ProjectDetailScreen() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const { setCurrentHome, fetchProjects } = useProjects();
+  const { user } = useAuth();
+
+  // Fetch project directly if not in current array - use ref to prevent loops
+  const hasFetchedRef = React.useRef(false);
+  const lastIdRef = React.useRef<string | undefined>(undefined);
+  
   useEffect(() => {
-    if (id && projects.length > 0) {
-      const foundProject = projects.find((p: any) => p.id === id);
-      if (foundProject) {
-        setProject(foundProject);
-        setFormData({
-          title: foundProject.title || '',
-          description: foundProject.description || '',
-          project_type: foundProject.project_type || '',
-          status: foundProject.status || 'not_started',
-          estimated_budget: foundProject.estimated_budget?.toString() || '',
-          current_spend: foundProject.current_spend?.toString() || '',
-          final_cost: foundProject.final_cost?.toString() || '',
-          start_date: foundProject.start_date || '',
-          target_completion_date: foundProject.target_completion_date || '',
-          completion_date: foundProject.completion_date || '',
-          location_in_home: foundProject.location_in_home || '',
-          vendor_ids: foundProject.vendor_ids || [],
-          assigned_user_ids: foundProject.assigned_user_ids || [],
-          reminders_enabled: foundProject.reminders_enabled || false,
-          reminder_date: foundProject.reminder_date || '',
-          notes: foundProject.notes || '',
-          subtasks: foundProject.subtasks || [],
-        });
-        setUploadedFiles(foundProject.photos_inspiration || []);
-      }
+    // Reset if id changes
+    if (id !== lastIdRef.current) {
+      hasFetchedRef.current = false;
+      lastIdRef.current = id as string | undefined;
+      setProject(null);
     }
-  }, [id, projects]);
+    
+    if (!id || hasFetchedRef.current || project) return;
+    
+    hasFetchedRef.current = true;
+    
+    // First try to find in current projects array
+    const foundProject = projects.find((p: any) => p.id === id);
+    if (foundProject) {
+      if (foundProject.home_id) {
+        setCurrentHome(foundProject.home_id);
+      }
+      setProject(foundProject);
+    } else if (user?.id) {
+      // If not found, fetch from database
+      const fetchProject = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('projects')
+            .select('*')
+            .eq('id', id as string)
+            .single();
+          
+          if (!error && data) {
+            const projectData = data as any;
+            if (projectData.home_id) {
+              setCurrentHome(projectData.home_id);
+              await fetchProjects(projectData.home_id);
+            }
+            setProject(projectData);
+          }
+        } catch (error) {
+          console.error('Error fetching project:', error);
+          hasFetchedRef.current = false; // Reset on error
+        }
+      };
+      fetchProject();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user?.id]); // Only depend on id and user?.id - projects array changes too frequently
+
+  // Update form data when project is found - separate effect to avoid loops
+  const lastProjectIdRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (project && project.id !== lastProjectIdRef.current && !isEditing) {
+      lastProjectIdRef.current = project.id;
+      setFormData({
+        title: project.title || '',
+        description: project.description || '',
+        project_type: project.project_type || '',
+        status: project.status || 'not_started',
+        estimated_budget: project.estimated_budget?.toString() || '',
+        current_spend: project.current_spend?.toString() || '',
+        final_cost: project.final_cost?.toString() || '',
+        start_date: project.start_date || '',
+        target_completion_date: project.target_completion_date || '',
+        completion_date: project.completion_date || '',
+        location_in_home: project.location_in_home || '',
+        vendor_ids: project.vendor_ids || [],
+        assigned_user_ids: project.assigned_user_ids || [],
+        reminders_enabled: project.reminders_enabled || false,
+        reminder_date: project.reminder_date || '',
+        notes: project.notes || '',
+        subtasks: project.subtasks || [],
+      });
+      setUploadedFiles(project.photos_inspiration || []);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id, isEditing]); // Only depend on project id and editing state
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};

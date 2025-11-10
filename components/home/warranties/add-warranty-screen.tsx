@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
-import { useWarranties } from '../../../lib/contexts/WarrantiesContext';
+import { useWarranties } from '../../../lib/hooks/useWarranties';
 import { WarrantyFormData, transformWarrantyFormData, warrantyFormSchema } from '../../../lib/schemas/home/warrantyFormSchema';
 import DatePicker from '../../DatePicker';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';

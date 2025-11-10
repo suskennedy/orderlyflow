@@ -13,10 +13,10 @@ import LoadingState from '../layouts/layout/LoadingState';
 import DeleteConfirmationModal from '../ui/DeleteConfirmationModal';
 
 // Import hooks and utilities
-import { useCalendar } from '../../lib/contexts/CalendarContext';
-import { useHomes } from '../../lib/contexts/HomesContext';
-import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { useCalendar } from '../../lib/hooks/useCalendar';
+import { useHomes } from '../../lib/hooks/useHomes';
+import { useTasks } from '../../lib/hooks/useTasks';
 import { getCalendarTheme, getColorHex } from '../../lib/utils/colorHelpers';
 
 // Define MarkingProps interface for TypeScript

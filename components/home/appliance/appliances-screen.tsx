@@ -12,8 +12,8 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAppliances } from '../../../lib/contexts/AppliancesContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useAppliances } from '../../../lib/hooks/useAppliances';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 import ApplianceCard from './ApplianceCard';
 
@@ -21,7 +21,7 @@ const { width } = Dimensions.get('window');
 
 export default function AppliancesScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { appliances, loading } = useAppliances();
+  const { appliances, loading } = useAppliances(homeId || '');
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   

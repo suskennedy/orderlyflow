@@ -13,8 +13,8 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FiltersProvider, useFilters } from '../../../lib/contexts/FiltersContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useFilters } from '../../../lib/hooks/useFilters';
 import DatePicker from '../../DatePicker';
 
 
@@ -334,11 +334,7 @@ export default function EditFilterScreenWrapper() {
   const params = useLocalSearchParams();
   const homeId = params.homeId as string;
   
-  return (
-    <FiltersProvider homeId={homeId}>
-      <EditFilterScreen />
-    </FiltersProvider>
-  );
+  return <EditFilterScreen />;
 }
 
 const styles = StyleSheet.create({

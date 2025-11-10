@@ -5,9 +5,9 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePaints } from '../../../lib/contexts/PaintsContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
+import { usePaints } from '../../../lib/hooks/usePaints';
 import { PaintColorFormData, paintColorFormSchema, transformPaintColorFormData } from '../../../lib/schemas/home/paintColorFormSchema';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 

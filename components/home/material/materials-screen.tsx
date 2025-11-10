@@ -2,8 +2,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useMaterials } from '../../../lib/contexts/MaterialsContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useMaterials } from '../../../lib/hooks/useMaterials';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 import MaterialCard from './MaterialCard';
 

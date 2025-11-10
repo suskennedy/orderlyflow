@@ -10,9 +10,9 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useVendors } from '../../lib/contexts/VendorsContext';
+import { useTasks } from '../../lib/hooks/useTasks';
+import { useVendors } from '../../lib/hooks/useVendors';
 
 interface Vendor {
   id: string;
@@ -54,20 +54,32 @@ export default function VendorDetailScreen() {
     }
   }, [id, vendors]);
 
-  // Force refresh tasks when component mounts
+  // Force refresh tasks when component mounts (only once) - use ref to prevent loops
+  const hasRefreshedRef = React.useRef(false);
   useEffect(() => {
+    if (hasRefreshedRef.current) return;
+    
     console.log('VendorDetail: Component mounted, refreshing all tasks...');
-    fetchAllHomeTasks();
-  }, [fetchAllHomeTasks]);
+    hasRefreshedRef.current = true;
+    // Use setTimeout to ensure this runs after initial render
+    setTimeout(() => {
+      fetchAllHomeTasks().catch(console.error);
+    }, 100);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run once on mount
 
-  // Debug: Monitor allHomeTasks changes
+  // Debug: Monitor allHomeTasks changes - memoize to prevent loops
+  const vendorTasks = React.useMemo(() => {
+    if (!vendor) return [];
+    return getVendorTasks(vendor.id);
+  }, [vendor, allHomeTasks, getVendorTasks]);
+  
   useEffect(() => {
     console.log('VendorDetail: allHomeTasks updated:', allHomeTasks.length);
     if (vendor) {
-      const vendorTasks = getVendorTasks(vendor.id);
       console.log('VendorDetail: Tasks for vendor', vendor.id, ':', vendorTasks.length);
     }
-  }, [allHomeTasks, vendor, getVendorTasks]);
+  }, [allHomeTasks.length, vendor?.id, vendorTasks.length]);
 
   if (!vendor) {
     return (
@@ -271,7 +283,6 @@ export default function VendorDetailScreen() {
 
           {/* Assigned Tasks */}
           {(() => {
-            const vendorTasks = getVendorTasks(vendor.id);
             return (
               <View style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>

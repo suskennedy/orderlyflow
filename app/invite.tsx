@@ -9,9 +9,9 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFamily } from '../lib/contexts/FamilyContext';
 import { useTheme } from '../lib/contexts/ThemeContext';
 import { useAuth } from '../lib/hooks/useAuth';
+import { useFamily } from '../lib/hooks/useFamily';
 
 export default function InviteScreen() {
   const { colors } = useTheme();

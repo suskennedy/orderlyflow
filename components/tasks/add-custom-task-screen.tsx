@@ -4,20 +4,20 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Resolver, useForm } from 'react-hook-form';
 import {
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHomes } from '../../lib/contexts/HomesContext';
-import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
-import { useVendors } from '../../lib/contexts/VendorsContext';
+import { useHomes } from '../../lib/hooks/useHomes';
+import { useTasks } from '../../lib/hooks/useTasks';
+import { useVendors } from '../../lib/hooks/useVendors';
 import { CustomTaskFormData, customTaskFormSchema, transformCustomTaskFormData } from '../../lib/schemas/tasks/customTaskFormSchema';
 import DatePicker from '../DatePicker';
 

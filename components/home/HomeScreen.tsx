@@ -2,20 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
-import { useCalendar } from '../../lib/contexts/CalendarContext';
-import { useHomes } from '../../lib/contexts/HomesContext';
-import { useProjects } from '../../lib/contexts/ProjectsContext';
-import { useRepairs } from '../../lib/contexts/RepairsContext';
-import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useVendors } from '../../lib/contexts/VendorsContext';
+import { useCalendar } from '../../lib/hooks/useCalendar';
+import { useHomes } from '../../lib/hooks/useHomes';
+import { useProjects } from '../../lib/hooks/useProjects';
+import { useRepairs } from '../../lib/hooks/useRepairs';
+import { useTasks } from '../../lib/hooks/useTasks';
+import { useVendors } from '../../lib/hooks/useVendors';
 import { routes } from '../../lib/navigation';
 import TaskCompletionModal from '../ui/TaskCompletionModal';
 
@@ -33,16 +33,17 @@ export default function HomeScreen() {
   const [selectedTaskForCompletion, setSelectedTaskForCompletion] = useState<any>(null);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
 
-  // Use allHomeTasks to show tasks from all homes
-  const allTasks = allHomeTasks || [];
+  // Use allHomeTasks to show tasks from all homes - ensure it's always an array
+  const allTasks = Array.isArray(allHomeTasks) ? allHomeTasks : [];
+  const homesArray = Array.isArray(homes) ? homes : [];
  
   const onRefresh = () => {
     setRefreshing(true);
     Promise.all([
       fetchAllHomeTasks().catch(console.error),
       // Fetch repairs and projects for all homes
-      ...homes.map(home => fetchRepairs(home.id).catch(console.error)),
-      ...homes.map(home => fetchProjects(home.id).catch(console.error)),
+      ...homesArray.map(home => fetchRepairs(home.id).catch(console.error)),
+      ...homesArray.map(home => fetchProjects(home.id).catch(console.error)),
       eventsRefresh?.() || Promise.resolve(),
       vendorsRefresh?.() || Promise.resolve(),
     ]).finally(() => {
@@ -167,8 +168,8 @@ export default function HomeScreen() {
     return task.next_due || task.due_date;
   };
 
-  // Filter tasks, repairs, and projects based on current date and time
-  const filterTasksByTimePeriod = (): { thisWeekTasks: any[], thisMonthTasks: any[], thisYearTasks: any[] } => {
+  // Filter tasks, repairs, and projects based on current date and time - memoized to prevent re-renders
+  const filterTasksByTimePeriod = React.useMemo((): { thisWeekTasks: any[], thisMonthTasks: any[], thisYearTasks: any[] } => {
     const now = new Date();
     const { startOfWeek, endOfWeek } = getCurrentWeekRange();
     const { startOfMonth, endOfMonth } = getCurrentMonthRange();
@@ -184,17 +185,30 @@ export default function HomeScreen() {
       yearEnd: endOfYear.toISOString()
     });
 
-    const userTasks = (allTasks || []).filter(task => 
+    const userTasks = Array.isArray(allTasks) ? allTasks.filter(task => 
       task.is_active === true // Only show active home tasks
-    );
+    ) : [];
 
     // Convert repairs to task-like format for filtering
-    const repairTasks = (repairs || []).map(repair => ({
+    const repairTasks = Array.isArray(repairs) ? repairs.map(repair => ({
       ...repair,
       title: `🔧 ${repair.title}`,
         due_date: repair.reminder_date || null,
       status: repair.status === 'complete' ? 'completed' : 'pending',
-    }));
+    })) : [];
+
+    // Filter tasks for this week
+    const thisWeekTasks = [...userTasks, ...repairTasks].filter(task => {
+      if (task.status === 'completed') return false; // Already filtered for active tasks
+      
+      const dueDate = getTaskDueDate(task);
+      if (!dueDate) return false;
+      
+      const taskDueDate = new Date(dueDate);
+      
+      // Must be in this week
+      return isDateInRange(taskDueDate, startOfWeek, endOfWeek);
+    });
 
     // Filter tasks for this month (excluding this week)
     const thisMonthTasks = userTasks.filter(task => {
@@ -227,18 +241,23 @@ export default function HomeScreen() {
 
     console.log('Item counts:', {
         total: [...userTasks, ...repairTasks].length,
-      thisMonth: thisMonthTasks.length,
-      thisYear: thisYearTasks.length
+      thisWeek: Array.isArray(thisWeekTasks) ? thisWeekTasks.length : 0,
+      thisMonth: Array.isArray(thisMonthTasks) ? thisMonthTasks.length : 0,
+      thisYear: Array.isArray(thisYearTasks) ? thisYearTasks.length : 0
     });
 
-    return { thisWeekTasks, thisMonthTasks, thisYearTasks };
-  };
+    return { 
+      thisWeekTasks: Array.isArray(thisWeekTasks) ? thisWeekTasks : [],
+      thisMonthTasks: Array.isArray(thisMonthTasks) ? thisMonthTasks : [],
+      thisYearTasks: Array.isArray(thisYearTasks) ? thisYearTasks : []
+    };
+  }, [allTasks, repairs]);
 
 
   const renderTaskList = (tasks: any[]) => {
     return tasks.slice(0, tasksToShow).map((task, index) => {
       // Get home name for the task by matching home_id with homes array
-      const homeName = homes.find(home => home.id === task.home_id)?.name || 'Unknown Home';
+      const homeName = Array.isArray(homes) ? homes.find(home => home.id === task.home_id)?.name || 'Unknown Home' : 'Unknown Home';
       
       return (
         <View key={task.id || index} style={styles.taskItem}>
@@ -271,7 +290,11 @@ export default function HomeScreen() {
     });
   };
 
-  const { thisWeekTasks, thisMonthTasks, thisYearTasks } = filterTasksByTimePeriod();
+  const { thisWeekTasks, thisMonthTasks, thisYearTasks } = filterTasksByTimePeriod;
+  // Ensure all task arrays are always arrays
+  const safeThisWeekTasks = Array.isArray(thisWeekTasks) ? thisWeekTasks : [];
+  const safeThisMonthTasks = Array.isArray(thisMonthTasks) ? thisMonthTasks : [];
+  const safeThisYearTasks = Array.isArray(thisYearTasks) ? thisYearTasks : [];
 
 
   const renderHeader = () => (
@@ -350,7 +373,7 @@ export default function HomeScreen() {
           style={[styles.quickLinkButton, { backgroundColor: colors.primaryLight }]}
           onPress={() => {
             // Check if user has homes, if not redirect to add home first
-            if (homes.length === 0) {
+            if (!Array.isArray(homes) || homes.length === 0) {
               router.push(routes.home.add as any);
             } else {
               // Navigate to the first home's appliances page
@@ -404,9 +427,9 @@ export default function HomeScreen() {
           <View style={styles.singleColumnContainer}>
             <View style={styles.timeSection}>
               <Text style={[styles.columnTitle, { color: colors.text }]}>This Week</Text>
-              {thisWeekTasks.length > 0 ? (
+              {safeThisWeekTasks.length > 0 ? (
                 <View style={styles.taskItems}>
-                  {renderTaskList(thisWeekTasks)}
+                  {renderTaskList(safeThisWeekTasks)}
                 </View>
               ) : (
                 <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks due this week</Text>
@@ -415,9 +438,9 @@ export default function HomeScreen() {
 
             <View style={styles.timeSection}>
               <Text style={[styles.columnTitle, { color: colors.text }]}>This Month</Text>
-              {thisMonthTasks.length > 0 ? (
+              {safeThisMonthTasks.length > 0 ? (
                 <View style={styles.taskItems}>
-                  {renderTaskList(thisMonthTasks)}
+                  {renderTaskList(safeThisMonthTasks)}
                 </View>
               ) : (
                 <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks due this month</Text>
@@ -426,9 +449,9 @@ export default function HomeScreen() {
 
             <View style={styles.timeSection}>
               <Text style={[styles.columnTitle, { color: colors.text }]}>This Year</Text>
-              {thisYearTasks.length > 0 ? (
+              {safeThisYearTasks.length > 0 ? (
                 <View style={styles.taskItems}>
-                  {renderTaskList(thisYearTasks)}
+                  {renderTaskList(safeThisYearTasks)}
                 </View>
               ) : (
                 <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks due this year</Text>

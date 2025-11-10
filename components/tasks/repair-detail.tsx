@@ -13,11 +13,12 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { useFamily } from '../../lib/contexts/FamilyContext';
-import { useRepairs } from '../../lib/contexts/RepairsContext';
-import { useVendors } from '../../lib/contexts/VendorsContext';
 import { useAuth } from '../../lib/hooks/useAuth';
+import { useFamily } from '../../lib/hooks/useFamily';
+import { useRepairs } from '../../lib/hooks/useRepairs';
+import { useVendors } from '../../lib/hooks/useVendors';
 import { UploadResult } from '../../lib/services/uploadService';
+import { supabase } from '../../lib/supabase';
 import DatePicker from '../DatePicker';
 import MediaPreview from '../ui/MediaPreview';
 import PhotoUploader from '../ui/PhotoUploader';
@@ -59,29 +60,82 @@ export default function RepairDetailScreen() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const { setCurrentHome, fetchRepairs } = useRepairs();
+
+  // Fetch repair directly if not in current array - use ref to prevent loops
+  const hasFetchedRef = React.useRef(false);
+  const lastIdRef = React.useRef<string | undefined>(undefined);
+  
   useEffect(() => {
-    if (id && repairs.length > 0) {
-      const foundRepair = repairs.find((r: any) => r.id === id);
-      if (foundRepair) {
-        setRepair(foundRepair);
-        setFormData({
-          title: foundRepair.title || '',
-          description_issue: foundRepair.description_issue || '',
-          location_in_home: foundRepair.location_in_home || '',
-          status: foundRepair.status || 'to_do',
-          cost_estimate: foundRepair.cost_estimate?.toString() || '',
-          final_cost: foundRepair.final_cost?.toString() || '',
-          date_reported: foundRepair.date_reported || '',
-          vendor_id: foundRepair.vendor_id || '',
-          user_id: foundRepair.user_id || '',
-          schedule_reminder: foundRepair.schedule_reminder || false,
-          reminder_date: foundRepair.reminder_date || '',
-          notes: foundRepair.notes || '',
-        });
-        setUploadedFiles(foundRepair.photos_videos || []);
-      }
+    // Reset if id changes
+    if (id !== lastIdRef.current) {
+      hasFetchedRef.current = false;
+      lastIdRef.current = id as string | undefined;
+      setRepair(null);
     }
-  }, [id, repairs]);
+    
+    if (!id || hasFetchedRef.current || repair) return;
+    
+    hasFetchedRef.current = true;
+    
+    // First try to find in current repairs array
+    const foundRepair = repairs.find((r: any) => r.id === id);
+    if (foundRepair) {
+      if (foundRepair.home_id) {
+        setCurrentHome(foundRepair.home_id);
+      }
+      setRepair(foundRepair);
+    } else if (user?.id) {
+      // If not found, fetch from database
+      const fetchRepair = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('repairs')
+            .select('*')
+            .eq('id', id)
+            .single();
+          
+          if (!error && data) {
+            const repairData = data as any;
+            if (repairData.home_id) {
+              setCurrentHome(repairData.home_id);
+              await fetchRepairs(repairData.home_id);
+            }
+            setRepair(repairData);
+          }
+        } catch (error) {
+          console.error('Error fetching repair:', error);
+          hasFetchedRef.current = false; // Reset on error
+        }
+      };
+      fetchRepair();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user?.id]); // Only depend on id and user?.id - repairs array changes too frequently
+
+  // Update form data when repair is found - separate effect to avoid loops
+  const lastRepairIdRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (repair && repair.id !== lastRepairIdRef.current && !isEditing) {
+      lastRepairIdRef.current = repair.id;
+      setFormData({
+        title: repair.title || '',
+        description_issue: repair.description_issue || '',
+        location_in_home: repair.location_in_home || '',
+        status: repair.status || 'to_do',
+        cost_estimate: repair.cost_estimate?.toString() || '',
+        final_cost: repair.final_cost?.toString() || '',
+        date_reported: repair.date_reported || '',
+        vendor_id: repair.vendor_id || '',
+        user_id: repair.user_id || '',
+        schedule_reminder: repair.schedule_reminder || false,
+        reminder_date: repair.reminder_date || '',
+        notes: repair.notes || '',
+      });
+      setUploadedFiles(repair.photos_videos || []);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repair?.id, isEditing]); // Only depend on repair id and editing state
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};

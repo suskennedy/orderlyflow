@@ -5,22 +5,22 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Resolver, useForm } from 'react-hook-form';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useHomes } from '../../lib/contexts/HomesContext';
-import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useAuth } from '../../lib/hooks/useAuth';
+import { useHomes } from '../../lib/hooks/useHomes';
+import { useTasks } from '../../lib/hooks/useTasks';
 import { TaskFormData, taskFormSchema, transformTaskFormData } from '../../lib/schemas/tasks/taskFormSchema';
 import DatePicker from '../DatePicker';
 import TaskSpinner from '../ui/TaskSpinner';

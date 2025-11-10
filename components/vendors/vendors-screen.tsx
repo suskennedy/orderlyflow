@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useVendors } from '../../lib/contexts/VendorsContext';
+import { useVendors } from '../../lib/hooks/useVendors';
 
 interface Vendor {
   id: string;

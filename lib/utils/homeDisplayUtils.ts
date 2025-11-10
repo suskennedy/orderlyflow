@@ -1,5 +1,5 @@
 // lib/utils/homeDisplayUtils.ts
-import { Home } from '../contexts/HomesContext';
+import { Home } from '../stores/homesStore';
 
 export interface HomeDisplayInfo {
   homeName: string;

@@ -2,23 +2,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useCalendar } from '../../lib/contexts/CalendarContext';
-import { useHomes } from '../../lib/contexts/HomesContext';
-import { useInventory } from '../../lib/contexts/InventoryContext';
-import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useVendors } from '../../lib/contexts/VendorsContext';
 import { useAuth } from '../../lib/hooks/useAuth';
+import { useCalendar } from '../../lib/hooks/useCalendar';
+import { useHomes } from '../../lib/hooks/useHomes';
+import { useInventory } from '../../lib/hooks/useInventory';
+import { useTasks } from '../../lib/hooks/useTasks';
+import { useVendors } from '../../lib/hooks/useVendors';
 import { routes } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 import { CalendarEvent } from '../../types/database';
@@ -62,20 +62,21 @@ export default function DashboardScreen() {
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
-  // Use allHomeTasks for dashboard to show tasks from all homes
-  const allTasks = allHomeTasks || [];
+  // Use allHomeTasks for dashboard to show tasks from all homes - ensure it's always an array
+  const allTasks = Array.isArray(allHomeTasks) ? allHomeTasks : [];
   
   // Debug: Log when allTasks changes
-  console.log('Dashboard: allTasks changed, count:', allTasks.length, 'tasksLoading:', tasksLoading);
+  console.log('Dashboard: allTasks changed, count:', allTasks?.length || 0, 'tasksLoading:', tasksLoading);
 
   // Get the latest 5 items from each context - memoized for performance
   const tasks = useMemo(() => (allTasks || []).slice(0, 5), [allTasks]);
-  const recentEvents = useMemo(() => (events || []).slice(0, 5), [events]);
-  const recentVendors = useMemo(() => (vendors || []).slice(0, 5), [vendors]);
-  const recentInventory = useMemo(() => (inventory || []).slice(0, 5), [inventory]);
+  const recentEvents = useMemo(() => (Array.isArray(events) ? events : []).slice(0, 5), [events]);
+  const recentVendors = useMemo(() => (Array.isArray(vendors) ? vendors : []).slice(0, 5), [vendors]);
+  const recentInventory = useMemo(() => (Array.isArray(inventory) ? inventory : []).slice(0, 5), [inventory]);
 
   // Track task updates for real-time debugging
   useEffect(() => {
+    if (!allTasks || !Array.isArray(allTasks)) return;
     console.log('Dashboard: useEffect triggered - Tasks updated, count:', allTasks.length);
     if (allTasks.length > 0) {
       console.log('Dashboard: Sample task:', {
@@ -93,13 +94,13 @@ export default function DashboardScreen() {
       const yearTasks = getTasksForThisYear();
       
       console.log('Dashboard: Immediate filtering test:', {
-        week: weekTasks.length,
-        month: monthTasks.length,
-        year: yearTasks.length,
+        week: (weekTasks || []).length,
+        month: (monthTasks || []).length,
+        year: (yearTasks || []).length,
         total: allTasks.length
       });
     }
-  }, [allTasks]);
+  }, [allTasks, getTasksForThisWeek, getTasksForThisMonth, getTasksForThisYear]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -127,6 +128,7 @@ export default function DashboardScreen() {
   };
 
   const getUpcomingTasks = useCallback(() => {
+    if (!allTasks) return [];
     const now = new Date();
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     
@@ -165,6 +167,7 @@ export default function DashboardScreen() {
   }, [allTasks]);
 
   const getTasksForThisWeek = useCallback(() => {
+    if (!allTasks) return [];
     const now = new Date();
     const endOfWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     
@@ -213,6 +216,7 @@ export default function DashboardScreen() {
   }, [allTasks]);
 
   const getTasksForThisMonth = useCallback(() => {
+    if (!allTasks) return [];
     const now = new Date();
     const endOfWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const endOfMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -240,6 +244,7 @@ export default function DashboardScreen() {
   }, [allTasks]);
 
   const getTasksForThisYear = useCallback(() => {
+    if (!allTasks) return [];
     const now = new Date();
     const endOfMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const endOfYear = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
@@ -405,6 +410,9 @@ export default function DashboardScreen() {
   ), [colors, renderTaskWithCheckbox]);
 
   const renderTasksSection = () => {
+    if (!allTasks || !Array.isArray(allTasks)) {
+      return null;
+    }
     console.log('Dashboard: renderTasksSection called - allTasks.length:', allTasks.length, 'tasksLoading:', tasksLoading);
     
     // Don't render if still loading
@@ -464,15 +472,15 @@ export default function DashboardScreen() {
     const yearTasks = getTasksForThisYear();
     
     console.log('Dashboard: renderTasksSection - task counts:', {
-      week: weekTasks.length,
-      month: monthTasks.length,
-      year: yearTasks.length,
+      week: (weekTasks || []).length,
+      month: (monthTasks || []).length,
+      year: (yearTasks || []).length,
       total: allTasks.length
     });
     
-    const weekTasksGrouped = groupTasksByCategory(weekTasks);
-    const monthTasksGrouped = groupTasksByCategory(monthTasks);
-    const yearTasksGrouped = groupTasksByCategory(yearTasks);
+    const weekTasksGrouped = groupTasksByCategory(weekTasks || []);
+    const monthTasksGrouped = groupTasksByCategory(monthTasks || []);
+    const yearTasksGrouped = groupTasksByCategory(yearTasks || []);
 
     return (
       <View style={styles.tasksContainer}>
@@ -486,14 +494,14 @@ export default function DashboardScreen() {
           {/* This Week Column */}
           <View style={styles.tasksColumn}>
             <Text style={[styles.columnTitle, { color: colors.text }]}>This Week</Text>
-            {weekTasks.length > 0 ? (
-              Object.keys(weekTasksGrouped).length > 0 ? (
-                Object.entries(weekTasksGrouped).map(([category, tasks]) => 
+            {(weekTasks || []).length > 0 ? (
+              Object.keys(weekTasksGrouped || {}).length > 0 ? (
+                Object.entries(weekTasksGrouped || {}).map(([category, tasks]) => 
                   renderTaskCategory(category, tasks)
                 )
               ) : (
                 // Fallback: show tasks without categories
-                weekTasks.map(renderTaskWithCheckbox)
+                (weekTasks || []).map(renderTaskWithCheckbox)
               )
             ) : (
               <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
@@ -505,14 +513,14 @@ export default function DashboardScreen() {
           {/* This Month Column */}
           <View style={styles.tasksColumn}>
             <Text style={[styles.columnTitle, { color: colors.text }]}>This Month</Text>
-            {monthTasks.length > 0 ? (
-              Object.keys(monthTasksGrouped).length > 0 ? (
-                Object.entries(monthTasksGrouped).map(([category, tasks]) => 
+            {(monthTasks || []).length > 0 ? (
+              Object.keys(monthTasksGrouped || {}).length > 0 ? (
+                Object.entries(monthTasksGrouped || {}).map(([category, tasks]) => 
                   renderTaskCategory(category, tasks)
                 )
               ) : (
                 // Fallback: show tasks without categories
-                monthTasks.map(renderTaskWithCheckbox)
+                (monthTasks || []).map(renderTaskWithCheckbox)
               )
             ) : (
               <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
@@ -524,14 +532,14 @@ export default function DashboardScreen() {
           {/* This Year Column */}
           <View style={styles.tasksColumn}>
             <Text style={[styles.columnTitle, { color: colors.text }]}>This Year</Text>
-            {yearTasks.length > 0 ? (
-              Object.keys(yearTasksGrouped).length > 0 ? (
-                Object.entries(yearTasksGrouped).map(([category, tasks]) => 
+            {(yearTasks || []).length > 0 ? (
+              Object.keys(yearTasksGrouped || {}).length > 0 ? (
+                Object.entries(yearTasksGrouped || {}).map(([category, tasks]) => 
                   renderTaskCategory(category, tasks)
                 )
               ) : (
                 // Fallback: show tasks without categories
-                yearTasks.map(renderTaskWithCheckbox)
+                (yearTasks || []).map(renderTaskWithCheckbox)
               )
             ) : (
               <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
@@ -545,18 +553,22 @@ export default function DashboardScreen() {
   };
 
   const getUpcomingEvents = () => {
+    if (!recentEvents || !Array.isArray(recentEvents)) return [];
     const now = new Date();
-    return recentEvents.filter(event => new Date(event.start_time) >= now).slice(0, 3);
+    const filtered = recentEvents.filter(event => event?.start_time && new Date(event.start_time) >= now);
+    return Array.isArray(filtered) ? filtered.slice(0, 3) : [];
   };
 
   const getExpiringWarranties = () => {
+    if (!recentInventory || !Array.isArray(recentInventory)) return [];
     const now = new Date();
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    return recentInventory.filter(item => {
-      if (!item.warranty_expiry) return false;
+    const filtered = recentInventory.filter(item => {
+      if (!item?.warranty_expiry) return false;
       const expiryDate = new Date(item.warranty_expiry);
       return expiryDate >= now && expiryDate <= thirtyDaysFromNow;
-    }).slice(0, 3);
+    });
+    return Array.isArray(filtered) ? filtered.slice(0, 3) : [];
   };
 
   const renderQuickActions = () => (
@@ -737,10 +749,12 @@ export default function DashboardScreen() {
   );
 
   const renderStatistics = () => {
-    const totalTasks = allTasks.length;
-    const completedTasks = allTasks.filter(task => task.status === 'completed').length;
-    const upcomingEvents = getUpcomingEvents().length;
-    const expiringWarranties = getExpiringWarranties().length;
+    const totalTasks = Array.isArray(allTasks) ? allTasks.length : 0;
+    const completedTasks = Array.isArray(allTasks) ? allTasks.filter(task => task?.status === 'completed').length : 0;
+    const upcomingEventsArray = getUpcomingEvents();
+    const upcomingEvents = Array.isArray(upcomingEventsArray) ? upcomingEventsArray.length : 0;
+    const expiringWarrantiesArray = getExpiringWarranties();
+    const expiringWarranties = Array.isArray(expiringWarrantiesArray) ? expiringWarrantiesArray.length : 0;
 
     return (
       <View style={styles.statisticsContainer}>
@@ -750,7 +764,7 @@ export default function DashboardScreen() {
             <View style={[styles.statIconContainer, { backgroundColor: colors.surfaceVariant }]}>
               <Ionicons name="home" size={20} color={colors.primary} />
             </View>
-            <Text style={[styles.statNumber, { color: colors.text }]}>{homes.length}</Text>
+            <Text style={[styles.statNumber, { color: colors.text }]}>{Array.isArray(homes) ? homes.length : 0}</Text>
             <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Homes</Text>
           </View>
 
@@ -791,7 +805,7 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      {getUpcomingEvents().length > 0 && (
+      {Array.isArray(getUpcomingEvents()) && getUpcomingEvents().length > 0 && (
         <View style={styles.activitySection}>
           <Text style={[styles.activitySectionTitle, { color: colors.textSecondary }]}>Upcoming Events</Text>
           {getUpcomingEvents().map((event) => (
@@ -810,7 +824,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {getExpiringWarranties().length > 0 && (
+      {Array.isArray(getExpiringWarranties()) && getExpiringWarranties().length > 0 && (
         <View style={styles.activitySection}>
           <Text style={[styles.activitySectionTitle, { color: colors.textSecondary }]}>Expiring Warranties</Text>
           {getExpiringWarranties().map((item) => (
@@ -832,7 +846,7 @@ export default function DashboardScreen() {
   );
 
   const renderUpcomingTasks = () => {
-    const upcomingTasks = getUpcomingTasks();
+    const upcomingTasks = getUpcomingTasks() || [];
     
     if (upcomingTasks.length === 0) {
       return (

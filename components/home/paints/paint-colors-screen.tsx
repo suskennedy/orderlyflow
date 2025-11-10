@@ -2,10 +2,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePaints } from '../../../lib/contexts/PaintsContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import PaintColorCard from './PaintColorCard';
+import { usePaints } from '../../../lib/hooks/usePaints';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
+import PaintColorCard from './PaintColorCard';
 
 export default function PaintColorsScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();

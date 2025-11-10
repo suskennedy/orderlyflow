@@ -12,9 +12,8 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAppliances } from '../../../../../lib/contexts/AppliancesContext';
-import { AppliancesProvider } from '../../../../../lib/contexts/AppliancesContext';
 import { useTheme } from '../../../../../lib/contexts/ThemeContext';
+import { useAppliances } from '../../../../../lib/hooks/useAppliances';
 
 
 interface Appliance {
@@ -33,10 +32,10 @@ interface Appliance {
 function ApplianceDetailScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { appliances, deleteAppliance } = useAppliances();
   const params = useLocalSearchParams();
   const applianceId = params.id as string;
   const homeId = params.homeId as string;
+  const { appliances, deleteAppliance } = useAppliances(homeId || '');
   
   const [appliance, setAppliance] = useState<Appliance | null>(null);
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -328,14 +327,7 @@ function ApplianceDetailScreen() {
 }
 
 export default function ApplianceDetailScreenWrapper() {
-  const params = useLocalSearchParams();
-  const homeId = params.homeId as string;
-  
-  return (
-    <AppliancesProvider homeId={homeId}>
-      <ApplianceDetailScreen />
-    </AppliancesProvider>
-  );
+  return <ApplianceDetailScreen />;
 }
 
 const styles = StyleSheet.create({

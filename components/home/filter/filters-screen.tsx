@@ -2,10 +2,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFilters } from '../../../lib/contexts/FiltersContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import FilterCard from './FilterCard';
+import { useFilters } from '../../../lib/hooks/useFilters';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
+import FilterCard from './FilterCard';
 
 export default function FiltersScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();

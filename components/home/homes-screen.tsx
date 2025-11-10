@@ -3,10 +3,10 @@ import { router } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import HomeCard from './HomeCard';
+import { useHomes } from '../../lib/hooks/useHomes';
 import ScreenHeader from '../layouts/layout/ScreenHeader';
+import HomeCard from './HomeCard';
 
 export default function HomesScreen() {
   const { homes, loading } = useHomes();

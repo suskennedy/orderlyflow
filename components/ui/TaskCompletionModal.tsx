@@ -10,7 +10,7 @@ import {
     View
 } from 'react-native';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useVendors } from '../../lib/contexts/VendorsContext';
+import { useVendors } from '../../lib/hooks/useVendors';
 
 interface TaskCompletionModalProps {
   visible: boolean;

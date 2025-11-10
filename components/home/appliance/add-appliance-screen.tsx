@@ -5,16 +5,16 @@ import React, { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAppliances } from '../../../lib/contexts/AppliancesContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
+import { useAppliances } from '../../../lib/hooks/useAppliances';
 import { ApplianceFormData, applianceFormSchema, transformApplianceFormData } from '../../../lib/schemas/home/applianceFormSchema';
 import DatePicker from '../../DatePicker';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 export default function AddApplianceScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { createAppliance } = useAppliances();
+  const { createAppliance } = useAppliances(homeId || '');
   const { colors } = useTheme();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();

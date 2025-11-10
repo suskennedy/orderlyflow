@@ -324,6 +324,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
   const fetchAllHomeTasks = useCallback(async () => {
     if (!user?.id) {
       console.log('TasksContext: No user ID, skipping fetchAllHomeTasks');
+      setAllHomeTasks([]); // Ensure it's always an array
+      setLoading(false);
       return;
     }
     
@@ -609,6 +611,7 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       setAllHomeTasks(allTasks);
     } catch (error) {
       console.error('Error fetching all home tasks:', error);
+      setAllHomeTasks([]); // Ensure it's always an array even on error
     } finally {
       console.log('TasksContext: Setting loading to false');
       setLoading(false);

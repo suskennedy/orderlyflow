@@ -12,16 +12,16 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHomes } from '../../lib/contexts/HomesContext';
-import { useTasks } from '../../lib/contexts/TasksContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useVendors } from '../../lib/contexts/VendorsContext';
+import { useHomes } from '../../lib/hooks/useHomes';
+import { useTasks } from '../../lib/hooks/useTasks';
+import { useVendors } from '../../lib/hooks/useVendors';
 import { getHomeDisplayText } from '../../lib/utils/homeDisplayUtils';
 import { getVendorDisplayText } from '../../lib/utils/vendorDisplayUtils';
+import { Vendor } from '../../types/database';
 import TaskCompletionModal from '../TaskCompletionModal';
 import TaskSkeleton from '../ui/TaskSkeleton';
 import TaskSpinner from '../ui/TaskSpinner';
-import { Vendor } from '../../types/database';
 
 interface TasksScreenProps {
   homeId?: string;
@@ -37,12 +37,15 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
   // Get the current home name
   const currentHome = homeId ? homes.find(home => home.id === homeId) : null;
   
-  // Set current home when component mounts
+  // Set current home when component mounts - use ref to prevent loops
+  const lastHomeIdRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (homeId) {
+    if (homeId && homeId !== lastHomeIdRef.current) {
+      lastHomeIdRef.current = homeId;
       setCurrentHome(homeId);
     }
-  }, [homeId, setCurrentHome]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homeId]); // Only depend on homeId - setCurrentHome is stable
 
   // Add timeout to prevent stuck loading state
   useEffect(() => {

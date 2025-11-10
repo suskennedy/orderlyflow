@@ -10,8 +10,8 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FiltersProvider, useFilters } from '../../../lib/contexts/FiltersContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useFilters } from '../../../lib/hooks/useFilters';
 
 
 interface Filter {
@@ -231,11 +231,7 @@ export default function FilterDetailScreenWrapper() {
   const params = useLocalSearchParams();
   const homeId = params.homeId as string;
   
-  return (
-    <FiltersProvider homeId={homeId}>
-      <FilterDetailScreen />
-    </FiltersProvider>
-  );
+  return <FilterDetailScreen />;
 }
 
 const styles = StyleSheet.create({

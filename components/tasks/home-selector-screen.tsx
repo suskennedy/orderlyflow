@@ -11,8 +11,8 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { useHomes } from '../../lib/hooks/useHomes';
 
 // Home card component - simplified to show just home name and address
 const HomeCard = React.memo(({ home, colors }: { home: any; colors: any }) => {

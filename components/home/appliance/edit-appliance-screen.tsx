@@ -13,8 +13,8 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppliancesProvider, useAppliances } from '../../../lib/contexts/AppliancesContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useAppliances } from '../../../lib/hooks/useAppliances';
 import DatePicker from '../../DatePicker';
 
 
@@ -34,9 +34,10 @@ interface Appliance {
 function EditApplianceScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { appliances, updateAppliance } = useAppliances();
   const params = useLocalSearchParams();
+  const homeId = params.homeId as string;
   const applianceId = params.id as string;
+  const { appliances, updateAppliance } = useAppliances(homeId || '');
 
   const [appliance, setAppliance] = useState<Appliance | null>(null);
   const [formData, setFormData] = useState({
@@ -330,14 +331,7 @@ function EditApplianceScreen() {
 }
 
 export default function EditApplianceScreenWrapper() {
-  const params = useLocalSearchParams();
-  const homeId = params.homeId as string;
-  
-  return (
-    <AppliancesProvider homeId={homeId}>
-      <EditApplianceScreen />
-    </AppliancesProvider>
-  );
+  return <EditApplianceScreen />;
 }
 
 const styles = StyleSheet.create({

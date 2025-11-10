@@ -3,7 +3,7 @@ import React from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { useWarranties } from '../../../lib/contexts/WarrantiesContext';
+import { useWarranties } from '../../../lib/hooks/useWarranties';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 import WarrantyCard from './WarrantyCard';
 

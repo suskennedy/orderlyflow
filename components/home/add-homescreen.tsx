@@ -4,12 +4,12 @@ import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHomes } from '../../lib/contexts/HomesContext';
+import { z } from 'zod';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
-import { HomeFormData, homeFormSchema, transformHomeFormData } from '../../lib/schemas/home/homeFormSchema';
-import { googlePlacesService, PlaceDetails } from '../../lib/services/GooglePlacesService';
+import { useHomes } from '../../lib/hooks/useHomes';
+import { homeFormSchema, transformHomeFormData } from '../../lib/schemas/home/homeFormSchema';
+import { googlePlacesService } from '../../lib/services/GooglePlacesService';
 import DatePicker from '../DatePicker';
 import AddressAutocomplete from '../forms/AddressAutocomplete';
 import FoundationSelector from '../forms/FoundationSelector';
@@ -20,21 +20,21 @@ export default function AddHomeScreen() {
   const { createHome } = useHomes();
   const { colors } = useTheme();
   const { showToast } = useToast();
-  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [placeDetails, setPlaceDetails] = useState<PlaceDetails | null>(null);
+
+  // Use input type (before transformation) for the form
+  type HomeFormInput = z.input<typeof homeFormSchema>;
 
   // React Hook Form setup
   const {
-    register,
     handleSubmit,
     formState: { errors },
     setValue,
     watch,
     clearErrors,
-  } = useForm<HomeFormData>({
-    resolver: zodResolver(homeFormSchema),
+  } = useForm<HomeFormInput>({
+    resolver: zodResolver(homeFormSchema) as any,
     defaultValues: {
       name: '',
       address: '',
@@ -75,7 +75,6 @@ export default function AddHomeScreen() {
     try {
       const details = await googlePlacesService.getPlaceDetails(placeId);
       if (details) {
-        setPlaceDetails(details);
         setValue('address', details.address);
         setValue('city', details.city);
         setValue('state', details.state);
@@ -98,7 +97,7 @@ export default function AddHomeScreen() {
     setValue('image_url', '');
   };
 
-  const onSubmit = async (data: HomeFormData) => {
+  const onSubmit = async (data: HomeFormInput) => {
     // Prevent duplicate submissions
     if (isSubmittingRef.current || loading) {
       console.log('Submission already in progress, ignoring duplicate click');
@@ -109,7 +108,9 @@ export default function AddHomeScreen() {
     setLoading(true);
     
     try {
-      const homeData = transformHomeFormData(data);
+      // Parse the form data through the schema to get the transformed type
+      const parsedData = homeFormSchema.parse(data);
+      const homeData = transformHomeFormData(parsedData);
       console.log('Creating home with data:', homeData);
       await createHome(homeData);
       

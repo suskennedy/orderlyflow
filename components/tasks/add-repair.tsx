@@ -13,11 +13,11 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { useFamily } from '../../lib/contexts/FamilyContext';
-import { useRepairs } from '../../lib/contexts/RepairsContext';
-import { useVendors } from '../../lib/contexts/VendorsContext';
 import { useAuth } from '../../lib/hooks/useAuth';
+import { useFamily } from '../../lib/hooks/useFamily';
 import { useHomes } from '../../lib/hooks/useHomes';
+import { useRepairs } from '../../lib/hooks/useRepairs';
+import { useVendors } from '../../lib/hooks/useVendors';
 import { RepairFormData, repairFormSchemaWithValidation } from '../../lib/schemas/repairSchema';
 import { UploadResult } from '../../lib/services/uploadService';
 import DatePicker from '../DatePicker';
@@ -70,15 +70,15 @@ export default function AddRepairScreen() {
 
   const scheduleReminder = watch('schedule_reminder');
 
-  // Get the home object when component mounts
+  // Get the home object when component mounts - use ref to prevent loops
+  const lastHomeIdRef = React.useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (homeId && typeof homeId === 'string') {
-      const home = getHomeById(homeId);
-      if (home) {
-        // Home is already available if it matches currentHome
-      }
+    if (homeId && typeof homeId === 'string' && homeId !== lastHomeIdRef.current) {
+      lastHomeIdRef.current = homeId;
+      getHomeById(homeId);
     }
-  }, [homeId, getHomeById]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homeId]); // Only depend on homeId - getHomeById is stable
 
   const onSubmit = async (data: RepairFormData) => {
     if (!homeId || typeof homeId !== 'string') {

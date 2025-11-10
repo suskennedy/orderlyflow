@@ -17,10 +17,10 @@ import {
 } from 'react-native';
 import DatePicker from '../../components/DatePicker';
 import TimePicker from '../../components/TimePicker';
-import { useCalendar } from '../../lib/contexts/CalendarContext';
-import { useHomes } from '../../lib/contexts/HomesContext';
-import { useTasks } from '../../lib/contexts/TasksContext';
 import { useAuth } from '../../lib/hooks/useAuth';
+import { useCalendar } from '../../lib/hooks/useCalendar';
+import { useHomes } from '../../lib/hooks/useHomes';
+import { useTasks } from '../../lib/hooks/useTasks';
 import { supabase } from '../../lib/supabase';
 
 const EVENT_COLORS = [

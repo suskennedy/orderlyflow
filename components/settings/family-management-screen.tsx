@@ -13,8 +13,8 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFamily } from '../../lib/contexts/FamilyContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { useFamily } from '../../lib/hooks/useFamily';
 import { EmailService } from '../../lib/services/emailService';
 
 export default function FamilyManagementScreen() {

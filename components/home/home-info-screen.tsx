@@ -3,8 +3,8 @@ import { useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { useHomes } from '../../lib/hooks/useHomes';
 import ScreenHeader from '../layouts/layout/ScreenHeader';
 
 export default function HomeInfoScreen() {

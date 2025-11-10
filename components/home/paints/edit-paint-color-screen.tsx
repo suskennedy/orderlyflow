@@ -13,8 +13,8 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePaints } from '../../../lib/contexts/PaintsContext';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { usePaints } from '../../../lib/hooks/usePaints';
 
 interface PaintColor {
   id: string;

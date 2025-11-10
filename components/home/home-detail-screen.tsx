@@ -3,8 +3,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHomes } from '../../lib/contexts/HomesContext';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { useHomes } from '../../lib/hooks/useHomes';
 import { getHomeImageUrl } from '../../lib/utils/imageUtils';
 
 const HEADER_HEIGHT = 250;
