@@ -376,3 +376,4 @@ ALTER TABLE home_tasks DROP CONSTRAINT IF EXISTS home_tasks_priority_level_check
 -- Add a new constraint for priority_level
 ALTER TABLE home_tasks ADD CONSTRAINT home_tasks_priority_level_check 
   CHECK (priority_level IS NULL OR priority_level IN ('low', 'medium', 'high', 'urgent', 'Low', 'Medium', 'High', 'Urgent'));
+

@@ -94,3 +94,4 @@ DELETE FROM public.calendar_events WHERE task_id IS NULL;
 
 -- Comment: After running this SQL, you'll need to manually populate home_tasks 
 -- with the appropriate task assignments for each home based on your business logic
+

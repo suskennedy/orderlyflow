@@ -248,25 +248,3 @@ COMMENT ON COLUMN public.home_tasks.is_active IS 'Whether this task is currently
 
 COMMIT;
 
--- =============================================================================
--- VERIFICATION QUERIES
--- =============================================================================
--- Run these queries to verify the restructuring worked correctly:
-
--- Check tasks table structure (should only have template fields)
--- SELECT column_name, data_type, is_nullable 
--- FROM information_schema.columns 
--- WHERE table_name = 'tasks' AND table_schema = 'public'
--- ORDER BY ordinal_position;
-
--- Check home_tasks table structure (should have all active task fields)
--- SELECT column_name, data_type, is_nullable 
--- FROM information_schema.columns 
--- WHERE table_name = 'home_tasks' AND table_schema = 'public'
--- ORDER BY ordinal_position;
-
--- Count template tasks
--- SELECT COUNT(*) as template_count FROM public.tasks;
-
--- Count active home tasks (should be 0 after restructuring)
--- SELECT COUNT(*) as active_task_count FROM public.home_tasks;

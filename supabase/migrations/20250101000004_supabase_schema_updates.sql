@@ -330,4 +330,5 @@ INSERT INTO tasks (title, category, subcategory, suggested_frequency, instructio
 ('Garbage Disposal Cleaning', 'Deep Cleaning', 'Garbage Disposal', 'Monthly (deep clean 6 months)', 'Clean garbage disposal with ice cubes and citrus. Deep clean every 6 months.', 15, 'cleaning', 'low', true, 'pending'),
 ('Washer and Dryer Cleaning', 'Deep Cleaning', 'Washer + Dryer', 'Annually', 'Clean washer drum, dryer lint trap, and area behind appliances.', 120, 'cleaning', 'medium', true, 'pending'),
 ('Grout Cleaning', 'Deep Cleaning', 'Grout', 'Annually', 'Deep clean and seal grout in bathrooms and kitchen. Remove stains and mildew.', 240, 'cleaning', 'low', true, 'pending'),
-('Garage Cleaning', 'Deep Cleaning', 'Garage', 'Quarterly', 'Organize and clean garage. Remove clutter and sweep floors.', 180, 'cleaning', 'low', true, 'pending'); 
+('Garage Cleaning', 'Deep Cleaning', 'Garage', 'Quarterly', 'Organize and clean garage. Remove clutter and sweep floors.', 180, 'cleaning', 'low', true, 'pending');
+
