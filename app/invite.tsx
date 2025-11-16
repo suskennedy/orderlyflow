@@ -11,11 +11,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../lib/contexts/ThemeContext';
 import { useAuth } from '../lib/hooks/useAuth';
-import { useFamily } from '../lib/hooks/useFamily';
+import { useFamilyStore } from '../lib/stores/familyStore';
 
 export default function InviteScreen() {
   const { colors } = useTheme();
-  const { acceptInvitation } = useFamily();
+  const acceptInvitation = useFamilyStore(state => state.acceptInvitation);
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { token } = useLocalSearchParams<{ token: string }>();

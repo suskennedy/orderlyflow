@@ -4,12 +4,13 @@ import React from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useHomes } from '../../lib/hooks/useHomes';
+import { useHomesStore } from '../../lib/stores/homesStore';
 import ScreenHeader from '../layouts/layout/ScreenHeader';
 import HomeCard from './HomeCard';
 
 export default function HomesScreen() {
-  const { homes, loading } = useHomes();
+  const homes = useHomesStore(state => state.homes);
+  const loading = useHomesStore(state => state.loading);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 

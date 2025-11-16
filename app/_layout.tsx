@@ -4,9 +4,12 @@ import { Platform, StatusBar } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { ThemeProvider, useTheme } from "../lib/contexts/ThemeContext";
 import { ToastProvider } from "../lib/contexts/ToastContext";
+import { useHomesSubscriptionManager } from "../lib/services/homesSubscriptionManager";
 
 function AppContent() {
   const { isDark, colors } = useTheme();
+  // Set up homes real-time subscriptions
+  useHomesSubscriptionManager();
 
   return (
     <>

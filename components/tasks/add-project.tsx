@@ -3,33 +3,33 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useAuth } from '../../lib/hooks/useAuth';
-import { useFamily } from '../../lib/hooks/useFamily';
-import { useHomes } from '../../lib/hooks/useHomes';
-import { useProjects } from '../../lib/hooks/useProjects';
-import { useVendors } from '../../lib/hooks/useVendors';
 import { PROJECT_STATUS, PROJECT_TYPES, ProjectFormData, projectFormSchema } from '../../lib/schemas/projectSchema';
+import { useFamilyStore } from '../../lib/stores/familyStore';
+import { useHomesStore } from '../../lib/stores/homesStore';
+import { useProjectsStore } from '../../lib/stores/projectsStore';
+import { useVendorsStore } from '../../lib/stores/vendorsStore';
 import DatePicker from '../DatePicker';
 import PhotoUploader from '../ui/PhotoUploader';
 
 export default function AddProjectScreen() {
   const router = useRouter();
   const { homeId } = useLocalSearchParams();
-  const { addProject } = useProjects();
+  const addProject = useProjectsStore(state => state.addProject);
   const { user } = useAuth();
-  const { getHomeById } = useHomes();
-  const { vendors } = useVendors();
-  const { familyMembers } = useFamily();
+  const getHomeById = useHomesStore(state => state.getHomeById);
+  const vendors = useVendorsStore(state => state.vendors);
+  const familyMembers = useFamilyStore(state => state.familyMembers);
 
   const [loading, setLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
@@ -107,7 +107,11 @@ export default function AddProjectScreen() {
         created_by: user.id,
       };
 
-      await addProject(payload as any);
+      if (!user?.id) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+      await addProject(homeId, user.id, payload as any);
       Alert.alert('Success', 'Project added successfully', [
         { text: 'OK', onPress: () => router.back() },
       ]);

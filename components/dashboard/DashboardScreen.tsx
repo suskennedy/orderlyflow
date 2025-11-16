@@ -1,171 +1,145 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useCalendar } from '../../lib/hooks/useCalendar';
-import { useHomes } from '../../lib/hooks/useHomes';
-import { useInventory } from '../../lib/hooks/useInventory';
-import { useTasks } from '../../lib/hooks/useTasks';
-import { useVendors } from '../../lib/hooks/useVendors';
+import { useRealTimeSubscription } from '../../lib/hooks/useRealTimeSubscription';
 import { routes } from '../../lib/navigation';
+import { useHomesStore } from '../../lib/stores/homesStore';
+import { useInventoryStore } from '../../lib/stores/inventoryStore';
+import { useTasksStore } from '../../lib/stores/tasksStore';
+import { useVendorsStore } from '../../lib/stores/vendorsStore';
 import { supabase } from '../../lib/supabase';
-import { CalendarEvent } from '../../types/database';
 import TaskCompletionModal from '../ui/TaskCompletionModal';
 
-interface Task {
-  id: string;
-  title: string;
-  status: string | null;
-  priority: string | null;
-  due_date: string | null;
-}
-
-interface Event extends CalendarEvent {
-  // Extends CalendarEvent from types/database.ts
-}
-
-interface Vendor {
-  id: string;
-  name: string;
-  category: string | null;
-}
-
-interface InventoryItem {
-  id: string;
-  name: string;
-  warranty_expiry: string | null;
-}
 
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
-  const { homes, loading: homesLoading, onRefresh: homesRefresh } = useHomes();
-  const { templateTasks, homeTasks, allHomeTasks, loading: tasksLoading, completeHomeTask, fetchHomeTasks, fetchAllHomeTasks } = useTasks();
+  const homes = useHomesStore(state => state.homes);
+  const homesLoading = useHomesStore(state => state.loading);
+  const homesRefresh = useHomesStore(state => state.onRefresh);
+  const allHomeTasks = useTasksStore(state => state.allHomeTasks);
+  const tasksLoading = useTasksStore(state => state.loading);
+  const completeHomeTask = useTasksStore(state => state.completeHomeTask);
+  const fetchAllHomeTasks = useTasksStore(state => state.fetchAllHomeTasks);
+  const fetchTemplateTasks = useTasksStore(state => state.fetchTemplateTasks);
+  const currentHomeId = useTasksStore(state => state.currentHomeId);
   const { events, loading: eventsLoading, onRefresh: eventsRefresh } = useCalendar();
-  const { vendors, loading: vendorsLoading, onRefresh: vendorsRefresh } = useVendors();
-  const { items: inventory, loading: inventoryLoading, onRefresh: inventoryRefresh } = useInventory();
+  const vendorsLoading = useVendorsStore(state => state.loading);
+  const vendorsRefresh = useVendorsStore(state => state.onRefresh);
+  const inventory = useInventoryStore(state => state.items);
+  const inventoryLoading = useInventoryStore(state => state.loading);
+  const inventoryRefresh = useInventoryStore(state => state.onRefresh);
+  const fetchItems = useInventoryStore(state => state.fetchItems);
   const [refreshing, setRefreshing] = useState(false);
+  
+  const hasFetchedInventoryRef = useRef(false);
+  const hasFetchedTasksRef = useRef(false);
+  
+  // Initial inventory data fetch
+  useEffect(() => {
+    if (user?.id && !hasFetchedInventoryRef.current) {
+      hasFetchedInventoryRef.current = true;
+      fetchItems(user.id);
+    }
+    return () => {
+      hasFetchedInventoryRef.current = false;
+    };
+  }, [user?.id, fetchItems]);
+  
+  // Initial tasks data fetch
+  useEffect(() => {
+    if (user?.id && !hasFetchedTasksRef.current) {
+      hasFetchedTasksRef.current = true;
+      fetchTemplateTasks();
+      fetchAllHomeTasks(user.id);
+    }
+    return () => {
+      hasFetchedTasksRef.current = false;
+    };
+  }, [user?.id, fetchTemplateTasks, fetchAllHomeTasks]);
+  
+  // Real-time subscriptions for inventory tables
+  const handleInventoryChange = useCallback((payload: any) => {
+    if (user?.id) {
+      fetchItems(user.id);
+    }
+  }, [user?.id, fetchItems]);
+  
+  useRealTimeSubscription(
+    { table: 'appliances', event: '*' },
+    handleInventoryChange
+  );
+  useRealTimeSubscription(
+    { table: 'filters', event: '*' },
+    handleInventoryChange
+  );
+  useRealTimeSubscription(
+    { table: 'light_fixtures', event: '*' },
+    handleInventoryChange
+  );
+  useRealTimeSubscription(
+    { table: 'cabinets', event: '*' },
+    handleInventoryChange
+  );
+  useRealTimeSubscription(
+    { table: 'tiles', event: '*' },
+    handleInventoryChange
+  );
+  useRealTimeSubscription(
+    { table: 'paint_colors', event: '*' },
+    handleInventoryChange
+  );
+  
+  // Real-time subscriptions for tasks
+  const handleTaskChange = useCallback((payload: any) => {
+    if (user?.id) {
+      fetchAllHomeTasks(user.id);
+    }
+  }, [user?.id, fetchAllHomeTasks]);
+  
+  useRealTimeSubscription(
+    { table: 'home_tasks', event: '*' },
+    handleTaskChange
+  );
+  useRealTimeSubscription(
+    { table: 'repairs', event: '*' },
+    handleTaskChange
+  );
+  useRealTimeSubscription(
+    { table: 'projects', event: '*' },
+    handleTaskChange
+  );
+  
   const [completionModalVisible, setCompletionModalVisible] = useState(false);
   const [selectedTaskForCompletion, setSelectedTaskForCompletion] = useState<any>(null);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
   // Use allHomeTasks for dashboard to show tasks from all homes - ensure it's always an array
-  const allTasks = Array.isArray(allHomeTasks) ? allHomeTasks : [];
+  const allTasks = useMemo(() => Array.isArray(allHomeTasks) ? allHomeTasks : [], [allHomeTasks]);
   
   // Debug: Log when allTasks changes
   console.log('Dashboard: allTasks changed, count:', allTasks?.length || 0, 'tasksLoading:', tasksLoading);
 
   // Get the latest 5 items from each context - memoized for performance
-  const tasks = useMemo(() => (allTasks || []).slice(0, 5), [allTasks]);
   const recentEvents = useMemo(() => (Array.isArray(events) ? events : []).slice(0, 5), [events]);
-  const recentVendors = useMemo(() => (Array.isArray(vendors) ? vendors : []).slice(0, 5), [vendors]);
   const recentInventory = useMemo(() => (Array.isArray(inventory) ? inventory : []).slice(0, 5), [inventory]);
 
-  // Track task updates for real-time debugging
-  useEffect(() => {
-    if (!allTasks || !Array.isArray(allTasks)) return;
-    console.log('Dashboard: useEffect triggered - Tasks updated, count:', allTasks.length);
-    if (allTasks.length > 0) {
-      console.log('Dashboard: Sample task:', {
-        id: allTasks[0].id,
-        title: allTasks[0].title,
-        status: allTasks[0].status,
-        is_active: allTasks[0].is_active,
-        due_date: allTasks[0].due_date,
-        home_id: allTasks[0].home_id
-      });
-      
-      // Test the filtering functions immediately
-      const weekTasks = getTasksForThisWeek();
-      const monthTasks = getTasksForThisMonth();
-      const yearTasks = getTasksForThisYear();
-      
-      console.log('Dashboard: Immediate filtering test:', {
-        week: (weekTasks || []).length,
-        month: (monthTasks || []).length,
-        year: (yearTasks || []).length,
-        total: allTasks.length
-      });
-    }
-  }, [allTasks, getTasksForThisWeek, getTasksForThisMonth, getTasksForThisYear]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    // Refresh all contexts using their onRefresh methods
-    Promise.all([
-      homesRefresh?.() || Promise.resolve(),
-      // Refresh all home tasks for dashboard
-      fetchAllHomeTasks().catch(console.error),
-      eventsRefresh?.() || Promise.resolve(),
-      vendorsRefresh?.() || Promise.resolve(),
-      inventoryRefresh?.() || Promise.resolve(),
-    ]).finally(() => {
-      setRefreshing(false);
-    });
-  };
-
-  const handleSyncTasksToCalendar = async () => {
-    try {
-      // TODO: Implement task to calendar sync functionality
-      Alert.alert('Info', 'Task to calendar sync functionality coming soon!');
-    } catch (error) {
-      console.error('Error syncing tasks to calendar:', error);
-      Alert.alert('Error', 'Failed to sync tasks to calendar');
-    }
-  };
-
-  const getUpcomingTasks = useCallback(() => {
-    if (!allTasks) return [];
-    const now = new Date();
-    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    
-    return allTasks
-      .filter(task => {
-        // Only show active, non-completed tasks
-        if (task.status === 'completed') return false;
-        
-        // If task has a due date, check if it's within 30 days
-        if (task.due_date) {
-          const dueDate = new Date(task.due_date + 'T00:00:00.000Z');
-          return dueDate >= now && dueDate <= thirtyDaysFromNow;
-        }
-        
-        // If no due date, show the task (newly added tasks)
-        return true;
-      })
-      .sort((a, b) => {
-        // Sort by due date first (earliest first)
-        if (a.due_date && b.due_date) {
-          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-        }
-        
-        // If one has due date and other doesn't, prioritize the one with due date
-        if (a.due_date && !b.due_date) return -1;
-        if (!a.due_date && b.due_date) return 1;
-        
-        // Finally sort by creation date (newest first)
-        if (a.created_at && b.created_at) {
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        }
-        
-        return 0;
-      })
-      .slice(0, 5); // Show top 5 upcoming tasks
-  }, [allTasks]);
-
+  // Define filtering functions before they're used
   const getTasksForThisWeek = useCallback(() => {
     if (!allTasks) return [];
     const now = new Date();
@@ -271,6 +245,98 @@ export default function DashboardScreen() {
       });
   }, [allTasks]);
 
+  // Track task updates for real-time debugging
+  useEffect(() => {
+    if (!allTasks || !Array.isArray(allTasks)) return;
+    console.log('Dashboard: useEffect triggered - Tasks updated, count:', allTasks.length);
+    if (allTasks.length > 0) {
+      console.log('Dashboard: Sample task:', {
+        id: allTasks[0].id,
+        title: allTasks[0].title,
+        status: allTasks[0].status,
+        is_active: allTasks[0].is_active,
+        due_date: allTasks[0].due_date,
+        home_id: allTasks[0].home_id
+      });
+      
+      // Test the filtering functions immediately
+      const weekTasks = getTasksForThisWeek();
+      const monthTasks = getTasksForThisMonth();
+      const yearTasks = getTasksForThisYear();
+      
+      console.log('Dashboard: Immediate filtering test:', {
+        week: (weekTasks || []).length,
+        month: (monthTasks || []).length,
+        year: (yearTasks || []).length,
+        total: allTasks.length
+      });
+    }
+  }, [allTasks, getTasksForThisWeek, getTasksForThisMonth, getTasksForThisYear]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    // Refresh all contexts using their onRefresh methods
+    Promise.all([
+      homesRefresh?.() || Promise.resolve(),
+      // Refresh all home tasks for dashboard
+      (user?.id ? fetchAllHomeTasks(user.id) : Promise.resolve()).catch(console.error),
+      eventsRefresh?.() || Promise.resolve(),
+      (user?.id ? vendorsRefresh(user.id) : Promise.resolve()).catch(console.error),
+      inventoryRefresh?.(user?.id || '') || Promise.resolve(),
+    ]).finally(() => {
+      setRefreshing(false);
+    });
+  };
+
+  const handleSyncTasksToCalendar = async () => {
+    try {
+      // TODO: Implement task to calendar sync functionality
+      Alert.alert('Info', 'Task to calendar sync functionality coming soon!');
+    } catch (error) {
+      console.error('Error syncing tasks to calendar:', error);
+      Alert.alert('Error', 'Failed to sync tasks to calendar');
+    }
+  };
+
+  const getUpcomingTasks = useCallback(() => {
+    if (!allTasks) return [];
+    const now = new Date();
+    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
+    return allTasks
+      .filter(task => {
+        // Only show active, non-completed tasks
+        if (task.status === 'completed') return false;
+        
+        // If task has a due date, check if it's within 30 days
+        if (task.due_date) {
+          const dueDate = new Date(task.due_date + 'T00:00:00.000Z');
+          return dueDate >= now && dueDate <= thirtyDaysFromNow;
+        }
+        
+        // If no due date, show the task (newly added tasks)
+        return true;
+      })
+      .sort((a, b) => {
+        // Sort by due date first (earliest first)
+        if (a.due_date && b.due_date) {
+          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+        }
+        
+        // If one has due date and other doesn't, prioritize the one with due date
+        if (a.due_date && !b.due_date) return -1;
+        if (!a.due_date && b.due_date) return 1;
+        
+        // Finally sort by creation date (newest first)
+        if (a.created_at && b.created_at) {
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        }
+        
+        return 0;
+      })
+      .slice(0, 5); // Show top 5 upcoming tasks
+  }, [allTasks]);
+
   const groupTasksByCategory = (tasks: any[]) => {
     const grouped: { [key: string]: any[] } = {};
     
@@ -289,21 +355,10 @@ export default function DashboardScreen() {
     return grouped;
   };
 
-  const handleTaskClick = useCallback((task: any) => {
-    if (task.status === 'completed') {
-      // If already completed, uncomplete it
-      handleTaskUncomplete(task.id);
-    } else {
-      // If not completed, show completion modal
-      setSelectedTaskForCompletion(task);
-      setCompletionModalVisible(true);
-    }
-  }, []);
-
   const handleTaskUncomplete = useCallback(async (taskId: string) => {
     try {
       setCompletingTaskId(taskId);
-      await completeHomeTask(taskId, {
+      await completeHomeTask(taskId, currentHomeId, {
         status: 'pending',
         completed_by_type: null,
         completed_at: null,
@@ -316,7 +371,18 @@ export default function DashboardScreen() {
     } finally {
       setCompletingTaskId(null);
     }
-  }, [completeHomeTask]);
+  }, [completeHomeTask, currentHomeId]);
+
+  const handleTaskClick = useCallback((task: any) => {
+    if (task.status === 'completed') {
+      // If already completed, uncomplete it
+      handleTaskUncomplete(task.id);
+    } else {
+      // If not completed, show completion modal
+      setSelectedTaskForCompletion(task);
+      setCompletionModalVisible(true);
+    }
+  }, [handleTaskUncomplete]);
 
   const handleTaskComplete = useCallback(async (completionData: {
     notes: string;
@@ -346,7 +412,7 @@ export default function DashboardScreen() {
         completionPayload.completed_by_user_id = null; // Will be set by backend
       }
 
-      await completeHomeTask(selectedTaskForCompletion.id, completionPayload);
+      await completeHomeTask(selectedTaskForCompletion.id, currentHomeId, completionPayload);
       
       // Close modal and reset state
       setCompletionModalVisible(false);
@@ -357,7 +423,7 @@ export default function DashboardScreen() {
     } finally {
       setCompletingTaskId(null);
     }
-  }, [completeHomeTask, selectedTaskForCompletion]);
+  }, [completeHomeTask, selectedTaskForCompletion, currentHomeId]);
 
   const handleCancelCompletion = useCallback(() => {
     setCompletionModalVisible(false);

@@ -1,20 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { useWarranties } from '../../../lib/hooks/useWarranties';
+import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
+import { useWarrantiesStore } from '../../../lib/stores/warrantiesStore';
 import DatePicker from '../../DatePicker';
 
 interface Warranty {
@@ -31,7 +32,42 @@ export default function EditWarrantyScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { warranties, updateWarranty } = useWarranties(homeId);
+  const warranties = useWarrantiesStore(state => state.warrantiesByHome[homeId] || []);
+  const updateWarranty = useWarrantiesStore(state => state.updateWarranty);
+  const fetchWarranties = useWarrantiesStore(state => state.fetchWarranties);
+  const setWarranties = useWarrantiesStore(state => state.setWarranties);
+  
+  const lastHomeIdRef = useRef<string | null>(null);
+  
+  // Initial data fetch
+  useEffect(() => {
+    if (homeId && homeId !== lastHomeIdRef.current) {
+      lastHomeIdRef.current = homeId;
+      fetchWarranties(homeId);
+    }
+  }, [homeId, fetchWarranties]);
+  
+  // Real-time subscription
+  const handleWarrantyChange = useCallback((payload: any) => {
+    if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
+    const store = useWarrantiesStore.getState();
+    const currentWarranties = store.warrantiesByHome[homeId] || [];
+    if (payload.eventType === 'INSERT') {
+      const newWarranty = payload.new;
+      if (!currentWarranties.some(w => w.id === newWarranty.id)) {
+        setWarranties(homeId, [newWarranty, ...currentWarranties]);
+      }
+    } else if (payload.eventType === 'UPDATE') {
+      setWarranties(homeId, currentWarranties.map(w => w.id === payload.new.id ? payload.new : w));
+    } else if (payload.eventType === 'DELETE') {
+      setWarranties(homeId, currentWarranties.filter(w => w.id !== payload.old.id));
+    }
+  }, [homeId, setWarranties]);
+  
+  useRealTimeSubscription(
+    { table: 'warranties', filter: homeId ? `home_id=eq.${homeId}` : undefined },
+    handleWarrantyChange
+  );
   const warrantyId = useLocalSearchParams<{ id: string }>();
 
   const [warranty, setWarranty] = useState<Warranty | null>(null);
@@ -70,7 +106,7 @@ export default function EditWarrantyScreen() {
 
     setIsLoading(true);
     try {
-      await updateWarranty(warrantyId.id, {
+      await updateWarranty(homeId, warrantyId.id, {
         item_name: formData.item_name.trim(),
         room: formData.room || null,
         warranty_start_date: formData.warranty_start_date || null,

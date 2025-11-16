@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useHomes } from '../../lib/hooks/useHomes';
+import { useHomesStore } from '../../lib/stores/homesStore';
 
 // Home card component - simplified to show just home name and address
 const HomeCard = React.memo(({ home, colors }: { home: any; colors: any }) => {
@@ -47,7 +47,10 @@ const HomeCard = React.memo(({ home, colors }: { home: any; colors: any }) => {
 HomeCard.displayName = 'HomeCard';
 
 export default function HomeSelectorScreen() {
-  const { homes, loading, refreshing, onRefresh } = useHomes();
+  const homes = useHomesStore(state => state.homes);
+  const loading = useHomesStore(state => state.loading);
+  const refreshing = useHomesStore(state => state.refreshing);
+  const onRefresh = useHomesStore(state => state.onRefresh);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Alert,
     KeyboardAvoidingView,
@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { usePaints } from '../../../lib/hooks/usePaints';
+import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
+import { usePaintsStore } from '../../../lib/stores/paintsStore';
 
 interface PaintColor {
   id: string;
@@ -30,7 +31,42 @@ export default function  EditPaintColorScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { homeId } = useLocalSearchParams<{ homeId: string }>();  
-  const { paints, updatePaint } = usePaints(homeId);
+  const paints = usePaintsStore(state => state.paintsByHome[homeId] || []);
+  const updatePaint = usePaintsStore(state => state.updatePaint);
+  const fetchPaints = usePaintsStore(state => state.fetchPaints);
+  const setPaints = usePaintsStore(state => state.setPaints);
+  
+  const lastHomeIdRef = useRef<string | null>(null);
+  
+  // Initial data fetch
+  useEffect(() => {
+    if (homeId && homeId !== lastHomeIdRef.current) {
+      lastHomeIdRef.current = homeId;
+      fetchPaints(homeId);
+    }
+  }, [homeId, fetchPaints]);
+  
+  // Real-time subscription
+  const handlePaintChange = useCallback((payload: any) => {
+    if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
+    const store = usePaintsStore.getState();
+    const currentPaints = store.paintsByHome[homeId] || [];
+    if (payload.eventType === 'INSERT') {
+      const newPaint = payload.new;
+      if (!currentPaints.some(p => p.id === newPaint.id)) {
+        setPaints(homeId, [newPaint, ...currentPaints]);
+      }
+    } else if (payload.eventType === 'UPDATE') {
+      setPaints(homeId, currentPaints.map(p => p.id === payload.new.id ? payload.new : p));
+    } else if (payload.eventType === 'DELETE') {
+      setPaints(homeId, currentPaints.filter(p => p.id !== payload.old.id));
+    }
+  }, [homeId, setPaints]);
+  
+  useRealTimeSubscription(
+    { table: 'paint_colors', filter: homeId ? `home_id=eq.${homeId}` : undefined },
+    handlePaintChange
+  );
   const paintId = useLocalSearchParams<{ id: string }>();
 
   const [paint, setPaint] = useState<PaintColor | null>(null);
@@ -69,7 +105,7 @@ export default function  EditPaintColorScreen() {
 
     setIsLoading(true);
     try {
-      await updatePaint(paintId.id, {
+      await updatePaint(homeId, paintId.id, {
         name: formData.name.trim(),
         room: formData.room || null,  
         brand: formData.brand || null,

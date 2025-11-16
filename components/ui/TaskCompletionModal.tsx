@@ -10,7 +10,7 @@ import {
     View
 } from 'react-native';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useVendors } from '../../lib/hooks/useVendors';
+import { useVendorsStore } from '../../lib/stores/vendorsStore';
 
 interface TaskCompletionModalProps {
   visible: boolean;
@@ -33,7 +33,7 @@ export default function TaskCompletionModal({
   isLoading = false
 }: TaskCompletionModalProps) {
   const { colors } = useTheme();
-  const { vendors } = useVendors();
+  const vendors = useVendorsStore(state => state.vendors);
   
   const [completionData, setCompletionData] = useState({
     notes: '',

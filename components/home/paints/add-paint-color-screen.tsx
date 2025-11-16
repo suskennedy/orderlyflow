@@ -7,8 +7,8 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
-import { usePaints } from '../../../lib/hooks/usePaints';
 import { PaintColorFormData, paintColorFormSchema, transformPaintColorFormData } from '../../../lib/schemas/home/paintColorFormSchema';
+import { usePaintsStore } from '../../../lib/stores/paintsStore';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 // Paint color database for autopopulation
@@ -72,7 +72,7 @@ const PAINT_COLORS: { [key: string]: { color_hex: string; color_code: string; br
 
 export default function AddPaintColorScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { createPaint } = usePaints(homeId);
+  const createPaint = usePaintsStore(state => state.createPaint);
   const { colors } = useTheme();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
@@ -124,7 +124,7 @@ export default function AddPaintColorScreen() {
     setLoading(true);
     try {
       const paintData = transformPaintColorFormData(data);
-      await createPaint(paintData);
+      await createPaint(homeId, paintData);
       
       showToast(`${data.name} paint color added successfully!`, 'success');
       
@@ -312,7 +312,6 @@ export default function AddPaintColorScreen() {
 
           <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
           <TextInput
-            ref={notesRef}
             style={[
               getTextAreaStyle(),
               errors.notes && { borderColor: colors.error, borderWidth: 2 }

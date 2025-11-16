@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Contacts from 'expo-contacts';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Alert,
     FlatList,
@@ -16,7 +16,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useVendors } from '../../lib/hooks/useVendors';
+import { useAuth } from '../../lib/hooks/useAuth';
+import { useRealTimeSubscription } from '../../lib/hooks/useRealTimeSubscription';
+import { useVendorsStore } from '../../lib/stores/vendorsStore';
 
 interface Vendor {
   id: string;
@@ -38,9 +40,60 @@ interface GroupedVendors {
 }
 
 export default function VendorsScreen() {
-  const { vendors, loading, refreshing, onRefresh, deleteVendor } = useVendors();
+  const { user } = useAuth();
+  const vendors = useVendorsStore(state => state.vendors);
+  const loading = useVendorsStore(state => state.loading);
+  const refreshing = useVendorsStore(state => state.refreshing);
+  const fetchVendors = useVendorsStore(state => state.fetchVendors);
+  const setVendors = useVendorsStore(state => state.setVendors);
+  const deleteVendor = useVendorsStore(state => state.deleteVendor);
+  const onRefresh = useVendorsStore(state => state.onRefresh);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  
+  // Initial data fetch
+  const hasFetchedRef = useRef(false);
+  useEffect(() => {
+    if (user?.id && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      fetchVendors(user.id);
+    }
+    return () => {
+      hasFetchedRef.current = false;
+    };
+  }, [user?.id, fetchVendors]);
+  
+  // Real-time subscription for vendors
+  const handleVendorChange = useCallback((payload: any) => {
+    if (payload.new?.user_id === user?.id || payload.old?.user_id === user?.id) {
+      const eventType = payload.eventType;
+      const currentVendors = useVendorsStore.getState().vendors;
+
+      if (eventType === 'INSERT') {
+        setVendors([payload.new, ...currentVendors]);
+      } 
+      else if (eventType === 'UPDATE') {
+        setVendors(
+          currentVendors.map(vendor => 
+            vendor.id === payload.new.id ? payload.new : vendor
+          )
+        );
+      } 
+      else if (eventType === 'DELETE') {
+        setVendors(
+          currentVendors.filter(vendor => vendor.id !== payload.old.id)
+        );
+      }
+    }
+  }, [user?.id, setVendors]);
+  
+  useRealTimeSubscription(
+    { 
+      table: 'vendors',
+      filter: user?.id ? `user_id=eq.${user.id}` : undefined
+    },
+    handleVendorChange
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [searchByCategory, setSearchByCategory] = useState(false);
   
@@ -420,7 +473,7 @@ export default function VendorsScreen() {
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
-                onRefresh={onRefresh}
+                onRefresh={() => user?.id ? onRefresh(user.id) : Promise.resolve()}
                 colors={[colors.primary]}
               />
             }

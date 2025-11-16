@@ -6,14 +6,14 @@ import { useForm } from 'react-hook-form';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { useMaterials } from '../../../lib/hooks/useMaterials';
 import { MaterialFormData, materialFormSchema, transformMaterialFormData } from '../../../lib/schemas/home/materialFormSchema';
+import { useMaterialsStore } from '../../../lib/stores/materialsStore';
 import DatePicker from '../../DatePicker';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 export default function AddMaterialScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { createMaterial } = useMaterials(homeId);
+  const createMaterial = useMaterialsStore(state => state.createMaterial);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
@@ -53,7 +53,7 @@ export default function AddMaterialScreen() {
     setLoading(true);
     try {
       const transformedData = transformMaterialFormData(data);
-      await createMaterial(transformedData);
+      await createMaterial(homeId, transformedData);
       router.back();
     } catch (error) {
       Alert.alert('Error', 'Failed to add material. Please try again.');

@@ -7,9 +7,9 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOp
 import { z } from 'zod';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
-import { useHomes } from '../../lib/hooks/useHomes';
 import { homeFormSchema, transformHomeFormData } from '../../lib/schemas/home/homeFormSchema';
 import { googlePlacesService } from '../../lib/services/GooglePlacesService';
+import { useHomesStore } from '../../lib/stores/homesStore';
 import DatePicker from '../DatePicker';
 import AddressAutocomplete from '../forms/AddressAutocomplete';
 import FoundationSelector from '../forms/FoundationSelector';
@@ -17,7 +17,7 @@ import PhotoManager from '../forms/PhotoManager';
 import ScreenHeader from '../layouts/layout/ScreenHeader';
 
 export default function AddHomeScreen() {
-  const { createHome } = useHomes();
+  const createHome = useHomesStore(state => state.createHome);
   const { colors } = useTheme();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);

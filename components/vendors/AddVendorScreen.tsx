@@ -15,13 +15,15 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useVendors } from '../../lib/hooks/useVendors';
+import { useAuth } from '../../lib/hooks/useAuth';
 import { PRIORITY_OPTIONS, transformVendorFormData, VENDOR_CATEGORIES, VendorFormData, vendorFormSchema } from '../../lib/schemas/vendors/vendorFormSchema';
+import { useVendorsStore } from '../../lib/stores/vendorsStore';
 
 export default function AddVendorScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { addVendor } = useVendors();
+  const { user } = useAuth();
+  const addVendor = useVendorsStore(state => state.addVendor);
   const params = useLocalSearchParams();
   
   const [loading, setLoading] = useState(false);
@@ -100,7 +102,11 @@ export default function AddVendorScreen() {
       setLoading(true);
 
       const transformedData = transformVendorFormData(data);
-      await addVendor(transformedData as any);
+      if (!user?.id) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+      await addVendor(user.id, transformedData as any);
       
       Alert.alert('Success', 'Vendor added successfully!', [
         { text: 'OK', onPress: () => router.back() }

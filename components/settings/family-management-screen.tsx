@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Alert,
     KeyboardAvoidingView,
@@ -14,23 +14,46 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useFamily } from '../../lib/hooks/useFamily';
+import { useAuth } from '../../lib/hooks/useAuth';
 import { EmailService } from '../../lib/services/emailService';
+import { useFamilyStore } from '../../lib/stores/familyStore';
 
 export default function FamilyManagementScreen() {
   const { colors } = useTheme();
-  const { 
-    familyAccount, 
-    userRole, 
-    familyMembers, 
-    invitations, 
-    loading,
-    inviteMember, 
-    removeMember, 
-    updateMemberRole,
-    declineInvitation 
-  } = useFamily();
+  const { user } = useAuth();
+  const familyAccount = useFamilyStore(state => state.familyAccount);
+  const userRole = useFamilyStore(state => state.userRole);
+  const familyMembers = useFamilyStore(state => state.familyMembers);
+  const invitations = useFamilyStore(state => state.invitations);
+  const loading = useFamilyStore(state => state.loading);
+  const fetchFamilyAccount = useFamilyStore(state => state.fetchFamilyAccount);
+  const fetchFamilyMembers = useFamilyStore(state => state.fetchFamilyMembers);
+  const fetchInvitations = useFamilyStore(state => state.fetchInvitations);
+  const inviteMember = useFamilyStore(state => state.inviteMember);
+  const removeMember = useFamilyStore(state => state.removeMember);
+  const updateMemberRole = useFamilyStore(state => state.updateMemberRole);
+  const declineInvitation = useFamilyStore(state => state.declineInvitation);
   const insets = useSafeAreaInsets();
+  
+  // Initial data fetch
+  const hasFetchedRef = useRef(false);
+  useEffect(() => {
+    if (user?.id && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      fetchFamilyAccount(user.id);
+    }
+    return () => {
+      hasFetchedRef.current = false;
+    };
+  }, [user?.id, fetchFamilyAccount]);
+  
+  // Fetch members and invitations when family account is available
+  useEffect(() => {
+    if (familyAccount?.id) {
+      fetchFamilyMembers();
+      fetchInvitations();
+    }
+  }, [familyAccount?.id, fetchFamilyMembers, fetchInvitations]);
   
   const [inviteEmail, setInviteEmail] = useState('');
   const [isInviting, setIsInviting] = useState(false);
@@ -53,9 +76,14 @@ export default function FamilyManagementScreen() {
       return;
     }
 
+    if (!user?.id) {
+      Alert.alert('Error', 'User not authenticated');
+      return;
+    }
+    
     try {
       setIsInviting(true);
-      await inviteMember(inviteEmail.trim());
+      await inviteMember(inviteEmail.trim(), user.id);
       setInviteEmail('');
       Alert.alert('Success', 'Invitation sent successfully!');
     } catch (error: any) {

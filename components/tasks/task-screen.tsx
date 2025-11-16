@@ -2,20 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Animated,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useHomes } from '../../lib/hooks/useHomes';
-import { useTasks } from '../../lib/hooks/useTasks';
-import { useVendors } from '../../lib/hooks/useVendors';
+import { useHomesStore } from '../../lib/stores/homesStore';
+import { useTasksStore } from '../../lib/stores/tasksStore';
+import { useVendorsStore } from '../../lib/stores/vendorsStore';
 import { getHomeDisplayText } from '../../lib/utils/homeDisplayUtils';
 import { getVendorDisplayText } from '../../lib/utils/vendorDisplayUtils';
 import { Vendor } from '../../types/database';
@@ -29,9 +29,15 @@ interface TasksScreenProps {
 
 export default function TasksScreen({ homeId }: TasksScreenProps) {
   const insets = useSafeAreaInsets();
-  const { homeTasks, loading, setCurrentHome, completeHomeTask, fetchHomeTasks } = useTasks();
-  const { homes } = useHomes();
-  const { vendors } = useVendors();
+  const homeTasksByHome = useTasksStore(state => state.homeTasksByHome);
+  const currentHomeId = useTasksStore(state => state.currentHomeId);
+  const loading = useTasksStore(state => state.loading);
+  const setCurrentHomeId = useTasksStore(state => state.setCurrentHomeId);
+  const fetchHomeTasks = useTasksStore(state => state.fetchHomeTasks);
+  const completeHomeTask = useTasksStore(state => state.completeHomeTask);
+  const homeTasks = currentHomeId ? (homeTasksByHome[currentHomeId] || []) : [];
+  const homes = useHomesStore(state => state.homes);
+  const vendors = useVendorsStore(state => state.vendors);
   const { colors } = useTheme();
   
   // Get the current home name
@@ -42,10 +48,11 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
   useEffect(() => {
     if (homeId && homeId !== lastHomeIdRef.current) {
       lastHomeIdRef.current = homeId;
-      setCurrentHome(homeId);
+      setCurrentHomeId(homeId);
+      fetchHomeTasks(homeId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [homeId]); // Only depend on homeId - setCurrentHome is stable
+  }, [homeId]); // Only depend on homeId - functions are stable
 
   // Add timeout to prevent stuck loading state
   useEffect(() => {
@@ -131,7 +138,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
       // Mark task as incomplete
       try {
         setSavingTaskId(taskId);
-        await completeHomeTask(taskId, { status: 'pending', is_active: true });
+        await completeHomeTask(taskId, currentHomeId, { status: 'pending', is_active: true });
         setExpandedTask(null);
       } catch (error) {
         console.error('Error marking task as incomplete:', error);
@@ -139,7 +146,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
         setSavingTaskId(null);
       }
     }
-  }, [homeTasks, completeHomeTask]);
+  }, [homeTasks, completeHomeTask, currentHomeId]);
 
   // Handle completion from modal
   const handleTaskCompletion = useCallback(async (completionData: any) => {
@@ -154,7 +161,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
         is_active: false, // Deactivate task when completed
       };
 
-      await completeHomeTask(currentTask.id, completionPayload);
+      await completeHomeTask(currentTask.id, currentHomeId, completionPayload);
       
       // Close dropdown and clear current task
       setExpandedTask(null);
@@ -165,7 +172,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
     } finally {
       setSavingTaskId(null);
     }
-  }, [currentTask, completeHomeTask]);
+  }, [currentTask, completeHomeTask, currentHomeId]);
 
   // Handle modal close
   const handleCompletionModalClose = useCallback(() => {

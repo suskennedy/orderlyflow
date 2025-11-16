@@ -12,10 +12,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
-import { useProjects } from '../../lib/hooks/useProjects';
-import { useRepairs } from '../../lib/hooks/useRepairs';
-import { useTasks } from '../../lib/hooks/useTasks';
-import { useVendors } from '../../lib/hooks/useVendors';
+import { useRealTimeSubscription } from '../../lib/hooks/useRealTimeSubscription';
+import { useProjectsStore } from '../../lib/stores/projectsStore';
+import { useRepairsStore } from '../../lib/stores/repairsStore';
+import { useTasksStore } from '../../lib/stores/tasksStore';
+import { useVendorsStore } from '../../lib/stores/vendorsStore';
 import { supabase } from '../../lib/supabase';
 import { getVendorDisplayText } from '../../lib/utils/vendorDisplayUtils';
 import { Vendor } from '../../types/database';
@@ -56,11 +57,25 @@ interface TaskSettingsScreenProps {
 export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { templateTasks,fetchTemplateTasks, homeTasks, activateTemplateForHome, setCurrentHome } = useTasks();
-  const { vendors } = useVendors();
-  const { repairs, fetchRepairs } = useRepairs();
-  const { projects, fetchProjects } = useProjects();
+  const templateTasks = useTasksStore(state => state.templateTasks);
+  const fetchTemplateTasks = useTasksStore(state => state.fetchTemplateTasks);
+  const homeTasksByHome = useTasksStore(state => state.homeTasksByHome);
+  const currentHomeId = useTasksStore(state => state.currentHomeId);
+  const setCurrentHomeId = useTasksStore(state => state.setCurrentHomeId);
+  const fetchHomeTasks = useTasksStore(state => state.fetchHomeTasks);
+  const activateTemplateForHome = useTasksStore(state => state.activateTemplateForHome);
+  const homeTasks = currentHomeId ? (homeTasksByHome[currentHomeId] || []) : [];
+  const vendors = useVendorsStore(state => state.vendors);
+  const repairsByHome = useRepairsStore(state => state.repairsByHome);
+  const fetchRepairs = useRepairsStore(state => state.fetchRepairs);
+  const setRepairs = useRepairsStore(state => state.setRepairs);
+  const projectsByHome = useProjectsStore(state => state.projectsByHome);
+  const fetchProjects = useProjectsStore(state => state.fetchProjects);
+  const setProjects = useProjectsStore(state => state.setProjects);
+  const repairs = currentHomeId ? (repairsByHome[currentHomeId] || []) : [];
+  const projects = currentHomeId ? (projectsByHome[currentHomeId] || []) : [];
   const { showToast } = useToast();
+  const { user } = useAuth();
 
   // Set current home when component mounts - use ref to prevent loops
   const lastHomeIdRef = React.useRef<string | undefined>(undefined);
@@ -73,13 +88,42 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
     
     if (!hasInitializedRef.current) {
       hasInitializedRef.current = true;
-      fetchTemplateTasks();
-      setCurrentHome(homeId);
-      fetchRepairs(homeId);
-      fetchProjects(homeId);
+      if (user?.id) {
+        fetchTemplateTasks();
+        setCurrentHomeId(homeId);
+        fetchHomeTasks(homeId);
+        fetchRepairs(homeId, user.id);
+        fetchProjects(homeId, user.id);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [homeId]); // Only depend on homeId - functions are stable
+  }, [homeId, user?.id]); // Only depend on homeId and user?.id - functions are stable
+  
+  // Real-time subscriptions for repairs
+  const handleRepairChange = useCallback((payload: any) => {
+    const repairHomeId = payload.new?.home_id || payload.old?.home_id;
+    if (repairHomeId === currentHomeId && user?.id) {
+      fetchRepairs(repairHomeId, user.id);
+    }
+  }, [currentHomeId, user?.id, fetchRepairs]);
+  
+  useRealTimeSubscription(
+    { table: 'repairs', event: '*' },
+    handleRepairChange
+  );
+  
+  // Real-time subscriptions for projects
+  const handleProjectChange = useCallback((payload: any) => {
+    const projectHomeId = payload.new?.home_id || payload.old?.home_id;
+    if (projectHomeId === currentHomeId && user?.id) {
+      fetchProjects(projectHomeId, user.id);
+    }
+  }, [currentHomeId, user?.id, fetchProjects]);
+  
+  useRealTimeSubscription(
+    { table: 'projects', event: '*' },
+    handleProjectChange
+  );
   
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());

@@ -6,14 +6,14 @@ import { useForm } from 'react-hook-form';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
-import { useFilters } from '../../../lib/hooks/useFilters';
 import { FilterFormData, filterFormSchema, transformFilterFormData } from '../../../lib/schemas/home/filterFormSchema';
+import { useFiltersStore } from '../../../lib/stores/filtersStore';
 import DatePicker from '../../DatePicker';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 export default function AddFilterScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { createFilter } = useFilters(homeId);
+  const createFilter = useFiltersStore(state => state.createFilter);
   const { colors } = useTheme();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -57,7 +57,7 @@ export default function AddFilterScreen() {
     setLoading(true);
     try {
       const transformedData = transformFilterFormData(data);
-      await createFilter(transformedData);
+      await createFilter(homeId, transformedData);
       
       showToast(`${data.name} filter added successfully!`, 'success');
       

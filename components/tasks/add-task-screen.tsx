@@ -19,9 +19,9 @@ import {
 } from 'react-native';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useAuth } from '../../lib/hooks/useAuth';
-import { useHomes } from '../../lib/hooks/useHomes';
-import { useTasks } from '../../lib/hooks/useTasks';
 import { TaskFormData, taskFormSchema, transformTaskFormData } from '../../lib/schemas/tasks/taskFormSchema';
+import { useHomesStore } from '../../lib/stores/homesStore';
+import { useTasksStore } from '../../lib/stores/tasksStore';
 import DatePicker from '../DatePicker';
 import TaskSpinner from '../ui/TaskSpinner';
 
@@ -44,8 +44,8 @@ interface AddTaskScreenProps {
 
 export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
-  const { createCustomTask } = useTasks();
-  const { homes } = useHomes();
+  const createCustomTask = useTasksStore(state => state.createCustomTask);
+  const homes = useHomesStore(state => state.homes);
   const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
   

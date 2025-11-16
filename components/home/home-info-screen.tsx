@@ -4,12 +4,13 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useHomes } from '../../lib/hooks/useHomes';
+import { useHomesStore } from '../../lib/stores/homesStore';
 import ScreenHeader from '../layouts/layout/ScreenHeader';
 
 export default function HomeInfoScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { getHomeById, updateHome } = useHomes();
+  const getHomeById = useHomesStore(state => state.getHomeById);
+  const updateHome = useHomesStore(state => state.updateHome);
   const home = getHomeById(homeId);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();

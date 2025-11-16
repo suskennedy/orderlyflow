@@ -5,7 +5,7 @@ import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
-import { useFamily } from '../../../lib/hooks/useFamily';
+import { useFamilyStore } from '../../../lib/stores/familyStore';
 import { supabase } from '../../../lib/supabase';
 import { ProfileSkeleton } from '../../ui/ProfileSkeleton';
 
@@ -24,7 +24,7 @@ interface UserProfile {
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const { colors } = useTheme();
-  const { familyMembers } = useFamily();
+  const familyMembers = useFamilyStore(state => state.familyMembers);
   const insets = useSafeAreaInsets();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);

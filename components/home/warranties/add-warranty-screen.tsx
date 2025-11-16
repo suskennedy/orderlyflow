@@ -6,14 +6,14 @@ import { useForm } from 'react-hook-form';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
-import { useWarranties } from '../../../lib/hooks/useWarranties';
 import { WarrantyFormData, transformWarrantyFormData, warrantyFormSchema } from '../../../lib/schemas/home/warrantyFormSchema';
+import { useWarrantiesStore } from '../../../lib/stores/warrantiesStore';
 import DatePicker from '../../DatePicker';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 export default function AddWarrantyScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { createWarranty } = useWarranties(homeId);
+  const createWarranty = useWarrantiesStore(state => state.createWarranty);
   const { colors } = useTheme();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -44,7 +44,7 @@ export default function AddWarrantyScreen() {
     setLoading(true);
     try {
       const warrantyData = transformWarrantyFormData(data);
-      await createWarranty(warrantyData);
+      await createWarranty(homeId, warrantyData);
       
       showToast(`${data.item_name} warranty added successfully!`, 'success');
       

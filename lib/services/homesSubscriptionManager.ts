@@ -1,26 +1,14 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import { useRealTimeSubscription } from '../hooks/useRealTimeSubscription';
 import { fetchTaskCountsForHomes, useHomesStore } from '../stores/homesStore';
-import { useAuth } from './useAuth';
-import { useRealTimeSubscription } from './useRealTimeSubscription';
 
-export function useHomes() {
+/**
+ * Centralized subscription manager for homes
+ * This should be used once at the app level to set up real-time subscriptions
+ */
+export function useHomesSubscriptionManager() {
   const { user } = useAuth();
-  const {
-    homes,
-    homesWithTaskCounts,
-    loading,
-    refreshing,
-    fetchHomes,
-    createHome,
-    updateHome,
-    deleteHome,
-    onRefresh,
-    getHomeById,
-    getHomeWithTaskCounts,
-    refreshTaskCounts,
-  } = useHomesStore();
-
-  // Debounce timer for task count updates
   const taskCountUpdateTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Set up real-time subscription for homes table
@@ -118,11 +106,11 @@ export function useHomes() {
         
         // Set new debounced timer
         taskCountUpdateTimerRef.current = setTimeout(async () => {
-          await refreshTaskCounts(homeId);
+          await store.refreshTaskCounts(homeId);
         }, 300); // 300ms debounce
       }
     }
-  }, [user?.id, refreshTaskCounts]);
+  }, [user?.id]);
 
   // Set up the real-time subscriptions
   useRealTimeSubscription(
@@ -143,11 +131,11 @@ export function useHomes() {
   // Initial data fetch
   useEffect(() => {
     if (user?.id) {
-      fetchHomes();
+      useHomesStore.getState().fetchHomes();
     } else {
       useHomesStore.setState({ homes: [], homesWithTaskCounts: [], loading: false });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [user?.id]); // Only depend on user?.id to avoid infinite loops
 
   // Cleanup timer on unmount
@@ -158,18 +146,5 @@ export function useHomes() {
       }
     };
   }, []);
+}
 
-  return {
-    homes: homes || [],
-    homesWithTaskCounts: homesWithTaskCounts || [],
-    loading,
-    refreshing,
-    createHome,
-    updateHome,
-    deleteHome,
-    onRefresh,
-    getHomeById,
-    getHomeWithTaskCounts,
-    refreshTaskCounts,
-  };
-} 

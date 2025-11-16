@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -14,10 +14,11 @@ import {
     View,
 } from 'react-native';
 import { useAuth } from '../../lib/hooks/useAuth';
-import { useFamily } from '../../lib/hooks/useFamily';
-import { useRepairs } from '../../lib/hooks/useRepairs';
-import { useVendors } from '../../lib/hooks/useVendors';
+import { useRealTimeSubscription } from '../../lib/hooks/useRealTimeSubscription';
 import { UploadResult } from '../../lib/services/uploadService';
+import { useFamilyStore } from '../../lib/stores/familyStore';
+import { useRepairsStore } from '../../lib/stores/repairsStore';
+import { useVendorsStore } from '../../lib/stores/vendorsStore';
 import { supabase } from '../../lib/supabase';
 import DatePicker from '../DatePicker';
 import MediaPreview from '../ui/MediaPreview';
@@ -33,10 +34,21 @@ const STATUS_OPTIONS = [
 export default function RepairDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { repairs, updateRepair, deleteRepair } = useRepairs();
-  const { vendors } = useVendors();
-  const { familyMembers } = useFamily();
   const { user } = useAuth();
+  const repairsByHome = useRepairsStore(state => state.repairsByHome);
+  const currentHomeByComponent = useRepairsStore(state => state.currentHomeByComponent);
+  const setCurrentHome = useRepairsStore(state => state.setCurrentHome);
+  const fetchRepairs = useRepairsStore(state => state.fetchRepairs);
+  const updateRepair = useRepairsStore(state => state.updateRepair);
+  const deleteRepair = useRepairsStore(state => state.deleteRepair);
+  const setRepairs = useRepairsStore(state => state.setRepairs);
+  const vendors = useVendorsStore(state => state.vendors);
+  const familyMembers = useFamilyStore(state => state.familyMembers);
+  
+  // Use a component ID to track current home per component instance
+  const componentIdRef = useRef(`repair-detail-${Date.now()}-${Math.random()}`);
+  const currentHome = currentHomeByComponent[componentIdRef.current] || null;
+  const repairs = currentHome ? (repairsByHome[currentHome] || []) : [];
 
   const [repair, setRepair] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -59,8 +71,19 @@ export default function RepairDetailScreen() {
     notes: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const { setCurrentHome, fetchRepairs } = useRepairs();
+  
+  // Real-time subscription for repairs
+  const handleRepairChange = useCallback((payload: any) => {
+    const repairHomeId = payload.new?.home_id || payload.old?.home_id;
+    if (repairHomeId === currentHome && user?.id) {
+      fetchRepairs(repairHomeId, user.id);
+    }
+  }, [currentHome, user?.id, fetchRepairs]);
+  
+  useRealTimeSubscription(
+    { table: 'repairs', event: '*' },
+    handleRepairChange
+  );
 
   // Fetch repair directly if not in current array - use ref to prevent loops
   const hasFetchedRef = React.useRef(false);
@@ -82,7 +105,10 @@ export default function RepairDetailScreen() {
     const foundRepair = repairs.find((r: any) => r.id === id);
     if (foundRepair) {
       if (foundRepair.home_id) {
-        setCurrentHome(foundRepair.home_id);
+        setCurrentHome(componentIdRef.current, foundRepair.home_id);
+        if (user?.id) {
+          fetchRepairs(foundRepair.home_id, user.id);
+        }
       }
       setRepair(foundRepair);
     } else if (user?.id) {
@@ -98,8 +124,8 @@ export default function RepairDetailScreen() {
           if (!error && data) {
             const repairData = data as any;
             if (repairData.home_id) {
-              setCurrentHome(repairData.home_id);
-              await fetchRepairs(repairData.home_id);
+              setCurrentHome(componentIdRef.current, repairData.home_id);
+              await fetchRepairs(repairData.home_id, user.id);
             }
             setRepair(repairData);
           }
@@ -184,7 +210,11 @@ export default function RepairDetailScreen() {
         notes: formData.notes.trim() || undefined,
       };
 
-      await updateRepair(repair.id, updateData);
+      if (!repair.home_id) {
+        Alert.alert('Error', 'Repair has no home ID');
+        return;
+      }
+      await updateRepair(repair.home_id, repair.id, updateData);
       setIsEditing(false);
       Alert.alert('Success', 'Repair updated successfully');
     } catch (error) {
@@ -208,7 +238,11 @@ export default function RepairDetailScreen() {
             if (!repair) return;
 
             try {
-              await deleteRepair(repair.id);
+              if (!repair.home_id) {
+                Alert.alert('Error', 'Repair has no home ID');
+                return;
+              }
+              await deleteRepair(repair.home_id, repair.id);
               router.back();
             } catch (error) {
               console.error('Error deleting repair:', error);

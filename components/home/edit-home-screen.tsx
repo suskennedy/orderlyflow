@@ -15,8 +15,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
-import { useHomes } from '../../lib/hooks/useHomes';
 import { googlePlacesService, PlaceDetails } from '../../lib/services/GooglePlacesService';
+import { useHomesStore } from '../../lib/stores/homesStore';
 import DatePicker from '../DatePicker';
 import AddressAutocomplete from '../forms/AddressAutocomplete';
 import FoundationSelector from '../forms/FoundationSelector';
@@ -24,7 +24,8 @@ import PhotoManager from '../forms/PhotoManager';
 
 export default function EditHomeScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { getHomeById, updateHome } = useHomes();
+  const getHomeById = useHomesStore(state => state.getHomeById);
+  const updateHome = useHomesStore(state => state.updateHome);
   const { colors } = useTheme();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Alert,
     KeyboardAvoidingView,
@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { useMaterials } from '../../../lib/hooks/useMaterials';
+import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
+import { useMaterialsStore } from '../../../lib/stores/materialsStore';
 import DatePicker from '../../DatePicker';
 
 interface Material {
@@ -32,7 +33,42 @@ export default function EditMaterialScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { materials, updateMaterial } = useMaterials(homeId);
+  const materials = useMaterialsStore(state => state.materialsByHome[homeId] || []);
+  const updateMaterial = useMaterialsStore(state => state.updateMaterial);
+  const fetchMaterials = useMaterialsStore(state => state.fetchMaterials);
+  const setMaterials = useMaterialsStore(state => state.setMaterials);
+  
+  const lastHomeIdRef = useRef<string | null>(null);
+  
+  // Initial data fetch
+  useEffect(() => {
+    if (homeId && homeId !== lastHomeIdRef.current) {
+      lastHomeIdRef.current = homeId;
+      fetchMaterials(homeId);
+    }
+  }, [homeId, fetchMaterials]);
+  
+  // Real-time subscription
+  const handleMaterialChange = useCallback((payload: any) => {
+    if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
+    const store = useMaterialsStore.getState();
+    const currentMaterials = store.materialsByHome[homeId] || [];
+    if (payload.eventType === 'INSERT') {
+      const newMaterial = payload.new;
+      if (!currentMaterials.some(m => m.id === newMaterial.id)) {
+        setMaterials(homeId, [newMaterial, ...currentMaterials]);
+      }
+    } else if (payload.eventType === 'UPDATE') {
+      setMaterials(homeId, currentMaterials.map(m => m.id === payload.new.id ? payload.new : m));
+    } else if (payload.eventType === 'DELETE') {
+      setMaterials(homeId, currentMaterials.filter(m => m.id !== payload.old.id));
+    }
+  }, [homeId, setMaterials]);
+  
+  useRealTimeSubscription(
+    { table: 'materials', filter: homeId ? `home_id=eq.${homeId}` : undefined },
+    handleMaterialChange
+  );
   const materialId = useLocalSearchParams<{ id: string }>();
 
   const [material, setMaterial] = useState<Material | null>(null);
@@ -73,7 +109,7 @@ export default function EditMaterialScreen() {
 
     setIsLoading(true);
     try {
-      await updateMaterial(materialId.id, {
+      await updateMaterial(homeId, materialId.id, {
         name: formData.name.trim(),
         room: formData.room || null,
         type: formData.type || null,

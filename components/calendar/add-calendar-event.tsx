@@ -19,8 +19,8 @@ import DatePicker from '../../components/DatePicker';
 import TimePicker from '../../components/TimePicker';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useCalendar } from '../../lib/hooks/useCalendar';
-import { useHomes } from '../../lib/hooks/useHomes';
-import { useTasks } from '../../lib/hooks/useTasks';
+import { useHomesStore } from '../../lib/stores/homesStore';
+import { useTasksStore } from '../../lib/stores/tasksStore';
 import { supabase } from '../../lib/supabase';
 
 const EVENT_COLORS = [
@@ -41,8 +41,8 @@ interface Task {
 export default function AddCalendarEventScreen() {
   const { user } = useAuth();
   const { addEvent } = useCalendar();
-  const { homes } = useHomes();
-  const { createHomeTaskWithCalendar } = useTasks();
+  const homes = useHomesStore(state => state.homes);
+  const createHomeTaskWithCalendar = useTasksStore(state => state.createHomeTaskWithCalendar);
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [formData, setFormData] = useState({
@@ -277,7 +277,9 @@ export default function AddCalendarEventScreen() {
           recurrence_end_date: formData.is_recurring && formData.recurrence_end_date ? formData.recurrence_end_date : null,
         };
 
-        await createHomeTaskWithCalendar(formData.home_id, taskData, calendarOptions);
+        if (user?.id) {
+          await createHomeTaskWithCalendar(formData.home_id, user.id, taskData, calendarOptions);
+        }
       } else {
         // Create regular calendar event
         const eventData = {

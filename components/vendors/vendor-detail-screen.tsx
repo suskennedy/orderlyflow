@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Linking,
     ScrollView,
@@ -11,8 +11,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useTasks } from '../../lib/hooks/useTasks';
-import { useVendors } from '../../lib/hooks/useVendors';
+import { useAuth } from '../../lib/hooks/useAuth';
+import { useRealTimeSubscription } from '../../lib/hooks/useRealTimeSubscription';
+import { useTasksStore } from '../../lib/stores/tasksStore';
+import { useVendorsStore } from '../../lib/stores/vendorsStore';
 
 interface Vendor {
   id: string;
@@ -31,8 +33,57 @@ interface Vendor {
 
 export default function VendorDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { vendors } = useVendors();
-  const { allHomeTasks, loading: tasksLoading, fetchAllHomeTasks } = useTasks();
+  const { user } = useAuth();
+  const vendors = useVendorsStore(state => state.vendors);
+  const fetchVendors = useVendorsStore(state => state.fetchVendors);
+  const setVendors = useVendorsStore(state => state.setVendors);
+  const allHomeTasks = useTasksStore(state => state.allHomeTasks);
+  
+  // Initial vendors data fetch
+  const hasFetchedVendorsRef = useRef(false);
+  useEffect(() => {
+    if (user?.id && !hasFetchedVendorsRef.current) {
+      hasFetchedVendorsRef.current = true;
+      fetchVendors(user.id);
+    }
+    return () => {
+      hasFetchedVendorsRef.current = false;
+    };
+  }, [user?.id, fetchVendors]);
+  
+  // Real-time subscription for vendors
+  const handleVendorChange = useCallback((payload: any) => {
+    if (payload.new?.user_id === user?.id || payload.old?.user_id === user?.id) {
+      const eventType = payload.eventType;
+      const currentVendors = useVendorsStore.getState().vendors;
+
+      if (eventType === 'INSERT') {
+        setVendors([payload.new, ...currentVendors]);
+      } 
+      else if (eventType === 'UPDATE') {
+        setVendors(
+          currentVendors.map(vendor => 
+            vendor.id === payload.new.id ? payload.new : vendor
+          )
+        );
+      } 
+      else if (eventType === 'DELETE') {
+        setVendors(
+          currentVendors.filter(vendor => vendor.id !== payload.old.id)
+        );
+      }
+    }
+  }, [user?.id, setVendors]);
+  
+  useRealTimeSubscription(
+    { 
+      table: 'vendors',
+      filter: user?.id ? `user_id=eq.${user.id}` : undefined
+    },
+    handleVendorChange
+  );
+  const tasksLoading = useTasksStore(state => state.loading);
+  const fetchAllHomeTasks = useTasksStore(state => state.fetchAllHomeTasks);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [vendor, setVendor] = useState<Vendor | null>(null);
@@ -62,9 +113,11 @@ export default function VendorDetailScreen() {
     console.log('VendorDetail: Component mounted, refreshing all tasks...');
     hasRefreshedRef.current = true;
     // Use setTimeout to ensure this runs after initial render
-    setTimeout(() => {
-      fetchAllHomeTasks().catch(console.error);
-    }, 100);
+    if (user?.id) {
+      setTimeout(() => {
+        fetchAllHomeTasks(user.id).catch(console.error);
+      }, 100);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps - only run once on mount
 

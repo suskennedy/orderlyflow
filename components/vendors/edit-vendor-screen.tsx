@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Alert,
     Modal,
@@ -13,7 +13,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useVendors } from '../../lib/hooks/useVendors';
+import { useAuth } from '../../lib/hooks/useAuth';
+import { useRealTimeSubscription } from '../../lib/hooks/useRealTimeSubscription';
+import { useVendorsStore } from '../../lib/stores/vendorsStore';
 
 interface Vendor {
   id: string;
@@ -47,9 +49,57 @@ const VENDOR_CATEGORIES = [
 
 export default function EditVendorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { vendors, updateVendor } = useVendors();
+  const { user } = useAuth();
+  const vendors = useVendorsStore(state => state.vendors);
+  const updateVendor = useVendorsStore(state => state.updateVendor);
+  const fetchVendors = useVendorsStore(state => state.fetchVendors);
+  const setVendors = useVendorsStore(state => state.setVendors);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  
+  // Initial data fetch
+  const hasFetchedRef = useRef(false);
+  useEffect(() => {
+    if (user?.id && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      fetchVendors(user.id);
+    }
+    return () => {
+      hasFetchedRef.current = false;
+    };
+  }, [user?.id, fetchVendors]);
+  
+  // Real-time subscription for vendors
+  const handleVendorChange = useCallback((payload: any) => {
+    if (payload.new?.user_id === user?.id || payload.old?.user_id === user?.id) {
+      const eventType = payload.eventType;
+      const currentVendors = useVendorsStore.getState().vendors;
+
+      if (eventType === 'INSERT') {
+        setVendors([payload.new, ...currentVendors]);
+      } 
+      else if (eventType === 'UPDATE') {
+        setVendors(
+          currentVendors.map(vendor => 
+            vendor.id === payload.new.id ? payload.new : vendor
+          )
+        );
+      } 
+      else if (eventType === 'DELETE') {
+        setVendors(
+          currentVendors.filter(vendor => vendor.id !== payload.old.id)
+        );
+      }
+    }
+  }, [user?.id, setVendors]);
+  
+  useRealTimeSubscription(
+    { 
+      table: 'vendors',
+      filter: user?.id ? `user_id=eq.${user.id}` : undefined
+    },
+    handleVendorChange
+  );
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [loading, setLoading] = useState(false);
   

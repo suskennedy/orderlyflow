@@ -4,7 +4,7 @@ import React from 'react';
 import { ActivityIndicator, Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useHomes } from '../../lib/hooks/useHomes';
+import { useHomesStore } from '../../lib/stores/homesStore';
 import { getHomeImageUrl } from '../../lib/utils/imageUtils';
 
 const HEADER_HEIGHT = 250;
@@ -19,7 +19,7 @@ interface MenuItem {
 
 export default function HomeDetailScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { getHomeById } = useHomes();
+  const getHomeById = useHomesStore(state => state.getHomeById);
   const home = getHomeById(homeId);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();

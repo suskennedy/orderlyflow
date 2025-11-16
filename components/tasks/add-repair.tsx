@@ -14,12 +14,12 @@ import {
     View
 } from 'react-native';
 import { useAuth } from '../../lib/hooks/useAuth';
-import { useFamily } from '../../lib/hooks/useFamily';
-import { useHomes } from '../../lib/hooks/useHomes';
-import { useRepairs } from '../../lib/hooks/useRepairs';
-import { useVendors } from '../../lib/hooks/useVendors';
 import { RepairFormData, repairFormSchemaWithValidation } from '../../lib/schemas/repairSchema';
 import { UploadResult } from '../../lib/services/uploadService';
+import { useFamilyStore } from '../../lib/stores/familyStore';
+import { useHomesStore } from '../../lib/stores/homesStore';
+import { useRepairsStore } from '../../lib/stores/repairsStore';
+import { useVendorsStore } from '../../lib/stores/vendorsStore';
 import DatePicker from '../DatePicker';
 import MediaPreview from '../ui/MediaPreview';
 import PhotoUploader from '../ui/PhotoUploader';
@@ -34,11 +34,11 @@ const STATUS_OPTIONS = [
 export default function AddRepairScreen() {
   const router = useRouter();
   const { homeId } = useLocalSearchParams();
-  const { addRepair } = useRepairs();
+  const addRepair = useRepairsStore(state => state.addRepair);
   const { user } = useAuth();
-  const { getHomeById } = useHomes();
-  const { vendors } = useVendors();
-  const { familyMembers } = useFamily();
+  const getHomeById = useHomesStore(state => state.getHomeById);
+  const vendors = useVendorsStore(state => state.vendors);
+  const familyMembers = useFamilyStore(state => state.familyMembers);
 
   const [loading, setLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
@@ -112,7 +112,7 @@ export default function AddRepairScreen() {
         created_by: user.id,
       };
 
-      await addRepair(repairData);
+      await addRepair(homeId, user.id, repairData);
       Alert.alert('Success', 'Repair added successfully', [
         { text: 'OK', onPress: () => router.back() },
       ]);

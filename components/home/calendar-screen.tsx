@@ -15,8 +15,8 @@ import DeleteConfirmationModal from '../ui/DeleteConfirmationModal';
 // Import hooks and utilities
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useCalendar } from '../../lib/hooks/useCalendar';
-import { useHomes } from '../../lib/hooks/useHomes';
-import { useTasks } from '../../lib/hooks/useTasks';
+import { useHomesStore } from '../../lib/stores/homesStore';
+import { useTasksStore } from '../../lib/stores/tasksStore';
 import { getCalendarTheme, getColorHex } from '../../lib/utils/colorHelpers';
 
 // Define MarkingProps interface for TypeScript
@@ -46,8 +46,13 @@ export default function CalendarScreen() {
     setCurrentHome,
     getFilteredEvents
   } = useCalendar();
-  const { homeTasks, loading: tasksLoading } = useTasks();
-  const { homes } = useHomes();
+  const homeTasksByHome = useTasksStore(state => state.homeTasksByHome);
+  const tasksLoading = useTasksStore(state => state.loading);
+  const currentTasksHomeId = useTasksStore(state => state.currentHomeId);
+  const setCurrentHomeId = useTasksStore(state => state.setCurrentHomeId);
+  const fetchHomeTasks = useTasksStore(state => state.fetchHomeTasks);
+  const homeTasks = currentTasksHomeId ? (homeTasksByHome[currentTasksHomeId] || []) : [];
+  const homes = useHomesStore(state => state.homes);
   const currentHome = currentHomeId ? homes.find(home => home.id === currentHomeId) : null;
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -63,6 +68,14 @@ export default function CalendarScreen() {
       setCurrentHome(currentHome.id);
     }
   }, [currentHome, currentHomeId, setCurrentHome]);
+  
+  // Set current home in tasks store and fetch tasks
+  useEffect(() => {
+    if (currentHomeId && currentHomeId !== currentTasksHomeId) {
+      setCurrentHomeId(currentHomeId);
+      fetchHomeTasks(currentHomeId);
+    }
+  }, [currentHomeId, currentTasksHomeId, setCurrentHomeId, fetchHomeTasks]);
 
   // Use filtered events based on current home selection
   const filteredEvents = useMemo(() => {

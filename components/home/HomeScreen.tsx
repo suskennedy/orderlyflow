@@ -1,51 +1,136 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { useAuth } from '../../lib/hooks/useAuth';
 import { useCalendar } from '../../lib/hooks/useCalendar';
-import { useHomes } from '../../lib/hooks/useHomes';
-import { useProjects } from '../../lib/hooks/useProjects';
-import { useRepairs } from '../../lib/hooks/useRepairs';
-import { useTasks } from '../../lib/hooks/useTasks';
-import { useVendors } from '../../lib/hooks/useVendors';
+import { useRealTimeSubscription } from '../../lib/hooks/useRealTimeSubscription';
 import { routes } from '../../lib/navigation';
+import { useHomesStore } from '../../lib/stores/homesStore';
+import { useProjectsStore } from '../../lib/stores/projectsStore';
+import { useRepairsStore } from '../../lib/stores/repairsStore';
+import { useTasksStore } from '../../lib/stores/tasksStore';
+import { useVendorsStore } from '../../lib/stores/vendorsStore';
 import TaskCompletionModal from '../ui/TaskCompletionModal';
 
 export default function HomeScreen() {
   const { colors } = useTheme();
-  const { homes } = useHomes();
-  const { allHomeTasks, completeHomeTask, fetchAllHomeTasks } = useTasks();
-  const { repairs, fetchRepairs } = useRepairs();
-  const { projects, fetchProjects } = useProjects();
+  const { user } = useAuth();
+  const homes = useHomesStore(state => state.homes);
+  const allHomeTasks = useTasksStore(state => state.allHomeTasks);
+  const completeHomeTask = useTasksStore(state => state.completeHomeTask);
+  const fetchAllHomeTasks = useTasksStore(state => state.fetchAllHomeTasks);
+  const currentHomeId = useTasksStore(state => state.currentHomeId);
+  const repairsByHome = useRepairsStore(state => state.repairsByHome);
+  const fetchRepairs = useRepairsStore(state => state.fetchRepairs);
+  const fetchProjects = useProjectsStore(state => state.fetchProjects);
+  
+  // Get all repairs from all homes
+  const repairs = useMemo(() => {
+    return Object.values(repairsByHome).flat();
+  }, [repairsByHome]);
   const { onRefresh: eventsRefresh } = useCalendar();
-  const { onRefresh: vendorsRefresh } = useVendors();
+  const vendorsRefresh = useVendorsStore(state => state.onRefresh);
+  const fetchVendors = useVendorsStore(state => state.fetchVendors);
+  const setVendors = useVendorsStore(state => state.setVendors);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Initial vendors data fetch
+  const hasFetchedVendorsRef = useRef(false);
+  useEffect(() => {
+    if (user?.id && !hasFetchedVendorsRef.current) {
+      hasFetchedVendorsRef.current = true;
+      fetchVendors(user.id);
+    }
+    return () => {
+      hasFetchedVendorsRef.current = false;
+    };
+  }, [user?.id, fetchVendors]);
+  
+  // Real-time subscription for vendors
+  const handleVendorChange = useCallback((payload: any) => {
+    if (payload.new?.user_id === user?.id || payload.old?.user_id === user?.id) {
+      const eventType = payload.eventType;
+      const currentVendors = useVendorsStore.getState().vendors;
+
+      if (eventType === 'INSERT') {
+        setVendors([payload.new, ...currentVendors]);
+      } 
+      else if (eventType === 'UPDATE') {
+        setVendors(
+          currentVendors.map(vendor => 
+            vendor.id === payload.new.id ? payload.new : vendor
+          )
+        );
+      } 
+      else if (eventType === 'DELETE') {
+        setVendors(
+          currentVendors.filter(vendor => vendor.id !== payload.old.id)
+        );
+      }
+    }
+  }, [user?.id, setVendors]);
+  
+  useRealTimeSubscription(
+    { 
+      table: 'vendors',
+      filter: user?.id ? `user_id=eq.${user.id}` : undefined
+    },
+    handleVendorChange
+  );
+  
+  // Real-time subscriptions for repairs
+  const handleRepairChange = useCallback((payload: any) => {
+    const homeId = payload.new?.home_id || payload.old?.home_id;
+    if (homeId && user?.id) {
+      fetchRepairs(homeId, user.id);
+    }
+  }, [user?.id, fetchRepairs]);
+  
+  useRealTimeSubscription(
+    { table: 'repairs', event: '*' },
+    handleRepairChange
+  );
+  
+  // Real-time subscriptions for projects
+  const handleProjectChange = useCallback((payload: any) => {
+    const homeId = payload.new?.home_id || payload.old?.home_id;
+    if (homeId && user?.id) {
+      fetchProjects(homeId, user.id);
+    }
+  }, [user?.id, fetchProjects]);
+  
+  useRealTimeSubscription(
+    { table: 'projects', event: '*' },
+    handleProjectChange
+  );
+  
   const [tasksToShow, setTasksToShow] = useState<3 | 5>(3);
   const [completionModalVisible, setCompletionModalVisible] = useState(false);
   const [selectedTaskForCompletion, setSelectedTaskForCompletion] = useState<any>(null);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
 
   // Use allHomeTasks to show tasks from all homes - ensure it's always an array
-  const allTasks = Array.isArray(allHomeTasks) ? allHomeTasks : [];
-  const homesArray = Array.isArray(homes) ? homes : [];
+  const allTasks = useMemo(() => Array.isArray(allHomeTasks) ? allHomeTasks : [], [allHomeTasks]);
+  const homesArray = useMemo(() => Array.isArray(homes) ? homes : [], [homes]);
  
   const onRefresh = () => {
     setRefreshing(true);
     Promise.all([
-      fetchAllHomeTasks().catch(console.error),
+      (user?.id ? fetchAllHomeTasks(user.id) : Promise.resolve()).catch(console.error),
       // Fetch repairs and projects for all homes
-      ...homesArray.map(home => fetchRepairs(home.id).catch(console.error)),
-      ...homesArray.map(home => fetchProjects(home.id).catch(console.error)),
+      ...(user?.id ? homesArray.map(home => fetchRepairs(home.id, user.id).catch(console.error)) : []),
+      ...(user?.id ? homesArray.map(home => fetchProjects(home.id, user.id).catch(console.error)) : []),
       eventsRefresh?.() || Promise.resolve(),
-      vendorsRefresh?.() || Promise.resolve(),
+      (user?.id ? vendorsRefresh(user.id) : Promise.resolve()).catch(console.error),
     ]).finally(() => {
       setRefreshing(false);
     });
@@ -54,7 +139,7 @@ export default function HomeScreen() {
   const handleTaskUncomplete = useCallback(async (taskId: string) => {
     try {
       setCompletingTaskId(taskId);
-      await completeHomeTask(taskId, {
+      await completeHomeTask(taskId, currentHomeId, {
         status: 'pending',
         completed_by_type: null,
         completed_at: null,
@@ -68,7 +153,7 @@ export default function HomeScreen() {
     } finally {
       setCompletingTaskId(null);
     }
-  }, [completeHomeTask]);
+  }, [completeHomeTask, currentHomeId]);
 
   const handleTaskClick = useCallback((task: any) => {
     if (task.status === 'completed') {
@@ -109,7 +194,7 @@ export default function HomeScreen() {
         completionPayload.completed_by_user_id = null; // Will be set by backend
       }
 
-      await completeHomeTask(selectedTaskForCompletion.id, completionPayload);
+      await completeHomeTask(selectedTaskForCompletion.id, currentHomeId, completionPayload);
       
       // Close modal and reset state
       setCompletionModalVisible(false);
@@ -119,7 +204,7 @@ export default function HomeScreen() {
     } finally {
       setCompletingTaskId(null);
     }
-  }, [completeHomeTask, selectedTaskForCompletion]);
+  }, [completeHomeTask, selectedTaskForCompletion, currentHomeId]);
 
   const handleCancelCompletion = useCallback(() => {
     setCompletionModalVisible(false);

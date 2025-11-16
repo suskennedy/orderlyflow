@@ -7,14 +7,14 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
-import { useAppliances } from '../../../lib/hooks/useAppliances';
 import { ApplianceFormData, applianceFormSchema, transformApplianceFormData } from '../../../lib/schemas/home/applianceFormSchema';
+import { useAppliancesStore } from '../../../lib/stores/appliancesStore';
 import DatePicker from '../../DatePicker';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 export default function AddApplianceScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { createAppliance } = useAppliances(homeId || '');
+  const createAppliance = useAppliancesStore(state => state.createAppliance);
   const { colors } = useTheme();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
@@ -58,7 +58,7 @@ export default function AddApplianceScreen() {
     setLoading(true);
     try {
       const transformedData = transformApplianceFormData(data);
-      await createAppliance(transformedData);
+      await createAppliance(homeId || '', transformedData);
       
       showToast(`${data.name} added successfully!`, 'success');
       

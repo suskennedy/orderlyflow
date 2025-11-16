@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Alert,
     ScrollView,
@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { useFilters } from '../../../lib/hooks/useFilters';
+import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
+import { useFiltersStore } from '../../../lib/stores/filtersStore';
 
 
 interface Filter {
@@ -31,7 +32,45 @@ function FilterDetailScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { filters, deleteFilter } = useFilters(homeId);
+  const filters = useFiltersStore(state => state.filtersByHome[homeId] || []);
+  const deleteFilter = useFiltersStore(state => state.deleteFilter);
+  const fetchFilters = useFiltersStore(state => state.fetchFilters);
+  const setFilters = useFiltersStore(state => state.setFilters);
+  
+  const lastHomeIdRef = useRef<string | null>(null);
+  
+  // Initial data fetch
+  useEffect(() => {
+    if (homeId && homeId !== lastHomeIdRef.current) {
+      lastHomeIdRef.current = homeId;
+      fetchFilters(homeId);
+    }
+  }, [homeId, fetchFilters]);
+  
+  // Real-time subscription
+  const handleFilterChange = useCallback((payload: any) => {
+    if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
+    const store = useFiltersStore.getState();
+    const currentFilters = store.filtersByHome[homeId] || [];
+    if (payload.eventType === 'INSERT') {
+      const newFilter = payload.new;
+      const normalizedFilter = { ...newFilter, room: newFilter.room ?? newFilter.location ?? null };
+      if (!currentFilters.some(f => f.id === normalizedFilter.id)) {
+        setFilters(homeId, [normalizedFilter, ...currentFilters]);
+      }
+    } else if (payload.eventType === 'UPDATE') {
+      const updatedFilter = payload.new;
+      const normalizedFilter = { ...updatedFilter, room: updatedFilter.room ?? updatedFilter.location ?? null };
+      setFilters(homeId, currentFilters.map(f => f.id === normalizedFilter.id ? normalizedFilter : f));
+    } else if (payload.eventType === 'DELETE') {
+      setFilters(homeId, currentFilters.filter(f => f.id !== payload.old.id));
+    }
+  }, [homeId, setFilters]);
+  
+  useRealTimeSubscription(
+    { table: 'filters', filter: homeId ? `home_id=eq.${homeId}` : undefined },
+    handleFilterChange
+  );
   const params = useLocalSearchParams();
   const filterId = params.id as string;
 
@@ -59,7 +98,7 @@ function FilterDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteFilter(filterId);
+              await deleteFilter(homeId, filterId);
               router.back();
             } catch (error) {
               console.error('Error deleting filter:', error);

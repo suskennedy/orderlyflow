@@ -1,19 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
-    ActivityIndicator,
-    Animated,
-    Dimensions,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { useAppliances } from '../../../lib/hooks/useAppliances';
+import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
+import { useAppliancesStore } from '../../../lib/stores/appliancesStore';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 import ApplianceCard from './ApplianceCard';
 
@@ -21,9 +22,44 @@ const { width } = Dimensions.get('window');
 
 export default function AppliancesScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const { appliances, loading } = useAppliances(homeId || '');
+  const appliances = useAppliancesStore(state => state.appliancesByHome[homeId || ''] || []);
+  const loading = useAppliancesStore(state => state.loadingByHome[homeId || ''] ?? false);
+  const fetchAppliances = useAppliancesStore(state => state.fetchAppliances);
+  const setAppliances = useAppliancesStore(state => state.setAppliances);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  
+  const lastHomeIdRef = useRef<string | null>(null);
+  
+  // Initial data fetch
+  useEffect(() => {
+    if (homeId && homeId !== lastHomeIdRef.current) {
+      lastHomeIdRef.current = homeId;
+      fetchAppliances(homeId);
+    }
+  }, [homeId, fetchAppliances]);
+  
+  // Real-time subscription
+  const handleApplianceChange = useCallback((payload: any) => {
+    if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
+    const store = useAppliancesStore.getState();
+    const currentAppliances = store.appliancesByHome[homeId || ''] || [];
+    if (payload.eventType === 'INSERT') {
+      const newAppliance = payload.new;
+      if (!currentAppliances.some(a => a.id === newAppliance.id)) {
+        setAppliances(homeId || '', [newAppliance, ...currentAppliances]);
+      }
+    } else if (payload.eventType === 'UPDATE') {
+      setAppliances(homeId || '', currentAppliances.map(a => a.id === payload.new.id ? payload.new : a));
+    } else if (payload.eventType === 'DELETE') {
+      setAppliances(homeId || '', currentAppliances.filter(a => a.id !== payload.old.id));
+    }
+  }, [homeId, setAppliances]);
+  
+  useRealTimeSubscription(
+    { table: 'appliances', filter: homeId ? `home_id=eq.${homeId}` : undefined },
+    handleApplianceChange
+  );
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;

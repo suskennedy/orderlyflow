@@ -4,21 +4,21 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Resolver, useForm } from 'react-hook-form';
 import {
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
-import { useHomes } from '../../lib/hooks/useHomes';
-import { useTasks } from '../../lib/hooks/useTasks';
-import { useVendors } from '../../lib/hooks/useVendors';
 import { CustomTaskFormData, customTaskFormSchema, transformCustomTaskFormData } from '../../lib/schemas/tasks/customTaskFormSchema';
+import { useHomesStore } from '../../lib/stores/homesStore';
+import { useTasksStore } from '../../lib/stores/tasksStore';
+import { useVendorsStore } from '../../lib/stores/vendorsStore';
 import DatePicker from '../DatePicker';
 
 const PRIORITY_OPTIONS = [
@@ -50,9 +50,9 @@ const CATEGORY_OPTIONS = [
 export default function AddCustomTaskScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { createCustomTask } = useTasks();
-  const { homes } = useHomes();
-  const { vendors } = useVendors();
+  const createCustomTask = useTasksStore(state => state.createCustomTask);
+  const homes = useHomesStore(state => state.homes);
+  const vendors = useVendorsStore(state => state.vendors);
   const { showToast } = useToast();
   
   const [showVendorModal, setShowVendorModal] = useState(false);

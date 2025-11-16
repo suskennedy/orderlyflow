@@ -1,24 +1,26 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useAuth } from '../../lib/hooks/useAuth';
-import { useFamily } from '../../lib/hooks/useFamily';
-import { useProjects } from '../../lib/hooks/useProjects';
-import { useVendors } from '../../lib/hooks/useVendors';
+import { useRealTimeSubscription } from '../../lib/hooks/useRealTimeSubscription';
+import { useProjectsStore } from '../../lib/stores/projectsStore';
+
 import { PROJECT_STATUS, PROJECT_TYPES } from '../../lib/schemas/projectSchema';
 import { UploadResult } from '../../lib/services/uploadService';
+import { useFamilyStore } from '../../lib/stores/familyStore';
+import { useVendorsStore } from '../../lib/stores/vendorsStore';
 import { supabase } from '../../lib/supabase';
 import DatePicker from '../DatePicker';
 import MediaPreview from '../ui/MediaPreview';
@@ -27,9 +29,21 @@ import PhotoUploader from '../ui/PhotoUploader';
 export default function ProjectDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { projects, updateProject, deleteProject } = useProjects();
-  const { vendors } = useVendors();
-  const { familyMembers } = useFamily();
+  const { user } = useAuth();
+  const projectsByHome = useProjectsStore(state => state.projectsByHome);
+  const currentHomeByComponent = useProjectsStore(state => state.currentHomeByComponent);
+  const setCurrentHome = useProjectsStore(state => state.setCurrentHome);
+  const fetchProjects = useProjectsStore(state => state.fetchProjects);
+  const updateProject = useProjectsStore(state => state.updateProject);
+  const deleteProject = useProjectsStore(state => state.deleteProject);
+  const setProjects = useProjectsStore(state => state.setProjects);
+  const vendors = useVendorsStore(state => state.vendors);
+  const familyMembers = useFamilyStore(state => state.familyMembers);
+  
+  // Use a component ID to track current home per component instance
+  const componentIdRef = useRef(`project-detail-${Date.now()}-${Math.random()}`);
+  const currentHome = currentHomeByComponent[componentIdRef.current] || null;
+  const projects = currentHome ? (projectsByHome[currentHome] || []) : [];
 
   const [project, setProject] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -57,9 +71,19 @@ export default function ProjectDetailScreen() {
     subtasks: [] as any[],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const { setCurrentHome, fetchProjects } = useProjects();
-  const { user } = useAuth();
+  
+  // Real-time subscription for projects
+  const handleProjectChange = useCallback((payload: any) => {
+    const projectHomeId = payload.new?.home_id || payload.old?.home_id;
+    if (projectHomeId === currentHome && user?.id) {
+      fetchProjects(projectHomeId, user.id);
+    }
+  }, [currentHome, user?.id, fetchProjects]);
+  
+  useRealTimeSubscription(
+    { table: 'projects', event: '*' },
+    handleProjectChange
+  );
 
   // Fetch project directly if not in current array - use ref to prevent loops
   const hasFetchedRef = React.useRef(false);
@@ -81,7 +105,10 @@ export default function ProjectDetailScreen() {
     const foundProject = projects.find((p: any) => p.id === id);
     if (foundProject) {
       if (foundProject.home_id) {
-        setCurrentHome(foundProject.home_id);
+        setCurrentHome(componentIdRef.current, foundProject.home_id);
+        if (user?.id) {
+          fetchProjects(foundProject.home_id, user.id);
+        }
       }
       setProject(foundProject);
     } else if (user?.id) {
@@ -97,8 +124,8 @@ export default function ProjectDetailScreen() {
           if (!error && data) {
             const projectData = data as any;
             if (projectData.home_id) {
-              setCurrentHome(projectData.home_id);
-              await fetchProjects(projectData.home_id);
+              setCurrentHome(componentIdRef.current, projectData.home_id);
+              await fetchProjects(projectData.home_id, user.id);
             }
             setProject(projectData);
           }
@@ -201,7 +228,11 @@ export default function ProjectDetailScreen() {
         subtasks: formData.subtasks.length > 0 ? formData.subtasks : undefined,
       };
 
-      await updateProject(project.id, updateData);
+      if (!project.home_id) {
+        Alert.alert('Error', 'Project has no home ID');
+        return;
+      }
+      await updateProject(project.home_id, project.id, updateData);
       setIsEditing(false);
       Alert.alert('Success', 'Project updated successfully');
     } catch (error) {
@@ -225,7 +256,11 @@ export default function ProjectDetailScreen() {
             if (!project) return;
 
             try {
-              await deleteProject(project.id);
+              if (!project.home_id) {
+                Alert.alert('Error', 'Project has no home ID');
+                return;
+              }
+              await deleteProject(project.home_id, project.id);
               router.back();
             } catch (error) {
               console.error('Error deleting project:', error);
