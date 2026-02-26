@@ -2,16 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
+import { useAuth } from '../../lib/hooks/useAuth';
 import { useRealTimeSubscription } from '../../lib/hooks/useRealTimeSubscription';
 import { useProjectsStore } from '../../lib/stores/projectsStore';
 import { useRepairsStore } from '../../lib/stores/repairsStore';
@@ -448,12 +449,19 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
                 new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : null
             } : undefined;
 
-            await activateTemplateForHome(task.databaseTask.id, homeId, {
-              name: taskName,
-              category: task.category,
-              suggestedFrequency: task.suggestedFrequency,
-              customSettings,
-              calendarOptions
+            await activateTemplateForHome(task.databaseTask.id, homeId, user?.id || '', {
+              due_date: taskForm.due_date || null,
+              is_recurring: taskForm.is_recurring,
+              recurrence_pattern: taskForm.recurrence_pattern,
+              assigned_vendor_id: taskForm.assigned_vendor_id || null,
+              assigned_user_id: taskForm.assigned_user_id || null,
+              notes: taskForm.notes,
+              recurrence_interval: taskForm.recurrence_pattern === 'monthly' ? 1 : undefined,
+              recurrence_unit: taskForm.recurrence_pattern === 'monthly' ? 'months' : 
+                              taskForm.recurrence_pattern === 'weekly' ? 'weeks' :
+                              taskForm.recurrence_pattern === 'daily' ? 'days' :
+                              taskForm.recurrence_pattern === 'quarterly' ? 'months' :
+                              taskForm.recurrence_pattern === 'annually' ? 'years' : undefined,
             });
             
             showToast(`Task "${taskName}" activated successfully!`, 'success');
@@ -505,13 +513,13 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
                 new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : null
             } : undefined;
 
-            await activateTemplateForHome(newTask.id, homeId, {
+            await activateTemplateForHome(newTask.id, homeId, user?.id || '', {
               name: taskName,
               category: task.category,
               suggestedFrequency: task.suggestedFrequency,
               customSettings,
               calendarOptions
-            });
+            });  
 
             // Close dropdown
             setExpandedTasks(prev => {

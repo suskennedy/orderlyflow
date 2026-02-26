@@ -5,9 +5,14 @@ import 'react-native-url-polyfill/auto'
 import { Database } from '../supabase-types'
 
 
-const supabaseUrl =  'https://bdseoponzbedfpkpacqd.supabase.co'
-const supabaseAnonKey =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkc2VvcG9uemJlZGZwa3BhY3FkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NTMzNDEsImV4cCI6MjA2NTIyOTM0MX0.LWHvhHhq6zxqGOiUDoSAmSq1BocHFrJV0lqVCGUekC8'
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Missing Supabase environment variables. Please set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env.local file.'
+  )
+}
 
 console.log('🔗 Supabase URL:', supabaseUrl)
 console.log('🏠 Environment:', supabaseUrl.includes('127.0.0.1') ? 'LOCAL' : 'PRODUCTION')
@@ -59,7 +64,7 @@ const createSupabaseClient = () => {
 
   // Only set up AppState listener for native platforms
   if (Platform.OS !== 'web') {
-    AppState.addEventListener('change', (state) => {
+    AppState.addEventListener('change', (state: any) => {
       if (state === 'active') {
         supabaseInstance?.auth.startAutoRefresh()
       } else {
