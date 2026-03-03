@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Picker } from '@react-native-picker/picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { MaterialFormData, materialFormSchema, transformMaterialFormData } from '../../../lib/schemas/home/materialFormSchema';
+import { MATERIAL_TYPES, MaterialFormData, materialFormSchema, transformMaterialFormData } from '../../../lib/schemas/home/materialFormSchema';
 import { useMaterialsStore } from '../../../lib/stores/materialsStore';
-import DatePicker from '../../DatePicker';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 export default function AddMaterialScreen() {
@@ -19,22 +19,19 @@ export default function AddMaterialScreen() {
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  const { 
-    control, 
-    handleSubmit, 
-    watch, 
-    setValue, 
-    clearErrors, 
-    formState: { errors } 
+  const {
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    clearErrors,
+    formState: { errors }
   } = useForm<MaterialFormData>({
     resolver: zodResolver(materialFormSchema),
     defaultValues: {
-      name: '',
-      room: '',
-      type: '',
+      type: MATERIAL_TYPES[0],
+      location: '',
       brand: '',
-      source: '',
-      purchase_date: '',
       notes: '',
     }
   });
@@ -42,11 +39,8 @@ export default function AddMaterialScreen() {
   const formData = watch();
 
   // Refs for input fields
-  const nameRef = useRef<TextInput>(null);
-  const roomRef = useRef<TextInput>(null);
-  const typeRef = useRef<TextInput>(null);
+  const locationRef = useRef<TextInput>(null);
   const brandRef = useRef<TextInput>(null);
-  const sourceRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
   const onSubmit = async (data: MaterialFormData) => {
@@ -74,9 +68,9 @@ export default function AddMaterialScreen() {
     const isFocused = focusedField === fieldName;
     return [
       styles.input,
-      { 
-        backgroundColor: colors.surface, 
-        color: colors.text, 
+      {
+        backgroundColor: colors.surface,
+        color: colors.text,
         borderColor: isFocused ? colors.primary : colors.border,
         borderWidth: isFocused ? 2 : 1,
       }
@@ -87,9 +81,9 @@ export default function AddMaterialScreen() {
     const isFocused = focusedField === 'notes';
     return [
       styles.textArea,
-      { 
-        backgroundColor: colors.surface, 
-        color: colors.text, 
+      {
+        backgroundColor: colors.surface,
+        color: colors.text,
         borderColor: isFocused ? colors.primary : colors.border,
         borderWidth: isFocused ? 2 : 1,
       }
@@ -99,161 +93,83 @@ export default function AddMaterialScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScreenHeader title="Add Material" showBackButton />
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100 }]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.form}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Basic Information</Text>
-          
-          <Text style={[styles.label, { color: colors.text }]}>Material Name *</Text>
-          <TextInput
-            ref={nameRef}
-            style={[
-              getInputStyle('name'),
-              errors.name && { borderColor: colors.error, borderWidth: 2 }
-            ]}
-            value={formData.name}
-            onChangeText={text => {
-              setValue('name', text);
-              if (errors.name) clearErrors('name');
-            }}
-            placeholder="e.g., Carpet, Tile, Paint, Light Fixture"
-            placeholderTextColor={colors.textSecondary}
-            onFocus={() => handleFocus('name')}
-            onBlur={handleBlur}
-            returnKeyType="next"
-            onSubmitEditing={() => roomRef.current?.focus()}
-          />
-          {errors.name && (
+
+          <Text style={[styles.label, { color: colors.text }]}>Material Type *</Text>
+          <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Picker
+              selectedValue={formData.type}
+              onValueChange={(itemValue) => setValue('type', itemValue)}
+              style={[{ color: colors.text }]}
+              dropdownIconColor={colors.text}
+            >
+              {MATERIAL_TYPES.map((typeOption) => (
+                <Picker.Item key={typeOption} label={typeOption} value={typeOption} />
+              ))}
+            </Picker>
+          </View>
+          {errors.type && (
             <Text style={[styles.errorText, { color: colors.error }]}>
-              {errors.name.message}
+              {errors.type.message}
             </Text>
           )}
 
-          <Text style={[styles.label, { color: colors.text }]}>Room *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Location / Room *</Text>
           <TextInput
-            ref={roomRef}
+            ref={locationRef}
             style={[
-              getInputStyle('room'),
-              errors.room && { borderColor: colors.error, borderWidth: 2 }
+              getInputStyle('location'),
+              errors.location && { borderColor: colors.error, borderWidth: 2 }
             ]}
-            value={formData.room}
+            value={formData.location}
             onChangeText={text => {
-              setValue('room', text);
-              if (errors.room) clearErrors('room');
+              setValue('location', text);
+              if (errors.location) clearErrors('location');
             }}
-            placeholder="e.g., Living Room, Kitchen, Bathroom"
+            placeholder="e.g., Living Room, Kitchen Backsplash"
             placeholderTextColor={colors.textSecondary}
-            onFocus={() => handleFocus('room')}
+            onFocus={() => handleFocus('location')}
             onBlur={handleBlur}
             returnKeyType="next"
-            onSubmitEditing={() => typeRef.current?.focus()}
+            onSubmitEditing={() => brandRef.current?.focus()}
           />
-          {errors.room && (
+          {errors.location && (
             <Text style={[styles.errorText, { color: colors.error }]}>
-              {errors.room.message}
+              {errors.location.message}
             </Text>
           )}
 
           <View style={styles.row}>
-            <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Type *</Text>
-              <TextInput
-                ref={typeRef}
-                style={[
-                  getInputStyle('type'),
-                  errors.type && { borderColor: colors.error, borderWidth: 2 }
-                ]}
-                value={formData.type}
-                onChangeText={text => {
-                  setValue('type', text);
-                  if (errors.type) clearErrors('type');
-                }}
-                placeholder="e.g., Carpet, Tile, Paint, Light"
-                placeholderTextColor={colors.textSecondary}
-                onFocus={() => handleFocus('type')}
-                onBlur={handleBlur}
-                returnKeyType="next"
-                onSubmitEditing={() => brandRef.current?.focus()}
-              />
-              {errors.type && (
-                <Text style={[styles.errorText, { color: colors.error }]}>
-                  {errors.type.message}
-                </Text>
-              )}
-            </View>
-            <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Brand *</Text>
-              <TextInput
-                ref={brandRef}
-                style={[
-                  getInputStyle('brand'),
-                  errors.brand && { borderColor: colors.error, borderWidth: 2 }
-                ]}
-                value={formData.brand}
-                onChangeText={text => {
-                  setValue('brand', text);
-                  if (errors.brand) clearErrors('brand');
-                }}
-                placeholder="e.g., Home Depot, Lowe's, Sherwin-Williams"
-                placeholderTextColor={colors.textSecondary}
-                onFocus={() => handleFocus('brand')}
-                onBlur={handleBlur}
-                returnKeyType="next"
-                onSubmitEditing={() => sourceRef.current?.focus()}
-              />
-              {errors.brand && (
-                <Text style={[styles.errorText, { color: colors.error }]}>
-                  {errors.brand.message}
-                </Text>
-              )}
-            </View>
+            <Text style={[styles.label, { color: colors.text }]}>Brand *</Text>
+            <TextInput
+              ref={brandRef}
+              style={[
+                getInputStyle('brand'),
+                errors.brand && { borderColor: colors.error, borderWidth: 2 }
+              ]}
+              value={formData.brand}
+              onChangeText={text => {
+                setValue('brand', text);
+                if (errors.brand) clearErrors('brand');
+              }}
+              placeholder="e.g., Home Depot, Lowe's, Sherwin-Williams"
+              placeholderTextColor={colors.textSecondary}
+              onFocus={() => handleFocus('brand')}
+              onBlur={handleBlur}
+              returnKeyType="next"
+              onSubmitEditing={() => notesRef.current?.focus()}
+            />
+            {errors.brand && (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {errors.brand.message}
+              </Text>
+            )}
           </View>
-
-          <Text style={[styles.label, { color: colors.text }]}>Source *</Text>
-          <TextInput
-            ref={sourceRef}
-            style={[
-              getInputStyle('source'),
-              errors.source && { borderColor: colors.error, borderWidth: 2 }
-            ]}
-            value={formData.source}
-            onChangeText={text => {
-              setValue('source', text);
-              if (errors.source) clearErrors('source');
-            }}
-            placeholder="e.g., Home Depot, Local Store, Online"
-            placeholderTextColor={colors.textSecondary}
-            onFocus={() => handleFocus('source')}
-            onBlur={handleBlur}
-            returnKeyType="next"
-            onSubmitEditing={() => notesRef.current?.focus()}
-          />
-          {errors.source && (
-            <Text style={[styles.errorText, { color: colors.error }]}>
-              {errors.source.message}
-            </Text>
-          )}
-
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Purchase Information</Text>
-
-          <DatePicker
-            label="Purchase Date"
-            value={formData.purchase_date || null}
-            placeholder="Select purchase date"
-            onChange={(date) => {
-              setValue('purchase_date', date || '');
-              if (errors.purchase_date) clearErrors('purchase_date');
-            }}
-            helperText="When did you purchase this material?"
-            isOptional={true}
-          />
-          {errors.purchase_date && (
-            <Text style={[styles.errorText, { color: colors.error }]}>
-              {errors.purchase_date.message}
-            </Text>
-          )}
 
           <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
           <TextInput
@@ -360,5 +276,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
     marginLeft: 4,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
 }); 

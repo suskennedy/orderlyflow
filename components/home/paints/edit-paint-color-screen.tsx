@@ -2,15 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
@@ -21,23 +21,24 @@ interface PaintColor {
   id: string;
   name: string;
   room: string | null;
-  brand: string | null;
   color_code: string | null;
-  color_hex: string | null;
+  finish: string | null;
+  wallpaper: boolean | null;
+  trim_color: string | null;
   notes: string | null;
 }
 
-export default function  EditPaintColorScreen() {
+export default function EditPaintColorScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { homeId } = useLocalSearchParams<{ homeId: string }>();  
+  const { homeId } = useLocalSearchParams<{ homeId: string }>();
   const paints = usePaintsStore(state => state.paintsByHome[homeId] || []);
   const updatePaint = usePaintsStore(state => state.updatePaint);
   const fetchPaints = usePaintsStore(state => state.fetchPaints);
   const setPaints = usePaintsStore(state => state.setPaints);
-  
+
   const lastHomeIdRef = useRef<string | null>(null);
-  
+
   // Initial data fetch
   useEffect(() => {
     if (homeId && homeId !== lastHomeIdRef.current) {
@@ -45,7 +46,7 @@ export default function  EditPaintColorScreen() {
       fetchPaints(homeId);
     }
   }, [homeId, fetchPaints]);
-  
+
   // Real-time subscription
   const handlePaintChange = useCallback((payload: any) => {
     if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
@@ -62,7 +63,7 @@ export default function  EditPaintColorScreen() {
       setPaints(homeId, currentPaints.filter(p => p.id !== payload.old.id));
     }
   }, [homeId, setPaints]);
-  
+
   useRealTimeSubscription(
     { table: 'paint_colors', filter: homeId ? `home_id=eq.${homeId}` : undefined },
     handlePaintChange
@@ -73,27 +74,29 @@ export default function  EditPaintColorScreen() {
   const [formData, setFormData] = useState({
     name: '',
     room: '',
-    brand: '',
     color_code: '',
-    color_hex: '',
+    finish: '',
+    wallpaper: false,
+    trim_color: '',
     notes: ''
   });
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const foundPaint = paints.find((p: any) => p.id === paintId);
+    const foundPaint = paints.find((p: any) => p.id === paintId.id);
     if (foundPaint) {
       setPaint(foundPaint);
       setFormData({
         name: foundPaint.name || '',
         room: foundPaint.room || '',
-        brand: foundPaint.brand || '',
         color_code: foundPaint.color_code || '',
-        color_hex: foundPaint.color_hex || '',
+        finish: foundPaint.finish || '',
+        wallpaper: foundPaint.wallpaper || false,
+        trim_color: foundPaint.trim_color || '',
         notes: foundPaint.notes || ''
       });
     }
-  }, [paints, paintId]);
+  }, [paints, paintId.id]);
 
   const handleSave = async () => {
     if (!paint) return;
@@ -107,13 +110,14 @@ export default function  EditPaintColorScreen() {
     try {
       await updatePaint(homeId, paintId.id, {
         name: formData.name.trim(),
-        room: formData.room || null,  
-        brand: formData.brand || null,
+        room: formData.room || null,
         color_code: formData.color_code || null,
-        color_hex: formData.color_hex || null,
+        finish: formData.finish || null,
+        wallpaper: formData.wallpaper,
+        trim_color: formData.trim_color || null,
         notes: formData.notes || null
       });
-      
+
       Alert.alert('Success', 'Paint color updated successfully!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
@@ -136,20 +140,7 @@ export default function  EditPaintColorScreen() {
     );
   };
 
-  // Function to validate and format hex color
-  const handleColorHexChange = (text: string) => {
-    let formattedText = text;
-    
-    // Add # if not present
-    if (text && !text.startsWith('#')) {
-      formattedText = '#' + text;
-    }
-    
-    // Remove invalid characters and limit length
-    formattedText = formattedText.replace(/[^#0-9A-Fa-f]/g, '').substring(0, 7);
-    
-    setFormData({ ...formData, color_hex: formattedText });
-  };
+
 
   if (!paint) {
     return (
@@ -174,7 +165,7 @@ export default function  EditPaintColorScreen() {
   }
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -207,11 +198,11 @@ export default function  EditPaintColorScreen() {
         {/* Basic Information */}
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Paint Information</Text>
-          
+
           <View style={styles.inputGroup}>
             <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Paint Name *</Text>
             <TextInput
-              style={[styles.textInput, { 
+              style={[styles.textInput, {
                 backgroundColor: colors.background,
                 color: colors.text,
                 borderColor: colors.border
@@ -226,7 +217,7 @@ export default function  EditPaintColorScreen() {
           <View style={styles.inputGroup}>
             <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Room</Text>
             <TextInput
-              style={[styles.textInput, { 
+              style={[styles.textInput, {
                 backgroundColor: colors.background,
                 color: colors.text,
                 borderColor: colors.border
@@ -239,73 +230,58 @@ export default function  EditPaintColorScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Brand</Text>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Finish</Text>
             <TextInput
-              style={[styles.textInput, { 
+              style={[styles.textInput, {
                 backgroundColor: colors.background,
                 color: colors.text,
                 borderColor: colors.border
               }]}
-              value={formData.brand}
-              onChangeText={(text) => setFormData({ ...formData, brand: text })}
-              placeholder="Enter paint brand"
+              value={formData.finish}
+              onChangeText={(text) => setFormData({ ...formData, finish: text })}
+              placeholder="e.g., Matte, Eggshell"
               placeholderTextColor={colors.textSecondary}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Color Code</Text>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Trim Color</Text>
             <TextInput
-              style={[styles.textInput, { 
+              style={[styles.textInput, {
                 backgroundColor: colors.background,
                 color: colors.text,
                 borderColor: colors.border
               }]}
-              value={formData.color_code}
-              onChangeText={(text) => setFormData({ ...formData, color_code: text })}
-              placeholder="e.g., SW 7006, BM OC-17"
+              value={formData.trim_color}
+              onChangeText={(text) => setFormData({ ...formData, trim_color: text })}
+              placeholder="e.g., Pure White"
               placeholderTextColor={colors.textSecondary}
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Hex Color Code</Text>
-            <View style={styles.colorInputContainer}>
-              <TextInput
-                style={[styles.textInput, { 
-                  backgroundColor: colors.background,
-                  color: colors.text,
-                  borderColor: colors.border,
-                  flex: 1,
-                  marginRight: 12
-                }]}
-                value={formData.color_hex}
-                onChangeText={handleColorHexChange}
-                placeholder="#FFFFFF"
-                placeholderTextColor={colors.textSecondary}
-                autoCapitalize="characters"
-                maxLength={7}
-              />
-              {formData.color_hex && (
-                <View 
-                  style={[
-                    styles.colorPreview, 
-                    { backgroundColor: formData.color_hex || '#ccc' }
-                  ]} 
-                />
-              )}
-            </View>
+          <View style={styles.switchContainer}>
+            <Text style={[styles.inputLabel, { color: colors.text, marginBottom: 0 }]}>Is Wallpaper?</Text>
+            <TouchableOpacity
+              style={[
+                styles.checkbox,
+                { borderColor: colors.border },
+                formData.wallpaper && { backgroundColor: colors.primary, borderColor: colors.primary }
+              ]}
+              onPress={() => setFormData({ ...formData, wallpaper: !formData.wallpaper })}
+            >
+              {formData.wallpaper && <Ionicons name="checkmark" size={16} color={colors.textInverse} />}
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* Notes */}
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Notes</Text>
-          
+
           <View style={styles.inputGroup}>
             <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Additional Notes</Text>
             <TextInput
-              style={[styles.textArea, { 
+              style={[styles.textArea, {
                 backgroundColor: colors.background,
                 color: colors.text,
                 borderColor: colors.border
@@ -425,5 +401,21 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     textAlign: 'center',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 8,
+    paddingVertical: 4,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

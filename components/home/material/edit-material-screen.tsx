@@ -1,31 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
-} from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
+import { MATERIAL_TYPES } from '../../../lib/schemas/home/materialFormSchema';
 import { useMaterialsStore } from '../../../lib/stores/materialsStore';
-import DatePicker from '../../DatePicker';
 
 interface Material {
   id: string;
-  name: string;
-  room: string | null;
   type: string | null;
+  location: string | null;
   brand: string | null;
-  source: string | null;
-  purchase_date: string | null;
   notes: string | null;
 }
 
@@ -37,9 +25,9 @@ export default function EditMaterialScreen() {
   const updateMaterial = useMaterialsStore(state => state.updateMaterial);
   const fetchMaterials = useMaterialsStore(state => state.fetchMaterials);
   const setMaterials = useMaterialsStore(state => state.setMaterials);
-  
+
   const lastHomeIdRef = useRef<string | null>(null);
-  
+
   // Initial data fetch
   useEffect(() => {
     if (homeId && homeId !== lastHomeIdRef.current) {
@@ -47,7 +35,7 @@ export default function EditMaterialScreen() {
       fetchMaterials(homeId);
     }
   }, [homeId, fetchMaterials]);
-  
+
   // Real-time subscription
   const handleMaterialChange = useCallback((payload: any) => {
     if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
@@ -64,7 +52,7 @@ export default function EditMaterialScreen() {
       setMaterials(homeId, currentMaterials.filter(m => m.id !== payload.old.id));
     }
   }, [homeId, setMaterials]);
-  
+
   useRealTimeSubscription(
     { table: 'materials', filter: homeId ? `home_id=eq.${homeId}` : undefined },
     handleMaterialChange
@@ -73,12 +61,9 @@ export default function EditMaterialScreen() {
 
   const [material, setMaterial] = useState<Material | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    room: '',
-    type: '',
+    type: MATERIAL_TYPES[0] as string,
+    location: '',
     brand: '',
-    source: '',
-    purchase_date: '',
     notes: ''
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -88,12 +73,9 @@ export default function EditMaterialScreen() {
     if (foundMaterial) {
       setMaterial(foundMaterial);
       setFormData({
-        name: foundMaterial.name || '',
-        room: foundMaterial.room || '',
-        type: foundMaterial.type || '',
+        type: foundMaterial.type || MATERIAL_TYPES[0],
+        location: foundMaterial.location || '',
         brand: foundMaterial.brand || '',
-        source: foundMaterial.source || '',
-        purchase_date: foundMaterial.purchase_date || '',
         notes: foundMaterial.notes || ''
       });
     }
@@ -102,23 +84,20 @@ export default function EditMaterialScreen() {
   const handleSave = async () => {
     if (!material) return;
 
-    if (!formData.name.trim()) {
-      Alert.alert('Error', 'Material name is required');
+    if (!formData.location.trim()) {
+      Alert.alert('Error', 'Location is required');
       return;
     }
 
     setIsLoading(true);
     try {
       await updateMaterial(homeId, materialId.id, {
-        name: formData.name.trim(),
-        room: formData.room || null,
         type: formData.type || null,
+        location: formData.location.trim() || null,
         brand: formData.brand || null,
-        source: formData.source || null,
-        purchase_date: formData.purchase_date || null,
         notes: formData.notes || null
       });
-      
+
       Alert.alert('Success', 'Material updated successfully!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
@@ -164,7 +143,7 @@ export default function EditMaterialScreen() {
   }
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -197,48 +176,34 @@ export default function EditMaterialScreen() {
         {/* Basic Information */}
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Material Information</Text>
-          
+
           <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Material Name *</Text>
-            <TextInput
-              style={[styles.textInput, { 
-                backgroundColor: colors.background,
-                color: colors.text,
-                borderColor: colors.border
-              }]}
-              value={formData.name}
-              onChangeText={(text) => setFormData({ ...formData, name: text })}
-              placeholder="Enter material name"
-              placeholderTextColor={colors.textSecondary}
-            />
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Material Type *</Text>
+            <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Picker
+                selectedValue={formData.type}
+                onValueChange={(itemValue) => setFormData({ ...formData, type: itemValue })}
+                style={[{ color: colors.text }]}
+                dropdownIconColor={colors.text}
+              >
+                {MATERIAL_TYPES.map((typeOption) => (
+                  <Picker.Item key={typeOption} label={typeOption} value={typeOption} />
+                ))}
+              </Picker>
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Room</Text>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Location / Room *</Text>
             <TextInput
-              style={[styles.textInput, { 
+              style={[styles.textInput, {
                 backgroundColor: colors.background,
                 color: colors.text,
                 borderColor: colors.border
               }]}
-              value={formData.room}
-              onChangeText={(text) => setFormData({ ...formData, room: text })}
-              placeholder="Enter room location"
-              placeholderTextColor={colors.textSecondary}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Type</Text>
-            <TextInput
-              style={[styles.textInput, { 
-                backgroundColor: colors.background,
-                color: colors.text,
-                borderColor: colors.border
-              }]}
-              value={formData.type}
-              onChangeText={(text) => setFormData({ ...formData, type: text })}
-              placeholder="e.g., Flooring, Tile, Wood, etc."
+              value={formData.location}
+              onChangeText={(text) => setFormData({ ...formData, location: text })}
+              placeholder="e.g., Living Room, Kitchen Backsplash"
               placeholderTextColor={colors.textSecondary}
             />
           </View>
@@ -246,7 +211,7 @@ export default function EditMaterialScreen() {
           <View style={styles.inputGroup}>
             <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Brand</Text>
             <TextInput
-              style={[styles.textInput, { 
+              style={[styles.textInput, {
                 backgroundColor: colors.background,
                 color: colors.text,
                 borderColor: colors.border
@@ -258,44 +223,17 @@ export default function EditMaterialScreen() {
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Source</Text>
-            <TextInput
-              style={[styles.textInput, { 
-                backgroundColor: colors.background,
-                color: colors.text,
-                borderColor: colors.border
-              }]}
-              value={formData.source}
-              onChangeText={(text) => setFormData({ ...formData, source: text })}
-              placeholder="Where was this purchased?"
-              placeholderTextColor={colors.textSecondary}
-            />
-          </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Purchase Date</Text>
-            <DatePicker
-              label=""
-              value={formData.purchase_date || null}
-              placeholder="Select purchase date"
-              onChange={(dateString) => {
-                setFormData({ ...formData, purchase_date: dateString || '' });
-              }}
-              helperText=""
-              isOptional={true}
-            />
-          </View>
         </View>
 
         {/* Notes */}
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Notes</Text>
-          
+
           <View style={styles.inputGroup}>
             <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Additional Notes</Text>
             <TextInput
-              style={[styles.textArea, { 
+              style={[styles.textArea, {
                 backgroundColor: colors.background,
                 color: colors.text,
                 borderColor: colors.border
@@ -404,5 +342,10 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     textAlign: 'center',
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
   },
 });

@@ -8,6 +8,9 @@ export const FOUNDATION_TYPES = [
   'other'
 ] as const;
 
+export const SEWER_TYPES = ['sewer', 'septic'] as const;
+export const WATER_SOURCES = ['city', 'well'] as const;
+
 export const homeFormSchema = z.object({
   // Required fields
   name: z.string().min(1, 'Home name is required').max(255, 'Home name must be less than 255 characters'),
@@ -31,6 +34,11 @@ export const homeFormSchema = z.object({
   // Optional text fields
   warranty_info: z.string().max(2000, 'Warranty info must be less than 2000 characters').optional(),
   notes: z.string().max(2000, 'Notes must be less than 2000 characters').optional(),
+
+  // Utilities & Systems
+  sewer_vs_septic: z.enum(SEWER_TYPES).optional(),
+  water_source: z.enum(WATER_SOURCES).optional(),
+  water_heater_location: z.string().max(500, 'Water heater location must be less than 500 characters').optional(),
   
   // Optional media and location
   image_url: z.string().url('Must be a valid URL').optional().or(z.literal('')),
@@ -83,4 +91,7 @@ export const transformHomeFormData = (data: HomeFormData) => ({
   image_url: data.image_url || null,
   latitude: data.latitude,
   longitude: data.longitude,
+  sewer_vs_septic: data.sewer_vs_septic || null,
+  water_source: data.water_source || null,
+  water_heater_location: data.water_heater_location?.trim() || null,
 });

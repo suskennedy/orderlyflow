@@ -4,11 +4,11 @@ import { supabase } from '../supabase';
 export interface Appliance {
   id: string;
   name: string;
+  type: string | null;
   brand: string | null;
   model: string | null;
-  purchase_date: string | null;
-  warranty_expiration: string | null;
   manual_url: string | null;
+  warranty_url: string | null;
   notes: string | null;
   room: string | null;
   purchased_store: string | null;
@@ -68,7 +68,7 @@ export const useAppliancesStore = create<AppliancesState>((set, get) => ({
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      get().setAppliances(homeId, (data || []) as Appliance[]);
+      get().setAppliances(homeId, (data as any) || []);
     } catch (error) {
       console.error('Error fetching appliances:', error);
       get().setAppliances(homeId, []);
@@ -84,7 +84,7 @@ export const useAppliancesStore = create<AppliancesState>((set, get) => ({
       
       const { error } = await supabase
         .from('appliances')
-        .insert([{ ...applianceData, home_id: homeId }])
+        .insert([{ ...applianceData, home_id: homeId } as any])
         .select()
         .single();
         
@@ -102,7 +102,7 @@ export const useAppliancesStore = create<AppliancesState>((set, get) => ({
     try {
       const { error } = await supabase
         .from('appliances')
-        .update(updates)
+        .update(updates as any)
         .eq('id', id)
         .select()
         .single();

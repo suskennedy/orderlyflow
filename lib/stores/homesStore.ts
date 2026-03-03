@@ -21,6 +21,9 @@ export interface Home {
   latitude?: number | null;
   longitude?: number | null;
   warranty_info?: string | null;
+  sewer_vs_septic?: string | null;
+  water_source?: string | null;
+  water_heater_location?: string | null;
 }
 
 // Enhanced home interface with task counts

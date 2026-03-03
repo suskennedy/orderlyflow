@@ -48,7 +48,8 @@
         {
           "contactsPermission": "Allow OrderlyFlow to access your contacts to help you quickly add vendors from your phone book."
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "scheme": "orderlyflow",
     "extra": {

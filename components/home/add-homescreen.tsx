@@ -7,7 +7,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOp
 import { z } from 'zod';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
-import { homeFormSchema, transformHomeFormData } from '../../lib/schemas/home/homeFormSchema';
+import { homeFormSchema, SEWER_TYPES, transformHomeFormData, WATER_SOURCES } from '../../lib/schemas/home/homeFormSchema';
 import { googlePlacesService } from '../../lib/services/GooglePlacesService';
 import { useHomesStore } from '../../lib/stores/homesStore';
 import DatePicker from '../DatePicker';
@@ -52,6 +52,9 @@ export default function AddHomeScreen() {
       image_url: '',
       latitude: undefined,
       longitude: undefined,
+      sewer_vs_septic: undefined,
+      water_source: undefined,
+      water_heater_location: '',
     },
   });
 
@@ -106,21 +109,21 @@ export default function AddHomeScreen() {
 
     isSubmittingRef.current = true;
     setLoading(true);
-    
+
     try {
       // Parse the form data through the schema to get the transformed type
       const parsedData = homeFormSchema.parse(data);
       const homeData = transformHomeFormData(parsedData);
       console.log('Creating home with data:', homeData);
       await createHome(homeData);
-      
+
       showToast(`${data.name} home added successfully!`, 'success');
-      
+
       // Navigate back after a short delay to ensure toast is visible
       setTimeout(() => {
         router.push('/(home)');
       }, 500);
-      
+
     } catch (error) {
       console.error('Error creating home:', error);
       showToast('Failed to add home. Please try again.', 'error');
@@ -142,9 +145,9 @@ export default function AddHomeScreen() {
     const isFocused = focusedField === fieldName;
     return [
       styles.input,
-      { 
-        backgroundColor: colors.surface, 
-        color: colors.text, 
+      {
+        backgroundColor: colors.surface,
+        color: colors.text,
         borderColor: isFocused ? colors.primary : colors.border,
         borderWidth: isFocused ? 2 : 1,
       }
@@ -155,9 +158,9 @@ export default function AddHomeScreen() {
     const isFocused = focusedField === 'notes';
     return [
       styles.textArea,
-      { 
-        backgroundColor: colors.surface, 
-        color: colors.text, 
+      {
+        backgroundColor: colors.surface,
+        color: colors.text,
         borderColor: isFocused ? colors.primary : colors.border,
         borderWidth: isFocused ? 2 : 1,
       }
@@ -186,13 +189,13 @@ export default function AddHomeScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScreenHeader title="Add New Home" showBackButton />
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100 }]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.form}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Basic Information</Text>
-          
+
           <Text style={[styles.label, { color: colors.text }]}>Home Name *</Text>
           <TextInput
             ref={nameRef}
@@ -535,6 +538,90 @@ export default function AddHomeScreen() {
             </Text>
           )}
 
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Utilities & Systems</Text>
+
+          <Text style={[styles.label, { color: colors.text }]}>Sewer Type</Text>
+          <View style={styles.segmentedRow}>
+            {SEWER_TYPES.map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.segmentedButton,
+                  {
+                    backgroundColor: formData.sewer_vs_septic === type ? colors.primary : colors.surface,
+                    borderColor: formData.sewer_vs_septic === type ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={() => setValue('sewer_vs_septic', type as any)}
+              >
+                <Ionicons
+                  name={type === 'sewer' ? 'water-outline' : 'leaf-outline'}
+                  size={18}
+                  color={formData.sewer_vs_septic === type ? colors.textInverse : colors.text}
+                />
+                <Text
+                  style={[
+                    styles.segmentedButtonText,
+                    { color: formData.sewer_vs_septic === type ? colors.textInverse : colors.text },
+                  ]}
+                >
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={[styles.label, { color: colors.text }]}>Water Source</Text>
+          <View style={styles.segmentedRow}>
+            {WATER_SOURCES.map((src) => (
+              <TouchableOpacity
+                key={src}
+                style={[
+                  styles.segmentedButton,
+                  {
+                    backgroundColor: formData.water_source === src ? colors.primary : colors.surface,
+                    borderColor: formData.water_source === src ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={() => setValue('water_source', src as any)}
+              >
+                <Ionicons
+                  name={src === 'city' ? 'business-outline' : 'water-outline'}
+                  size={18}
+                  color={formData.water_source === src ? colors.textInverse : colors.text}
+                />
+                <Text
+                  style={[
+                    styles.segmentedButtonText,
+                    { color: formData.water_source === src ? colors.textInverse : colors.text },
+                  ]}
+                >
+                  {src === 'city' ? 'City Water' : 'Well Water'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={[styles.label, { color: colors.text }]}>Water Heater Location</Text>
+          <TextInput
+            style={getInputStyle('water_heater_location')}
+            value={formData.water_heater_location || ''}
+            onChangeText={text => {
+              setValue('water_heater_location', text);
+              if (errors.water_heater_location) clearErrors('water_heater_location');
+            }}
+            placeholder="e.g., Basement utility closet, Garage"
+            placeholderTextColor={colors.textSecondary}
+            onFocus={() => handleFocus('water_heater_location')}
+            onBlur={handleBlur}
+            returnKeyType="done"
+          />
+          {errors.water_heater_location && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.water_heater_location.message}
+            </Text>
+          )}
+
           <TouchableOpacity
             style={[styles.saveButton, { backgroundColor: colors.primary }]}
             onPress={handleSubmit(onSubmit)}
@@ -646,5 +733,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontWeight: '500',
+  },
+  segmentedRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  segmentedButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+  },
+  segmentedButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

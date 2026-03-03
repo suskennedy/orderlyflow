@@ -5,9 +5,10 @@ export interface PaintColor {
   id: string;
   name: string;
   room: string | null;
-  brand: string | null;
+  finish: string | null;
+  wallpaper: boolean | null;
+  trim_color: string | null;
   color_code: string | null;
-  color_hex: string | null;
   notes: string | null;
   home_id: string | null;
   created_at: string | null;
@@ -61,7 +62,7 @@ export const usePaintsStore = create<PaintsState>((set, get) => ({
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      get().setPaints(homeId, (data || []) as PaintColor[]);
+      get().setPaints(homeId, data || []);
     } catch (error) {
       console.error('Error fetching paints:', error);
       get().setPaints(homeId, []);

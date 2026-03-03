@@ -7,6 +7,7 @@ import HouseholdManagementSection from '../settings/HouseholdManagementSection';
 import LegalLinksSection from '../settings/LegalLinksSection';
 import NotificationsSection from '../settings/NotificationsSection';
 import SupportSection from '../settings/SupportSection';
+import UserSettingsSection from '../settings/UserSettingsSection';
 
 export default function SettingsScreen() {
   const { colors } = useTheme();
@@ -14,12 +15,13 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView 
-        style={styles.scrollView} 
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
+          <UserSettingsSection />
           <AppearanceSection />
           <NotificationsSection />
           <HouseholdManagementSection />

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Picker } from '@react-native-picker/picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -7,9 +8,8 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
-import { ApplianceFormData, applianceFormSchema, transformApplianceFormData } from '../../../lib/schemas/home/applianceFormSchema';
+import { APPLIANCE_TYPES, ApplianceFormData, applianceFormSchema, transformApplianceFormData } from '../../../lib/schemas/home/applianceFormSchema';
 import { useAppliancesStore } from '../../../lib/stores/appliancesStore';
-import DatePicker from '../../DatePicker';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 export default function AddApplianceScreen() {
@@ -21,23 +21,23 @@ export default function AddApplianceScreen() {
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  const { 
-    control, 
-    handleSubmit, 
-    watch, 
-    setValue, 
-    clearErrors, 
-    formState: { errors } 
+  const {
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    clearErrors,
+    formState: { errors }
   } = useForm<ApplianceFormData>({
     resolver: zodResolver(applianceFormSchema),
     defaultValues: {
       name: '',
+      type: APPLIANCE_TYPES[0],
       brand: '',
       model: '',
       room: '',
-      purchase_date: '',
-      warranty_expiration: '',
       manual_url: '',
+      warranty_url: '',
       purchased_store: '',
       notes: '',
     }
@@ -51,6 +51,7 @@ export default function AddApplianceScreen() {
   const modelRef = useRef<TextInput>(null);
   const roomRef = useRef<TextInput>(null);
   const manualUrlRef = useRef<TextInput>(null);
+  const warrantyUrlRef = useRef<TextInput>(null);
   const purchasedStoreRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
@@ -59,9 +60,9 @@ export default function AddApplianceScreen() {
     try {
       const transformedData = transformApplianceFormData(data);
       await createAppliance(homeId || '', transformedData);
-      
-      showToast(`${data.name} added successfully!`, 'success');
-      
+
+      showToast(`${data.type} added successfully!`, 'success');
+
       // Navigate back after a short delay to ensure toast is visible
       setTimeout(() => {
         router.back();
@@ -86,9 +87,9 @@ export default function AddApplianceScreen() {
     const isFocused = focusedField === fieldName;
     return [
       styles.input,
-      { 
-        backgroundColor: colors.surface, 
-        color: colors.text, 
+      {
+        backgroundColor: colors.surface,
+        color: colors.text,
         borderColor: isFocused ? colors.primary : colors.border,
         borderWidth: isFocused ? 2 : 1,
       }
@@ -99,9 +100,9 @@ export default function AddApplianceScreen() {
     const isFocused = focusedField === 'notes';
     return [
       styles.textArea,
-      { 
-        backgroundColor: colors.surface, 
-        color: colors.text, 
+      {
+        backgroundColor: colors.surface,
+        color: colors.text,
         borderColor: isFocused ? colors.primary : colors.border,
         borderWidth: isFocused ? 2 : 1,
       }
@@ -111,13 +112,13 @@ export default function AddApplianceScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScreenHeader title="Add Appliance" showBackButton />
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100 }]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.form}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Basic Information</Text>
-          
+
           <Text style={[styles.label, { color: colors.text }]}>Appliance Name *</Text>
           <TextInput
             ref={nameRef}
@@ -140,6 +141,25 @@ export default function AddApplianceScreen() {
           {errors.name && (
             <Text style={[styles.errorText, { color: colors.error }]}>
               {errors.name.message}
+            </Text>
+          )}
+
+          <Text style={[styles.label, { color: colors.text }]}>Appliance Type *</Text>
+          <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Picker
+              selectedValue={formData.type}
+              onValueChange={(itemValue) => setValue('type', itemValue)}
+              style={[{ color: colors.text }]}
+              dropdownIconColor={colors.text}
+            >
+              {APPLIANCE_TYPES.map((type) => (
+                <Picker.Item key={type} label={type} value={type} />
+              ))}
+            </Picker>
+          </View>
+          {errors.type && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.type.message}
             </Text>
           )}
 
@@ -225,39 +245,7 @@ export default function AddApplianceScreen() {
 
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Purchase Information</Text>
 
-          <DatePicker
-            label="Purchase Date"
-            value={formData.purchase_date || null}
-            placeholder="Select purchase date"
-            onChange={(date) => {
-              setValue('purchase_date', date || '');
-              if (errors.purchase_date) clearErrors('purchase_date');
-            }}
-            helperText="When did you purchase this appliance?"
-            isOptional={true}
-          />
-          {errors.purchase_date && (
-            <Text style={[styles.errorText, { color: colors.error }]}>
-              {errors.purchase_date.message}
-            </Text>
-          )}
 
-          <DatePicker
-            label="Warranty Expiration"
-            value={formData.warranty_expiration || null}
-            placeholder="Select warranty expiration date"
-            onChange={(date) => {
-              setValue('warranty_expiration', date || '');
-              if (errors.warranty_expiration) clearErrors('warranty_expiration');
-            }}
-            helperText="When does the warranty expire?"
-            isOptional={true}
-          />
-          {errors.warranty_expiration && (
-            <Text style={[styles.errorText, { color: colors.error }]}>
-              {errors.warranty_expiration.message}
-            </Text>
-          )}
 
           <Text style={[styles.label, { color: colors.text }]}>Manual URL</Text>
           <TextInput
@@ -277,11 +265,37 @@ export default function AddApplianceScreen() {
             onFocus={() => handleFocus('manual_url')}
             onBlur={handleBlur}
             returnKeyType="next"
-            onSubmitEditing={() => purchasedStoreRef.current?.focus()}
+            onSubmitEditing={() => warrantyUrlRef.current?.focus()}
           />
           {errors.manual_url && (
             <Text style={[styles.errorText, { color: colors.error }]}>
               {errors.manual_url.message}
+            </Text>
+          )}
+
+          <Text style={[styles.label, { color: colors.text }]}>Warranty URL</Text>
+          <TextInput
+            ref={warrantyUrlRef}
+            style={[
+              getInputStyle('warranty_url'),
+              errors.warranty_url && { borderColor: colors.error, borderWidth: 2 }
+            ]}
+            value={formData.warranty_url}
+            onChangeText={text => {
+              setValue('warranty_url', text);
+              if (errors.warranty_url) clearErrors('warranty_url');
+            }}
+            placeholder="https://example.com/warranty.pdf"
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="url"
+            onFocus={() => handleFocus('warranty_url')}
+            onBlur={handleBlur}
+            returnKeyType="next"
+            onSubmitEditing={() => purchasedStoreRef.current?.focus()}
+          />
+          {errors.warranty_url && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.warranty_url.message}
             </Text>
           )}
 
@@ -415,5 +429,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
     marginLeft: 4,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
 }); 

@@ -3,12 +3,9 @@ import { supabase } from '../supabase';
 
 export interface Material {
   id: string;
-  name: string;
-  room: string | null;
   type: string | null;
+  location: string | null;
   brand: string | null;
-  source: string | null;
-  purchase_date: string | null;
   notes: string | null;
   home_id: string | null;
   created_at: string | null;
@@ -62,7 +59,7 @@ export const useMaterialsStore = create<MaterialsState>((set, get) => ({
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      get().setMaterials(homeId, (data || []) as Material[]);
+      get().setMaterials(homeId, (data as any) || []);
     } catch (error) {
       console.error('Error fetching materials:', error);
       get().setMaterials(homeId, []);
@@ -78,7 +75,7 @@ export const useMaterialsStore = create<MaterialsState>((set, get) => ({
       
       const { error } = await (supabase as any)
         .from('materials')
-        .insert([{ ...materialData, home_id: homeId }])
+        .insert([{ ...materialData, home_id: homeId } as any])
         .select()
         .single();
         
@@ -95,7 +92,7 @@ export const useMaterialsStore = create<MaterialsState>((set, get) => ({
     try {
       const { error } = await (supabase as any)
         .from('materials')
-        .update(updates)
+        .update(updates as any)
         .eq('id', id)
         .select()
         .single();
