@@ -8,9 +8,11 @@ import { usePoolsStore } from '../../../lib/stores/poolsStore';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 import PoolCard from './PoolCard';
 
+
+const EMPTY_ARRAY: any[] = [];
 export default function PoolsScreen() {
     const { homeId } = useLocalSearchParams<{ homeId: string }>();
-    const pools = usePoolsStore(state => state.poolsByHome[homeId] || []);
+    const pools = usePoolsStore(state => state.poolsByHome[homeId] || EMPTY_ARRAY);
     const loading = usePoolsStore(state => state.loadingByHome[homeId] ?? false);
     const fetchPools = usePoolsStore(state => state.fetchPools);
     const setPools = usePoolsStore(state => state.setPools);

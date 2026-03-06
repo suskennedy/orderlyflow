@@ -18,19 +18,21 @@ import { useAppliancesStore } from '../../../lib/stores/appliancesStore';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 import ApplianceCard from './ApplianceCard';
 
+
+const EMPTY_ARRAY: any[] = [];
 const { width } = Dimensions.get('window');
 
 export default function AppliancesScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const appliances = useAppliancesStore(state => state.appliancesByHome[homeId || ''] || []);
+  const appliances = useAppliancesStore(state => state.appliancesByHome[homeId || ''] || EMPTY_ARRAY);
   const loading = useAppliancesStore(state => state.loadingByHome[homeId || ''] ?? false);
   const fetchAppliances = useAppliancesStore(state => state.fetchAppliances);
   const setAppliances = useAppliancesStore(state => state.setAppliances);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  
+
   const lastHomeIdRef = useRef<string | null>(null);
-  
+
   // Initial data fetch
   useEffect(() => {
     if (homeId && homeId !== lastHomeIdRef.current) {
@@ -38,7 +40,7 @@ export default function AppliancesScreen() {
       fetchAppliances(homeId);
     }
   }, [homeId, fetchAppliances]);
-  
+
   // Real-time subscription
   const handleApplianceChange = useCallback((payload: any) => {
     if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
@@ -55,12 +57,12 @@ export default function AppliancesScreen() {
       setAppliances(homeId || '', currentAppliances.filter(a => a.id !== payload.old.id));
     }
   }, [homeId, setAppliances]);
-  
+
   useRealTimeSubscription(
     { table: 'appliances', filter: homeId ? `home_id=eq.${homeId}` : undefined },
     handleApplianceChange
   );
-  
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -92,7 +94,7 @@ export default function AppliancesScreen() {
   };
 
   const renderEmptyState = () => (
-    <Animated.View 
+    <Animated.View
       style={[
         styles.emptyContainer,
         {
@@ -138,15 +140,15 @@ export default function AppliancesScreen() {
         }
       ]}
     >
-      <ApplianceCard 
-        appliance={item} 
+      <ApplianceCard
+        appliance={item}
         onPress={() => handleAppliancePress(item.id)}
       />
     </Animated.View>
   );
 
   const renderHeader = () => (
-    <Animated.View 
+    <Animated.View
       style={[
         styles.headerSection,
         {
@@ -161,7 +163,7 @@ export default function AppliancesScreen() {
           Manage and track your home appliances
         </Text>
       </View>
-      
+
       <View style={styles.statsContainer}>
         <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
           <View style={[styles.statIconContainer, { backgroundColor: colors.primaryLight }]}>
@@ -176,17 +178,17 @@ export default function AppliancesScreen() {
             </Text>
           </View>
         </View>
-        
+
         <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
           <View style={[styles.statIconContainer, { backgroundColor: colors.primaryLight }]}>
             <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
           </View>
           <View style={styles.statContent}>
             <Text style={[styles.statNumber, { color: colors.text }]}>
-              {appliances.filter(a => a.warranty_expiration).length}
+              {appliances.filter(a => a.warranty_url).length}
             </Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              Under Warranty
+              Has Warranty
             </Text>
           </View>
         </View>
@@ -196,14 +198,14 @@ export default function AppliancesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScreenHeader 
-        title="Appliances" 
+      <ScreenHeader
+        title="Appliances"
         showBackButton
         onAddPress={() => router.push(`/(home)/${homeId}/appliances/add`)}
       />
-      
+
       {loading ? (
-        <Animated.View 
+        <Animated.View
           style={[
             styles.loadingContainer,
             {
@@ -225,7 +227,7 @@ export default function AppliancesScreen() {
           renderItem={renderApplianceItem}
           keyExtractor={item => item.id}
           contentContainerStyle={[
-            styles.list, 
+            styles.list,
             { paddingBottom: insets.bottom + 120 }
           ]}
           ListHeaderComponent={appliances.length > 0 ? renderHeader : null}

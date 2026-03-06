@@ -2,24 +2,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useToast } from '../../lib/contexts/ToastContext';
+import { SEWER_TYPES, WATER_SOURCES } from '../../lib/schemas/home/homeFormSchema';
 import { googlePlacesService, PlaceDetails } from '../../lib/services/GooglePlacesService';
 import { useHomesStore } from '../../lib/stores/homesStore';
-import DatePicker from '../DatePicker';
 import AddressAutocomplete from '../forms/AddressAutocomplete';
-import FoundationSelector from '../forms/FoundationSelector';
 import PhotoManager from '../forms/PhotoManager';
 
 export default function EditHomeScreen() {
@@ -29,29 +28,22 @@ export default function EditHomeScreen() {
   const { colors } = useTheme();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
-  
+
   const home = getHomeById(homeId);
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [placeDetails, setPlaceDetails] = useState<PlaceDetails | null>(null);
-  
+
   const [formData, setFormData] = useState({
     name: '',
     address: '',
-    city: '',
-    state: '',
-    zip: '',
     bedrooms: '',
     bathrooms: '',
     square_footage: '',
-    year_built: '',
-    purchase_date: '' as string | null,
-    foundation_type: '',
-    warranty_info: '',
-    notes: '',
+    sewer_vs_septic: '',
+    water_source: '',
+    water_heater_location: '',
     image_url: '',
-    latitude: null as number | null,
-    longitude: null as number | null,
   });
 
   useEffect(() => {
@@ -59,20 +51,13 @@ export default function EditHomeScreen() {
       setFormData({
         name: home.name || '',
         address: home.address || '',
-        city: home.city || '',
-        state: home.state || '',
-        zip: home.zip || '',
         bedrooms: home.bedrooms?.toString() || '',
         bathrooms: home.bathrooms?.toString() || '',
         square_footage: home.square_footage?.toString() || '',
-        year_built: home.year_built?.toString() || '',
-        purchase_date: home.purchase_date || '',
-        foundation_type: home.foundation_type || '',
-        warranty_info: home.warranty_info || '',
-        notes: home.notes || '',
+        sewer_vs_septic: home.sewer_vs_septic || '',
+        water_source: home.water_source || '',
+        water_heater_location: home.water_heater_location || '',
         image_url: home.image_url || '',
-        latitude: home.latitude || null,
-        longitude: home.longitude || null,
       });
     }
   }, [home]);
@@ -111,9 +96,9 @@ export default function EditHomeScreen() {
     const isFocused = focusedField === fieldName;
     return [
       styles.textInput,
-      { 
-        backgroundColor: colors.surface, 
-        color: colors.text, 
+      {
+        backgroundColor: colors.surface,
+        color: colors.text,
         borderColor: isFocused ? colors.primary : colors.border,
         borderWidth: isFocused ? 2 : 1,
       }
@@ -124,9 +109,9 @@ export default function EditHomeScreen() {
     const isFocused = focusedField === 'notes';
     return [
       styles.textArea,
-      { 
-        backgroundColor: colors.surface, 
-        color: colors.text, 
+      {
+        backgroundColor: colors.surface,
+        color: colors.text,
         borderColor: isFocused ? colors.primary : colors.border,
         borderWidth: isFocused ? 2 : 1,
       }
@@ -140,12 +125,7 @@ export default function EditHomeScreen() {
         setPlaceDetails(details);
         setFormData(prev => ({
           ...prev,
-          address: details.address,
-          city: details.city,
-          state: details.state,
-          zip: details.zip,
-          latitude: details.latitude,
-          longitude: details.longitude,
+          address: [details.address, details.city, details.state, details.zip].filter(Boolean).join(', '),
         }));
       }
     } catch (error) {
@@ -172,22 +152,15 @@ export default function EditHomeScreen() {
       await updateHome(homeId, {
         name: formData.name.trim(),
         address: formData.address || null,
-        city: formData.city || null,
-        state: formData.state || null,
-        zip: formData.zip || null,
         bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
         bathrooms: formData.bathrooms ? parseFloat(formData.bathrooms) : null,
         square_footage: formData.square_footage ? parseInt(formData.square_footage) : null,
-        year_built: formData.year_built ? parseInt(formData.year_built) : null,
-        purchase_date: formData.purchase_date || null,
-        foundation_type: formData.foundation_type || null,
-        warranty_info: formData.warranty_info || null,
-        notes: formData.notes || null,
+        sewer_vs_septic: formData.sewer_vs_septic || null,
+        water_source: formData.water_source || null,
+        water_heater_location: formData.water_heater_location || null,
         image_url: formData.image_url || null,
-        latitude: formData.latitude,
-        longitude: formData.longitude,
       });
-      
+
       showToast('Home updated successfully!', 'success');
       router.back();
     } catch (error) {
@@ -210,7 +183,7 @@ export default function EditHomeScreen() {
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -243,7 +216,7 @@ export default function EditHomeScreen() {
         <View style={styles.form}>
           {/* Basic Information */}
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Basic Information</Text>
-          
+
           <Text style={[styles.label, { color: colors.text }]}>Home Name *</Text>
           <TextInput
             style={getInputStyle('name')}
@@ -267,61 +240,17 @@ export default function EditHomeScreen() {
             onBlur={handleBlur}
           />
 
-          <View style={styles.row}>
-            <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>City</Text>
-              <TextInput
-                style={getInputStyle('city')}
-                value={formData.city}
-                onChangeText={(text) => setFormData({ ...formData, city: text })}
-                placeholder="City"
-                placeholderTextColor={colors.textSecondary}
-                onFocus={() => handleFocus('city')}
-                onBlur={handleBlur}
-                returnKeyType="next"
-              />
-            </View>
-            <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>State</Text>
-              <TextInput
-                style={getInputStyle('state')}
-                value={formData.state}
-                onChangeText={(text) => setFormData({ ...formData, state: text })}
-                placeholder="State"
-                placeholderTextColor={colors.textSecondary}
-                onFocus={() => handleFocus('state')}
-                onBlur={handleBlur}
-                returnKeyType="next"
-              />
-            </View>
-          </View>
-
-          <Text style={[styles.label, { color: colors.text }]}>ZIP Code</Text>
-          <TextInput
-            style={getInputStyle('zip')}
-            value={formData.zip}
-            onChangeText={(text) => setFormData({ ...formData, zip: text })}
-            placeholder="12345"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="numeric"
-            onFocus={() => handleFocus('zip')}
-            onBlur={handleBlur}
-            returnKeyType="next"
-          />
-
           <PhotoManager
             label="Home Photo"
             homeId={homeId}
             currentImageUrl={formData.image_url}
             onImageUpload={handleImageUpload}
             onImageRemove={handleImageRemove}
-            latitude={formData.latitude || undefined}
-            longitude={formData.longitude || undefined}
           />
 
           {/* Property Details */}
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Property Details</Text>
-          
+
           <View style={styles.row}>
             <View style={styles.halfWidth}>
               <Text style={[styles.label, { color: colors.text }]}>Bedrooms</Text>
@@ -353,82 +282,92 @@ export default function EditHomeScreen() {
             </View>
           </View>
 
-          <View style={styles.row}>
-            <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Square Footage</Text>
-              <TextInput
-                style={getInputStyle('square_footage')}
-                value={formData.square_footage}
-                onChangeText={(text) => setFormData({ ...formData, square_footage: text.replace(/[^0-9]/g, '') })}
-                placeholder="2500"
-                placeholderTextColor={colors.textSecondary}
-                onFocus={() => handleFocus('square_footage')}
-                onBlur={handleBlur}
-                keyboardType="numeric"
-                returnKeyType="next"
-              />
-            </View>
-            <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Year Built</Text>
-              <TextInput
-                style={getInputStyle('year_built')}
-                value={formData.year_built}
-                onChangeText={(text) => setFormData({ ...formData, year_built: text.replace(/[^0-9]/g, '') })}
-                placeholder="1995"
-                placeholderTextColor={colors.textSecondary}
-                onFocus={() => handleFocus('year_built')}
-                onBlur={handleBlur}
-                keyboardType="numeric"
-                returnKeyType="next"
-              />
-            </View>
+          <Text style={[styles.label, { color: colors.text }]}>Square Footage</Text>
+          <TextInput
+            style={getInputStyle('square_footage')}
+            value={formData.square_footage}
+            onChangeText={(text) => setFormData({ ...formData, square_footage: text.replace(/[^0-9]/g, '') })}
+            placeholder="2500"
+            placeholderTextColor={colors.textSecondary}
+            onFocus={() => handleFocus('square_footage')}
+            onBlur={handleBlur}
+            keyboardType="numeric"
+            returnKeyType="done"
+          />
+
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Utilities & Systems</Text>
+
+          <Text style={[styles.label, { color: colors.text }]}>Sewer Type</Text>
+          <View style={styles.segmentedRow}>
+            {SEWER_TYPES.map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.segmentedButton,
+                  {
+                    backgroundColor: formData.sewer_vs_septic === type ? colors.primary : colors.surface,
+                    borderColor: formData.sewer_vs_septic === type ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={() => setFormData({ ...formData, sewer_vs_septic: type })}
+              >
+                <Ionicons
+                  name={type === 'sewer' ? 'water-outline' : 'leaf-outline'}
+                  size={18}
+                  color={formData.sewer_vs_septic === type ? colors.textInverse : colors.text}
+                />
+                <Text
+                  style={[
+                    styles.segmentedButtonText,
+                    { color: formData.sewer_vs_septic === type ? colors.textInverse : colors.text },
+                  ]}
+                >
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
-          <FoundationSelector
-            label="Foundation Type"
-            value={formData.foundation_type}
-            onChange={(value) => setFormData({ ...formData, foundation_type: value })}
-            isFocused={focusedField === 'foundation_type'}
-            onFocus={() => handleFocus('foundation_type')}
-            onBlur={handleBlur}
-          />
+          <Text style={[styles.label, { color: colors.text }]}>Water Source</Text>
+          <View style={styles.segmentedRow}>
+            {WATER_SOURCES.map((src) => (
+              <TouchableOpacity
+                key={src}
+                style={[
+                  styles.segmentedButton,
+                  {
+                    backgroundColor: formData.water_source === src ? colors.primary : colors.surface,
+                    borderColor: formData.water_source === src ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={() => setFormData({ ...formData, water_source: src })}
+              >
+                <Ionicons
+                  name={src === 'city' ? 'business-outline' : 'water-outline'}
+                  size={18}
+                  color={formData.water_source === src ? colors.textInverse : colors.text}
+                />
+                <Text
+                  style={[
+                    styles.segmentedButtonText,
+                    { color: formData.water_source === src ? colors.textInverse : colors.text },
+                  ]}
+                >
+                  {src === 'city' ? 'City Water' : 'Well Water'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-          <DatePicker
-            label="Purchase Date"
-            value={formData.purchase_date || null}
-            placeholder="Select purchase date"
-            onChange={(date) => setFormData({ ...formData, purchase_date: date })}
-            helperText="When did you purchase this home?"
-            isOptional={true}
-          />
-
-          <Text style={[styles.label, { color: colors.text }]}>Warranty Information</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Water Heater Location</Text>
           <TextInput
-            style={getInputStyle('warranty_info')}
-            value={formData.warranty_info}
-            onChangeText={(text) => setFormData({ ...formData, warranty_info: text })}
-            placeholder="Enter warranty details, expiration dates, etc."
+            style={getInputStyle('water_heater_location')}
+            value={formData.water_heater_location}
+            onChangeText={(text) => setFormData({ ...formData, water_heater_location: text })}
+            placeholder="e.g., Basement utility closet"
             placeholderTextColor={colors.textSecondary}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-            onFocus={() => handleFocus('warranty_info')}
+            onFocus={() => handleFocus('water_heater_location')}
             onBlur={handleBlur}
-            returnKeyType="next"
-          />
-
-          <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
-          <TextInput
-            style={getTextAreaStyle()}
-            value={formData.notes}
-            onChangeText={(text) => setFormData({ ...formData, notes: text })}
-            placeholder="Any additional notes about your home..."
-            placeholderTextColor={colors.textSecondary}
-            onFocus={() => handleFocus('notes')}
-            onBlur={handleBlur}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
             returnKeyType="done"
           />
         </View>
@@ -520,5 +459,24 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     textAlign: 'center',
+  },
+  segmentedRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  segmentedButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+  },
+  segmentedButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
-import { FilterFormData, filterFormSchema, transformFilterFormData } from '../../../lib/schemas/home/filterFormSchema';
+import { FilterFormInput, filterFormSchema, transformFilterFormData } from '../../../lib/schemas/home/filterFormSchema';
 import { useFiltersStore } from '../../../lib/stores/filtersStore';
 import DatePicker from '../../DatePicker';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
@@ -19,14 +19,14 @@ export default function AddFilterScreen() {
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  const { 
-    control, 
-    handleSubmit, 
-    watch, 
-    setValue, 
-    clearErrors, 
-    formState: { errors } 
-  } = useForm<FilterFormData>({
+  const {
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    clearErrors,
+    formState: { errors }
+  } = useForm<FilterFormInput>({
     resolver: zodResolver(filterFormSchema),
     defaultValues: {
       name: '',
@@ -53,14 +53,14 @@ export default function AddFilterScreen() {
   const replacementFreqRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
-  const onSubmit = async (data: FilterFormData) => {
+  const onSubmit = async (data: FilterFormInput) => {
     setLoading(true);
     try {
       const transformedData = transformFilterFormData(data);
       await createFilter(homeId, transformedData);
-      
+
       showToast(`${data.name} filter added successfully!`, 'success');
-      
+
       // Navigate back after a short delay to ensure toast is visible
       setTimeout(() => {
         router.back();
@@ -85,9 +85,9 @@ export default function AddFilterScreen() {
     const isFocused = focusedField === fieldName;
     return [
       styles.input,
-      { 
-        backgroundColor: colors.surface, 
-        color: colors.text, 
+      {
+        backgroundColor: colors.surface,
+        color: colors.text,
         borderColor: isFocused ? colors.primary : colors.border,
         borderWidth: isFocused ? 2 : 1,
       }
@@ -98,9 +98,9 @@ export default function AddFilterScreen() {
     const isFocused = focusedField === 'notes';
     return [
       styles.textArea,
-      { 
-        backgroundColor: colors.surface, 
-        color: colors.text, 
+      {
+        backgroundColor: colors.surface,
+        color: colors.text,
         borderColor: isFocused ? colors.primary : colors.border,
         borderWidth: isFocused ? 2 : 1,
       }
@@ -110,13 +110,13 @@ export default function AddFilterScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScreenHeader title="Add Filter" showBackButton />
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100 }]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.form}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Basic Information</Text>
-          
+
           <Text style={[styles.label, { color: colors.text }]}>Filter Name *</Text>
           <TextInput
             ref={nameRef}

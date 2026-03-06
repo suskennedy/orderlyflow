@@ -8,9 +8,11 @@ import { useWarrantiesStore } from '../../../lib/stores/warrantiesStore';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 import WarrantyCard from './WarrantyCard';
 
+
+const EMPTY_ARRAY: any[] = [];
 export default function WarrantiesScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const warranties = useWarrantiesStore(state => state.warrantiesByHome[homeId] || []);
+  const warranties = useWarrantiesStore(state => state.warrantiesByHome[homeId] || EMPTY_ARRAY);
   const loading = useWarrantiesStore(state => state.loadingByHome[homeId] ?? false);
   const fetchWarranties = useWarrantiesStore(state => state.fetchWarranties);
   const setWarranties = useWarrantiesStore(state => state.setWarranties);

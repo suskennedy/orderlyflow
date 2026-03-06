@@ -34,39 +34,39 @@ export default function HomeDetailScreen() {
   }
 
   const menuItems: MenuItem[] = [
-    { 
-      title: 'Home Info', 
-      icon: 'information-circle-outline', 
+    {
+      title: 'Home Info',
+      icon: 'information-circle-outline',
       route: `/(home)/${homeId}/info`,
       description: 'View and edit home details'
     },
-    { 
-      title: 'Paint Colors', 
-      icon: 'color-palette-outline', 
+    {
+      title: 'Paint Colors',
+      icon: 'color-palette-outline',
       route: `/(home)/${homeId}/paints`,
       description: 'Manage paint colors for each room'
     },
-    { 
-      title: 'Appliances', 
-      icon: 'hardware-chip-outline', 
+    {
+      title: 'Appliances',
+      icon: 'hardware-chip-outline',
       route: `/(home)/${homeId}/appliances`,
       description: 'Track appliances and maintenance'
     },
-    { 
-      title: 'Warranties', 
-      icon: 'shield-checkmark-outline', 
+    {
+      title: 'Warranties',
+      icon: 'shield-checkmark-outline',
       route: `/(home)/${homeId}/warranties`,
       description: 'Manage warranty information'
     },
-    { 
-      title: 'Materials', 
-      icon: 'build-outline', 
+    {
+      title: 'Materials',
+      icon: 'build-outline',
       route: `/(home)/${homeId}/materials`,
       description: 'Track materials and finishes'
     },
-    { 
-      title: 'Filters', 
-      icon: 'funnel-outline', 
+    {
+      title: 'Filters',
+      icon: 'funnel-outline',
       route: `/(home)/${homeId}/filters`,
       description: 'Manage air and water filters'
     },
@@ -112,9 +112,9 @@ export default function HomeDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslateY }] }]}>
-        <Animated.Image 
-          source={{ uri: getHomeImageUrl(home.id, home.image_url, 'large') }} 
-          style={[styles.image, { opacity: imageOpacity }]} 
+        <Animated.Image
+          source={{ uri: getHomeImageUrl(home.id, home.image_url, 'large') }}
+          style={[styles.image, { opacity: imageOpacity }]}
         />
       </Animated.View>
 
@@ -133,14 +133,14 @@ export default function HomeDetailScreen() {
       >
         <View style={{ marginTop: HEADER_HEIGHT }}>
           <View style={styles.buttonRow}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: colors.primary }]}
               onPress={handleEditHome}
             >
               <Ionicons name="create-outline" size={20} color={colors.textInverse} />
               <Text style={[styles.actionButtonText, { color: colors.textInverse }]}>Edit Home</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: colors.secondary }]}
               onPress={handleAddUsers}
             >
@@ -174,23 +174,15 @@ export default function HomeDetailScreen() {
                   </Text>
                 </View>
               )}
-              {home.year_built && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-                  <Text style={[styles.infoText, { color: colors.text }]}>
-                    Built in {home.year_built}
-                  </Text>
-                </View>
-              )}
             </View>
           </View>
 
           <View style={styles.menuContainer}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Manage Your Home</Text>
             {menuItems.map((item, index) => (
-              <TouchableOpacity 
-                key={index} 
-                style={[styles.menuItem, { borderBottomColor: colors.border }]} 
+              <TouchableOpacity
+                key={index}
+                style={[styles.menuItem, { borderBottomColor: colors.border }]}
                 onPress={() => handleMenuPress(item.route)}
                 activeOpacity={0.7}
               >

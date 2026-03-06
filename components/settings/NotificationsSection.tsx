@@ -19,24 +19,23 @@ export default function NotificationsSection() {
     { id: 'email', label: 'Email Summaries', enabled: true, category: 'reminders' },
     { id: 'maintenance', label: 'Maintenance Alerts', enabled: true, category: 'reminders' },
     { id: 'billing', label: 'Billing & Subscription Alerts', enabled: true, category: 'reminders' },
-    
+
     // Household
-    { id: 'family', label: 'Family and Member Activity', enabled: true, category: 'household' },
-    
+    // (Family and member activity removed for Phase 1)
     // Lifestyle & Engagement
     { id: 'tips', label: 'Tips from Flo', enabled: true, category: 'lifestyle' },
     { id: 'recap', label: 'Weekly Recap', enabled: true, category: 'lifestyle' },
     { id: 'promotions', label: 'Promotions & Updates', enabled: true, category: 'lifestyle' },
-    
+
     // System Notifications (always on)
     { id: 'security', label: 'Security & Login Alerts', enabled: true, category: 'system', description: 'Always on' },
     { id: 'recovery', label: 'Account Recovery Updates', enabled: true, category: 'system', description: 'Always on' },
   ]);
 
   const toggleNotification = (id: string) => {
-    setNotifications(prev => 
-      prev.map(notification => 
-        notification.id === id 
+    setNotifications(prev =>
+      prev.map(notification =>
+        notification.id === id
           ? { ...notification, enabled: !notification.enabled }
           : notification
       )
@@ -96,24 +95,24 @@ export default function NotificationsSection() {
   const renderCategory = (category: string, notifications: NotificationSetting[]) => (
     <View key={category} style={styles.categoryContainer}>
       <View style={styles.categoryHeader}>
-        <Ionicons 
-          name="notifications-outline" 
-          size={20} 
-          color={colors.primary} 
+        <Ionicons
+          name="notifications-outline"
+          size={20}
+          color={colors.primary}
         />
         <Text style={[styles.categoryTitle, { color: colors.text }]}>
           {getCategoryTitle(category)}
         </Text>
       </View>
-      
+
       {getCategoryDescription(category) && (
         <Text style={[styles.categoryDescription, { color: colors.textSecondary }]}>
           {getCategoryDescription(category)}
         </Text>
       )}
-      
+
       <View style={styles.divider} />
-      
+
       {notifications.map(renderNotificationItem)}
     </View>
   );
@@ -124,8 +123,8 @@ export default function NotificationsSection() {
         <Ionicons name="notifications-outline" size={24} color={colors.primary} />
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Notifications</Text>
       </View>
-      
-      {Object.entries(groupedNotifications).map(([category, notifications]) => 
+
+      {Object.entries(groupedNotifications).map(([category, notifications]) =>
         renderCategory(category, notifications)
       )}
     </View>

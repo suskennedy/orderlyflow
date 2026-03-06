@@ -3,15 +3,13 @@ import { supabase } from '../supabase';
 
 export interface Appliance {
   id: string;
-  name: string;
   type: string | null;
   brand: string | null;
   model: string | null;
+  location: string | null;
   manual_url: string | null;
   warranty_url: string | null;
   notes: string | null;
-  room: string | null;
-  purchased_store: string | null;
   home_id: string | null;
   created_at: string | null;
   updated_at: string | null;

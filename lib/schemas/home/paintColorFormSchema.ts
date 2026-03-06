@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const paintColorFormSchema = z.object({
-  name: z.string().min(1, 'Paint color name is required').max(100, 'Name must be 100 characters or less'),
+  paint_color_name: z.string().min(1, 'Paint color name is required').max(100, 'Name must be 100 characters or less'),
   room: z.string().min(1, 'Room is required').max(100, 'Room must be 100 characters or less'),
   color_code: z.string().max(100, 'Color code must be 100 characters or less').optional(),
   finish: z.string().max(100, 'Finish must be 100 characters or less').optional(),
@@ -13,7 +13,7 @@ export const paintColorFormSchema = z.object({
 export type PaintColorFormData = z.infer<typeof paintColorFormSchema>;
 
 export const transformPaintColorFormData = (data: PaintColorFormData) => ({
-  name: data.name.trim(),
+  paint_color_name: data.paint_color_name.trim(),
   room: data.room.trim(),
   color_code: data.color_code?.trim() || null,
   finish: data.finish?.trim() || null,

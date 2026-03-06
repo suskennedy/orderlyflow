@@ -5,23 +5,24 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Resolver, useForm } from 'react-hook-form';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { TaskFormData, taskFormSchema, transformTaskFormData } from '../../lib/schemas/tasks/taskFormSchema';
 import { useHomesStore } from '../../lib/stores/homesStore';
 import { useTasksStore } from '../../lib/stores/tasksStore';
+import { useVendorsStore } from '../../lib/stores/vendorsStore';
 import DatePicker from '../DatePicker';
 import TaskSpinner from '../ui/TaskSpinner';
 
@@ -46,9 +47,10 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const createCustomTask = useTasksStore(state => state.createCustomTask);
   const homes = useHomesStore(state => state.homes);
+  const vendors = useVendorsStore(state => state.vendors);
   const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
-  
+
   // React Hook Form setup
   const {
     handleSubmit,
@@ -77,11 +79,11 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
   });
 
   const formData = watch();
-  
+
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      Alert.alert('Authentication Required', 'Please log in to add tasks.');
+      Alert.alert('Authentication Required', 'Please log in to add reminders.');
       router.replace('/(auth)/signin');
     }
   }, [authLoading, isAuthenticated]);
@@ -91,10 +93,10 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
   const onSubmit = useCallback(async (data: TaskFormData) => {
     // Check if user is authenticated
     if (!user?.id) {
-      Alert.alert('Error', 'You must be logged in to add tasks');
+      Alert.alert('Error', 'You must be logged in to add reminders');
       return;
     }
-    
+
     setLoading(true);
     try {
       const taskData = transformTaskFormData(data);
@@ -118,25 +120,25 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
       }
 
       // Show success and navigate back
-      Alert.alert('Success', 'Task created successfully!', [
+      Alert.alert('Success', 'Reminder created successfully!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
     } catch (error: any) {
-      console.error('Error adding task:', error);
-      Alert.alert('Error', `Failed to create task: ${error.message || 'Unknown error'}`);
+      console.error('Error adding reminder:', error);
+      Alert.alert('Error', `Failed to create reminder: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
   }, [user, createCustomTask]);
 
   return (
-    <KeyboardAvoidingView 
-      style={[styles.container, { backgroundColor: colors.background }]} 
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={[styles.header, { 
+      <View style={[styles.header, {
         backgroundColor: colors.surface,
-        borderBottomColor: colors.border 
+        borderBottomColor: colors.border
       }]}>
         <TouchableOpacity
           style={styles.backButton}
@@ -144,7 +146,7 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
         >
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Add New Task</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Add New Reminder</Text>
         <TouchableOpacity
           style={[styles.saveButton, { backgroundColor: colors.primary }, loading && { opacity: 0.6 }]}
           onPress={handleSubmit(onSubmit)}
@@ -158,20 +160,20 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: 100 }}
       >
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Task Details</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Reminder Details</Text>
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Task Title *</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Reminder Title *</Text>
             <TextInput
               style={[
-                styles.input, 
-                { 
+                styles.input,
+                {
                   borderColor: errors.title ? colors.error : colors.border,
                   backgroundColor: colors.surface,
                   color: colors.text
@@ -191,20 +193,20 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
               </Text>
             )}
           </View>
-          
+
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Description</Text>
             <TextInput
               style={[
-                styles.input, 
-                styles.textArea, 
-                { 
+                styles.input,
+                styles.textArea,
+                {
                   borderColor: errors.description ? colors.error : colors.border,
                   backgroundColor: colors.surface,
                   color: colors.text
                 }
               ]}
-              placeholder="Detailed description of the task..."
+              placeholder="Detailed description of the reminder..."
               value={formData.description || ''}
               onChangeText={(text) => {
                 setValue('description', text);
@@ -220,12 +222,12 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
               </Text>
             )}
           </View>
-          
+
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Category</Text>
-            <View style={[styles.pickerContainer, { 
+            <View style={[styles.pickerContainer, {
               backgroundColor: colors.surface,
-              borderColor: errors.category ? colors.error : colors.border 
+              borderColor: errors.category ? colors.error : colors.border
             }]}>
               <Picker
                 selectedValue={formData.category || ''}
@@ -250,13 +252,13 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Task Settings</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Reminder Settings</Text>
           <View style={styles.row}>
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Text style={[styles.label, { color: colors.textSecondary }]}>Priority</Text>
-              <View style={[styles.pickerContainer, { 
+              <View style={[styles.pickerContainer, {
                 backgroundColor: colors.surface,
-                borderColor: errors.priority ? colors.error : colors.border 
+                borderColor: errors.priority ? colors.error : colors.border
               }]}>
                 <Picker
                   selectedValue={formData.priority}
@@ -274,9 +276,9 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
             </View>
             <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
               <Text style={[styles.label, { color: colors.textSecondary }]}>Status</Text>
-              <View style={[styles.pickerContainer, { 
+              <View style={[styles.pickerContainer, {
                 backgroundColor: colors.surface,
-                borderColor: errors.status ? colors.error : colors.border 
+                borderColor: errors.status ? colors.error : colors.border
               }]}>
                 <Picker
                   selectedValue={formData.status}
@@ -302,7 +304,7 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
                 setValue('due_date', dateString || '');
                 if (errors.due_date) clearErrors('due_date');
               }}
-              helperText="When this task should be completed (will appear in calendar)"
+              helperText="When this reminder should be completed (will appear in calendar)"
               isOptional={true}
               testID="due-date-picker"
             />
@@ -312,12 +314,12 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
               </Text>
             )}
           </View>
-          
+
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Assign to Home</Text>
-            <View style={[styles.pickerContainer, { 
+            <View style={[styles.pickerContainer, {
               backgroundColor: colors.surface,
-              borderColor: errors.home_id ? colors.error : colors.border 
+              borderColor: errors.home_id ? colors.error : colors.border
             }]}>
               <Picker
                 selectedValue={formData.home_id}
@@ -339,12 +341,43 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
               </Text>
             )}
           </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Assign Vendor (optional)</Text>
+            <View style={[styles.pickerContainer, {
+              backgroundColor: colors.surface,
+              borderColor: errors.assigned_vendor_id ? colors.error : colors.border
+            }]}>
+              <Picker
+                selectedValue={formData.assigned_vendor_id || ''}
+                onValueChange={(itemValue) => {
+                  setValue('assigned_vendor_id', itemValue);
+                  if (errors.assigned_vendor_id) clearErrors('assigned_vendor_id');
+                }}
+                style={[styles.picker, { color: colors.text }]}
+              >
+                <Picker.Item label="Select vendor..." value="" />
+                {vendors.map((vendor) => (
+                  <Picker.Item
+                    key={vendor.id}
+                    label={vendor.name || 'Unnamed Vendor'}
+                    value={vendor.id}
+                  />
+                ))}
+              </Picker>
+            </View>
+            {errors.assigned_vendor_id && (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {errors.assigned_vendor_id.message}
+              </Text>
+            )}
+          </View>
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recurring Task</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recurring Reminder</Text>
           <View style={styles.switchRow}>
-            <Text style={[styles.switchLabel, { color: colors.textSecondary }]}>Make this a recurring task</Text>
+            <Text style={[styles.switchLabel, { color: colors.textSecondary }]}>Make this a recurring reminder</Text>
             <Switch
               value={formData.is_recurring}
               onValueChange={(value) => {
@@ -360,14 +393,14 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
               {errors.is_recurring.message}
             </Text>
           )}
-          
+
           {formData.is_recurring && (
             <>
               <View style={styles.inputGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>Recurrence Pattern</Text>
-                <View style={[styles.pickerContainer, { 
+                <View style={[styles.pickerContainer, {
                   backgroundColor: colors.surface,
-                  borderColor: errors.recurrence_pattern ? colors.error : colors.border 
+                  borderColor: errors.recurrence_pattern ? colors.error : colors.border
                 }]}>
                   <Picker
                     selectedValue={formData.recurrence_pattern || ''}
@@ -378,13 +411,9 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
                     style={[styles.picker, { color: colors.text }]}
                   >
                     <Picker.Item label="Select a recurrence pattern..." value="" />
-                    <Picker.Item label="Daily" value="Daily" />
-                    <Picker.Item label="Weekly" value="Weekly" />
-                    <Picker.Item label="Bi-weekly" value="Bi-weekly" />
-                    <Picker.Item label="Monthly" value="Monthly" />
-                    <Picker.Item label="Quarterly" value="Quarterly" />
-                    <Picker.Item label="Semi-annually" value="Semi-annually" />
-                    <Picker.Item label="Annually" value="Annually" />
+                    <Picker.Item label="Weekly" value="weekly" />
+                    <Picker.Item label="Monthly" value="monthly" />
+                    <Picker.Item label="Yearly" value="yearly" />
                   </Picker>
                 </View>
                 {errors.recurrence_pattern && (
@@ -402,7 +431,7 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
                     setValue('recurrence_end_date', dateString || '');
                     if (errors.recurrence_end_date) clearErrors('recurrence_end_date');
                   }}
-                  helperText="When recurring task should stop"
+                  helperText="When recurring reminder should stop"
                   isOptional={true}
                   testID="recurrence-end-date-picker"
                 />
@@ -421,9 +450,9 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
           <View style={styles.inputGroup}>
             <TextInput
               style={[
-                styles.input, 
-                styles.textArea, 
-                { 
+                styles.input,
+                styles.textArea,
+                {
                   borderColor: errors.notes ? colors.error : colors.border,
                   backgroundColor: colors.surface,
                   color: colors.text
@@ -446,16 +475,16 @@ export default function AddTaskScreen({ homeId }: AddTaskScreenProps) {
             )}
           </View>
         </View>
-        
+
         <View style={styles.bottomSpacing} />
       </ScrollView>
-        
-        {/* Task Spinner */}
-        <TaskSpinner 
-          visible={loading} 
-          message="Creating task..." 
-          type="saving" 
-        />
+
+      {/* Task Spinner */}
+      <TaskSpinner
+        visible={loading}
+        message="Creating reminder..."
+        type="saving"
+      />
     </KeyboardAvoidingView>
   );
 }

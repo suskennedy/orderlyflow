@@ -1,22 +1,21 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useRealTimeSubscription } from '../../lib/hooks/useRealTimeSubscription';
 import { UploadResult } from '../../lib/services/uploadService';
-import { useFamilyStore } from '../../lib/stores/familyStore';
 import { useRepairsStore } from '../../lib/stores/repairsStore';
 import { useVendorsStore } from '../../lib/stores/vendorsStore';
 import { supabase } from '../../lib/supabase';
@@ -24,6 +23,8 @@ import DatePicker from '../DatePicker';
 import MediaPreview from '../ui/MediaPreview';
 import PhotoUploader from '../ui/PhotoUploader';
 
+
+const EMPTY_ARRAY: any[] = [];
 const STATUS_OPTIONS = [
   { label: 'To Do', value: 'to_do' },
   { label: 'Scheduled', value: 'scheduled' },
@@ -43,12 +44,11 @@ export default function RepairDetailScreen() {
   const deleteRepair = useRepairsStore(state => state.deleteRepair);
   const setRepairs = useRepairsStore(state => state.setRepairs);
   const vendors = useVendorsStore(state => state.vendors);
-  const familyMembers = useFamilyStore(state => state.familyMembers);
-  
+
   // Use a component ID to track current home per component instance
   const componentIdRef = useRef(`repair-detail-${Date.now()}-${Math.random()}`);
   const currentHome = currentHomeByComponent[componentIdRef.current] || null;
-  const repairs = currentHome ? (repairsByHome[currentHome] || []) : [];
+  const repairs = currentHome ? (repairsByHome[currentHome] || EMPTY_ARRAY) : [];
 
   const [repair, setRepair] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -65,13 +65,12 @@ export default function RepairDetailScreen() {
     final_cost: '',
     date_reported: '',
     vendor_id: '',
-    user_id: '',
     schedule_reminder: false,
     reminder_date: '',
     notes: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   // Real-time subscription for repairs
   const handleRepairChange = useCallback((payload: any) => {
     const repairHomeId = payload.new?.home_id || payload.old?.home_id;
@@ -79,7 +78,7 @@ export default function RepairDetailScreen() {
       fetchRepairs(repairHomeId, user.id);
     }
   }, [currentHome, user?.id, fetchRepairs]);
-  
+
   useRealTimeSubscription(
     { table: 'repairs', event: '*' },
     handleRepairChange
@@ -88,7 +87,7 @@ export default function RepairDetailScreen() {
   // Fetch repair directly if not in current array - use ref to prevent loops
   const hasFetchedRef = React.useRef(false);
   const lastIdRef = React.useRef<string | undefined>(undefined);
-  
+
   useEffect(() => {
     // Reset if id changes
     if (id !== lastIdRef.current) {
@@ -96,11 +95,11 @@ export default function RepairDetailScreen() {
       lastIdRef.current = id as string | undefined;
       setRepair(null);
     }
-    
+
     if (!id || hasFetchedRef.current || repair) return;
-    
+
     hasFetchedRef.current = true;
-    
+
     // First try to find in current repairs array
     const foundRepair = repairs.find((r: any) => r.id === id);
     if (foundRepair) {
@@ -118,9 +117,9 @@ export default function RepairDetailScreen() {
           const { data, error } = await supabase
             .from('repairs')
             .select('*')
-            .eq('id', id)
+            .eq('id', id as string)
             .single();
-          
+
           if (!error && data) {
             const repairData = data as any;
             if (repairData.home_id) {
@@ -153,12 +152,11 @@ export default function RepairDetailScreen() {
         final_cost: repair.final_cost?.toString() || '',
         date_reported: repair.date_reported || '',
         vendor_id: repair.vendor_id || '',
-        user_id: repair.user_id || '',
         schedule_reminder: repair.schedule_reminder || false,
         reminder_date: repair.reminder_date || '',
         notes: repair.notes || '',
       });
-      setUploadedFiles(repair.photos_videos || []);
+      setUploadedFiles(repair.photos_videos || EMPTY_ARRAY);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repair?.id, isEditing]); // Only depend on repair id and editing state
@@ -168,10 +166,6 @@ export default function RepairDetailScreen() {
 
     if (!formData.title.trim()) {
       newErrors.title = 'Title is required';
-    }
-
-    if (!formData.vendor_id && !formData.user_id) {
-      newErrors.vendor_id = 'Either a vendor or user must be assigned';
     }
 
     if (formData.cost_estimate && isNaN(Number(formData.cost_estimate))) {
@@ -203,7 +197,6 @@ export default function RepairDetailScreen() {
         final_cost: formData.final_cost ? Number(formData.final_cost) : undefined,
         date_reported: formData.date_reported || undefined,
         vendor_id: formData.vendor_id || undefined,
-        user_id: formData.user_id || undefined,
         photos_videos: uploadedFiles.length > 0 ? uploadedFiles : undefined,
         schedule_reminder: formData.schedule_reminder,
         reminder_date: formData.schedule_reminder && formData.reminder_date ? formData.reminder_date : undefined,
@@ -332,91 +325,47 @@ export default function RepairDetailScreen() {
             {errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
           </View>
 
-          {/* Vendor/User Assignment Card */}
+          {/* Vendor Assignment Card */}
           <View style={[styles.card, !isEditing && styles.cardView]}>
             <Text style={styles.cardTitle}>Assignment</Text>
-            <View style={styles.row}>
-              <View style={[styles.inputGroup, styles.halfWidth]}>
-                <Text style={styles.label}>Vendor</Text>
-            {isEditing ? (
-              <>
-                <View style={styles.pickerContainer}>
-                  <Text style={styles.pickerText}>
-                        {formData.vendor_id ? vendors.find(v => v.id === formData.vendor_id)?.name || 'Select vendor' : 'Select vendor'}
-                  </Text>
-                </View>
-                    <View style={styles.vendorGrid}>
-                      {vendors.map((vendor) => (
-                    <TouchableOpacity
-                          key={vendor.id}
-                      style={[
-                            styles.vendorButton,
-                            formData.vendor_id === vendor.id && styles.vendorButtonSelected,
-                      ]}
-                          onPress={() => {
-                            handleInputChange('vendor_id', vendor.id);
-                            handleInputChange('user_id', ''); // Clear user selection
-                          }}
-                    >
-                      <Text
-                        style={[
-                              styles.vendorButtonText,
-                              formData.vendor_id === vendor.id && styles.vendorButtonTextSelected,
-                        ]}
-                      >
-                            {vendor.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </>
-            ) : (
-                  <Text style={styles.displayValue}>
-                    {repair.vendor_id ? vendors.find(v => v.id === repair.vendor_id)?.name || 'Unknown' : 'Not assigned'}
-                  </Text>
-            )}
-          </View>
-
-            <View style={[styles.inputGroup, styles.halfWidth]}>
-                <Text style={styles.label}>User</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Vendor</Text>
               {isEditing ? (
                 <>
                   <View style={styles.pickerContainer}>
                     <Text style={styles.pickerText}>
-                      {formData.user_id ? familyMembers.find((m: any) => m.id === formData.user_id)?.user?.display_name || 'Select user' : 'Select user'}
+                      {formData.vendor_id ? vendors.find(v => v.id === formData.vendor_id)?.name || 'Select vendor' : 'Select vendor'}
                     </Text>
                   </View>
-                    <View style={styles.userGrid}>
-                      {familyMembers.map((member: any) => (
+                  <View style={styles.vendorGrid}>
+                    {vendors.map((vendor) => (
                       <TouchableOpacity
-                          key={member.id}
+                        key={vendor.id}
                         style={[
-                            styles.userButton,
-                            formData.user_id === member.id && styles.userButtonSelected,
+                          styles.vendorButton,
+                          formData.vendor_id === vendor.id && styles.vendorButtonSelected,
                         ]}
-                          onPress={() => {
-                            handleInputChange('user_id', member.id);
-                            handleInputChange('vendor_id', ''); // Clear vendor selection
-                          }}
+                        onPress={() => {
+                          handleInputChange('vendor_id', vendor.id);
+                        }}
                       >
                         <Text
                           style={[
-                              styles.userButtonText,
-                              formData.user_id === member.id && styles.userButtonTextSelected,
+                            styles.vendorButtonText,
+                            formData.vendor_id === vendor.id && styles.vendorButtonTextSelected,
                           ]}
                         >
-                            {member.user?.display_name || member.user?.full_name || 'User'}
+                          {vendor.name}
                         </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
                 </>
               ) : (
-                  <Text style={styles.displayValue}>
-                    {repair.user_id ? familyMembers.find((m: any) => m.id === repair.user_id)?.user?.display_name || 'Unknown' : 'Not assigned'}
-                  </Text>
-                )}
-              </View>
+                <Text style={styles.displayValue}>
+                  {repair.vendor_id ? vendors.find(v => v.id === repair.vendor_id)?.name || 'Unknown' : 'Not assigned'}
+                </Text>
+              )}
             </View>
             {errors.vendor_id && <Text style={styles.errorText}>{errors.vendor_id}</Text>}
           </View>
@@ -434,9 +383,9 @@ export default function RepairDetailScreen() {
             ) : (
               <Text style={styles.displayValue}>
                 {repair.date_reported ? new Date(repair.date_reported).toLocaleDateString() : 'Not set'}
-                </Text>
-              )}
-            </View>
+              </Text>
+            )}
+          </View>
 
           {/* Description Card */}
           <View style={[styles.card, !isEditing && styles.cardView]}>
@@ -459,8 +408,8 @@ export default function RepairDetailScreen() {
           {/* Photos / Videos Card */}
           <View style={[styles.card, !isEditing && styles.cardView]}>
             <Text style={styles.label}>Photos / Videos</Text>
-              {isEditing ? (
-                <>
+            {isEditing ? (
+              <>
                 <PhotoUploader
                   onUploadComplete={handleUploadComplete}
                   onUploadStart={handleUploadStart}
@@ -549,51 +498,51 @@ export default function RepairDetailScreen() {
                 ) : (
                   <Text style={styles.displayValue}>
                     {repair.final_cost ? `$${repair.final_cost.toFixed(2)}` : 'Not set'}
-                    </Text>
+                  </Text>
                 )}
                 {errors.final_cost && <Text style={styles.errorText}>{errors.final_cost}</Text>}
               </View>
             </View>
-                  </View>
+          </View>
 
           {/* Status Card */}
           <View style={[styles.card, !isEditing && styles.cardView]}>
             <Text style={styles.label}>Status</Text>
             {isEditing ? (
-                  <View style={styles.statusGrid}>
-                    {STATUS_OPTIONS.map((option) => (
-                      <TouchableOpacity
-                        key={option.value}
-                        style={[
-                          styles.statusButton,
-                          formData.status === option.value && styles.statusButtonSelected,
-                        ]}
-                        onPress={() => handleInputChange('status', option.value)}
-                      >
-                        <Text
-                          style={[
-                            styles.statusButtonText,
-                            formData.status === option.value && styles.statusButtonTextSelected,
-                          ]}
-                        >
-                          {option.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-              ) : (
+              <View style={styles.statusGrid}>
+                {STATUS_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.statusButton,
+                      formData.status === option.value && styles.statusButtonSelected,
+                    ]}
+                    onPress={() => handleInputChange('status', option.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.statusButtonText,
+                        formData.status === option.value && styles.statusButtonTextSelected,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
               <View style={[styles.statusBadgeLarge, getStatusColor(repair.status)]}>
                 <Text style={styles.statusBadgeLargeText}>
                   {STATUS_OPTIONS.find(s => s.value === repair.status)?.label || 'To Do'}
                 </Text>
               </View>
-              )}
+            )}
           </View>
 
           {/* Schedule Reminder Card */}
           <View style={[styles.card, !isEditing && styles.cardView]}>
             <Text style={styles.label}>Schedule Reminder</Text>
-              {isEditing ? (
+            {isEditing ? (
               <>
                 <View style={styles.reminderContainer}>
                   <TouchableOpacity
@@ -602,9 +551,9 @@ export default function RepairDetailScreen() {
                   >
                     <Text style={[styles.reminderButtonText, formData.schedule_reminder && styles.reminderButtonTextSelected]}>
                       {formData.schedule_reminder ? 'Yes' : 'No'}
-                </Text>
+                    </Text>
                   </TouchableOpacity>
-            </View>
+                </View>
                 {formData.schedule_reminder && (
                   <View style={{ marginTop: 12 }}>
                     <Text style={styles.label}>Reminder Date</Text>
@@ -625,11 +574,11 @@ export default function RepairDetailScreen() {
                 {repair.schedule_reminder && repair.reminder_date && (
                   <Text style={styles.reminderDateText}>
                     🔔 {new Date(repair.reminder_date).toLocaleDateString()}
-                </Text>
-              )}
+                  </Text>
+                )}
               </>
-              )}
-            </View>
+            )}
+          </View>
 
           {/* Notes Card */}
           <View style={[styles.card, !isEditing && styles.cardView]}>

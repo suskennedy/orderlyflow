@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { PROJECT_STATUS, PROJECT_TYPES, ProjectFormData, projectFormSchema } from '../../lib/schemas/projectSchema';
-import { useFamilyStore } from '../../lib/stores/familyStore';
+
 import { useHomesStore } from '../../lib/stores/homesStore';
 import { useProjectsStore } from '../../lib/stores/projectsStore';
 import { useVendorsStore } from '../../lib/stores/vendorsStore';
@@ -29,7 +29,7 @@ export default function AddProjectScreen() {
   const { user } = useAuth();
   const getHomeById = useHomesStore(state => state.getHomeById);
   const vendors = useVendorsStore(state => state.vendors);
-  const familyMembers = useFamilyStore(state => state.familyMembers);
+
 
   const [loading, setLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
@@ -138,15 +138,7 @@ export default function AddProjectScreen() {
     if (!current.includes(id)) setValue('vendor_ids', [...current, id]);
   };
 
-  const removeUser = (id: string) => {
-    const current = watch('assigned_user_ids') || [];
-    setValue('assigned_user_ids', current.filter(v => v !== id));
-  };
 
-  const addUser = (id: string) => {
-    const current = watch('assigned_user_ids') || [];
-    if (!current.includes(id)) setValue('assigned_user_ids', [...current, id]);
-  };
 
   const addSubtask = () => {
     const current = watch('subtasks') || [];
@@ -282,7 +274,7 @@ export default function AddProjectScreen() {
             <Text style={styles.label}>Photos / Inspiration</Text>
             <PhotoUploader
               onUploadComplete={handleUploadComplete}
-              onUploadStart={() => {}}
+              onUploadStart={() => { }}
               onUploadError={(e) => Alert.alert('Upload Error', e)}
               targetFolder="projects"
               userId={user?.id}
@@ -333,27 +325,7 @@ export default function AddProjectScreen() {
             </View>
           </View>
 
-          {/* User assignment - multi-select chips */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>User Assignment</Text>
-            <View style={styles.categoryGrid}>
-              {(familyMembers || []).map((m: any) => {
-                const current = watch('assigned_user_ids') || [];
-                const active = current.includes(m.id);
-                return (
-                  <TouchableOpacity
-                    key={m.id}
-                    style={[styles.categoryButton, active && styles.categoryButtonSelected]}
-                    onPress={() => (active ? removeUser(m.id) : addUser(m.id))}
-                  >
-                    <Text style={[styles.categoryButtonText, active && styles.categoryButtonTextSelected]}>
-                      {m.user?.display_name || m.user?.full_name || 'User'}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
+
 
           {/* Budget fields */}
           <View style={styles.row}>

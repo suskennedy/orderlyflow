@@ -2,10 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { Appliance } from '../../../types/database';
 
 interface ApplianceCardProps {
-  appliance: Appliance;
+  appliance: any;
   onPress?: () => void;
 }
 
@@ -21,19 +20,17 @@ export default function ApplianceCard({ appliance, onPress }: ApplianceCardProps
     }
   };
 
+  const hasWarranty = !!appliance.warranty_url;
+
   const getStatusColor = () => {
-    if (appliance.warranty_expiration) {
-      const warrantyDate = new Date(appliance.warranty_expiration);
-      const today = new Date();
-      if (warrantyDate > today) {
-        return '#10B981'; // Green for active warranty
-      }
+    if (hasWarranty) {
+      return '#10B981'; // Green for active warranty
     }
     return colors.textSecondary;
   };
 
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={[styles.card, { backgroundColor: colors.surface }]}
       onPress={handleCardPress}
       activeOpacity={0.7}
@@ -44,20 +41,20 @@ export default function ApplianceCard({ appliance, onPress }: ApplianceCardProps
             <Ionicons name="hardware-chip" size={20} color={colors.primary} />
           </View>
           <View style={styles.textContent}>
-            <Text style={[styles.name, { color: colors.text }]}>{appliance.name}</Text>
-            {appliance.brand && (
+            <Text style={[styles.name, { color: colors.text }]}>{appliance.type || 'Appliance'}</Text>
+            {(appliance.brand || appliance.model) && (
               <Text style={[styles.brand, { color: colors.textSecondary }]}>
-                {appliance.brand}
+                {[appliance.brand, appliance.model].filter(Boolean).join(' ')}
               </Text>
             )}
-           
+
           </View>
         </View>
-        
+
         <View style={styles.rightContent}>
-          {appliance.warranty_expiration && (
+          {hasWarranty && (
             <View style={[styles.warrantyBadge, { backgroundColor: colors.primaryLight }]}>
-              <Ionicons name="shield-checkmark" size={12} color={getStatusColor()} />
+              <Ionicons name="document-text" size={12} color={getStatusColor()} />
               <Text style={[styles.warrantyText, { color: getStatusColor() }]}>
                 Warranty
               </Text>
@@ -70,9 +67,17 @@ export default function ApplianceCard({ appliance, onPress }: ApplianceCardProps
           )}
         </View>
       </View>
-      
+
       {!onPress && isExpanded && (
         <View style={styles.details}>
+          {appliance.location && (
+            <View style={styles.detailRow}>
+              <Ionicons name="location" size={16} color={colors.textSecondary} />
+              <Text style={[styles.detailText, { color: colors.text }]}>
+                Location: {appliance.location}
+              </Text>
+            </View>
+          )}
           {appliance.model && (
             <View style={styles.detailRow}>
               <Ionicons name="settings" size={16} color={colors.textSecondary} />
@@ -81,19 +86,19 @@ export default function ApplianceCard({ appliance, onPress }: ApplianceCardProps
               </Text>
             </View>
           )}
-          {appliance.purchase_date && (
+          {appliance.manual_url && (
             <View style={styles.detailRow}>
-              <Ionicons name="calendar" size={16} color={colors.textSecondary} />
-              <Text style={[styles.detailText, { color: colors.text }]}>
-                Purchased: {new Date(appliance.purchase_date).toLocaleDateString()}
+              <Ionicons name="book" size={16} color={colors.textSecondary} />
+              <Text style={[styles.detailText, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">
+                Manual: {appliance.manual_url}
               </Text>
             </View>
           )}
-          {appliance.warranty_expiration && (
+          {appliance.warranty_url && (
             <View style={styles.detailRow}>
               <Ionicons name="shield" size={16} color={colors.textSecondary} />
-              <Text style={[styles.detailText, { color: colors.text }]}>
-                Warranty: {new Date(appliance.warranty_expiration).toLocaleDateString()}
+              <Text style={[styles.detailText, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">
+                Warranty: {appliance.warranty_url}
               </Text>
             </View>
           )}

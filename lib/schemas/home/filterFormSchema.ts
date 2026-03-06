@@ -8,7 +8,10 @@ export const filterFormSchema = z.object({
   brand: z.string().min(1, 'Brand is required').max(255, 'Brand must be less than 255 characters'),
   model: z.string().min(1, 'Model is required').max(100, 'Model must be less than 100 characters'),
   size: z.string().min(1, 'Size is required').max(50, 'Size must be less than 50 characters'),
-  replacement_frequency: z.string().min(1, 'Replacement frequency is required').transform((val) => parseInt(val)).refine((val) => val >= 1 && val <= 120, 'Replacement frequency must be between 1 and 120 months'),
+  replacement_frequency: z.string().min(1, 'Replacement frequency is required').refine((val) => {
+    const parsed = parseInt(val);
+    return !isNaN(parsed) && parsed >= 1 && parsed <= 120;
+  }, 'Replacement frequency must be between 1 and 120 months'),
   
   // Optional date field
   last_replaced: z.string().optional(),
@@ -33,6 +36,7 @@ export const filterFormSchema = z.object({
 );
 
 export type FilterFormData = z.infer<typeof filterFormSchema>;
+export type FilterFormInput = z.input<typeof filterFormSchema>;
 
 // Helper function to transform form data for API submission
 export const transformFilterFormData = (data: FilterFormData) => ({
@@ -43,6 +47,6 @@ export const transformFilterFormData = (data: FilterFormData) => ({
   model: data.model.trim(),
   size: data.size.trim(),
   last_replaced: data.last_replaced || null,
-  replacement_frequency: data.replacement_frequency,
+  replacement_frequency: parseInt(data.replacement_frequency),
   notes: data.notes?.trim() || null,
 });

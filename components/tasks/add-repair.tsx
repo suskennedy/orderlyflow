@@ -3,20 +3,20 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Controller, Resolver, useForm } from 'react-hook-form';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { RepairFormData, repairFormSchemaWithValidation } from '../../lib/schemas/repairSchema';
 import { UploadResult } from '../../lib/services/uploadService';
-import { useFamilyStore } from '../../lib/stores/familyStore';
+
 import { useHomesStore } from '../../lib/stores/homesStore';
 import { useRepairsStore } from '../../lib/stores/repairsStore';
 import { useVendorsStore } from '../../lib/stores/vendorsStore';
@@ -38,7 +38,7 @@ export default function AddRepairScreen() {
   const { user } = useAuth();
   const getHomeById = useHomesStore(state => state.getHomeById);
   const vendors = useVendorsStore(state => state.vendors);
-  const familyMembers = useFamilyStore(state => state.familyMembers);
+
 
   const [loading, setLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
@@ -180,84 +180,42 @@ export default function AddRepairScreen() {
             {errors.title && <Text style={styles.errorText}>{errors.title.message}</Text>}
           </View>
 
-          {/* Vendor/User Assignment */}
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>Vendor</Text>
-              <Controller
-                control={control}
-                name="vendor_id"
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.pickerContainer}>
-                    <Text style={styles.pickerText}>
-                      {value ? vendors.find(v => v.id === value)?.name || 'Select vendor' : 'Select vendor'}
-                    </Text>
-                  </View>
-                )}
-              />
-              <View style={styles.vendorGrid}>
-                {vendors.map((vendor) => (
-                  <TouchableOpacity
-                    key={vendor.id}
+          {/* Vendor Assignment */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Vendor</Text>
+            <Controller
+              control={control}
+              name="vendor_id"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.pickerContainer}>
+                  <Text style={styles.pickerText}>
+                    {value ? vendors.find(v => v.id === value)?.name || 'Select vendor' : 'Select vendor'}
+                  </Text>
+                </View>
+              )}
+            />
+            <View style={styles.vendorGrid}>
+              {vendors.map((vendor) => (
+                <TouchableOpacity
+                  key={vendor.id}
+                  style={[
+                    styles.vendorButton,
+                    watch('vendor_id') === vendor.id && styles.vendorButtonSelected,
+                  ]}
+                  onPress={() => {
+                    setValue('vendor_id', vendor.id);
+                  }}
+                >
+                  <Text
                     style={[
-                      styles.vendorButton,
-                      watch('vendor_id') === vendor.id && styles.vendorButtonSelected,
+                      styles.vendorButtonText,
+                      watch('vendor_id') === vendor.id && styles.vendorButtonTextSelected,
                     ]}
-                    onPress={() => {
-                      setValue('vendor_id', vendor.id);
-                      setValue('user_id', ''); // Clear user selection
-                    }}
                   >
-                    <Text
-                      style={[
-                        styles.vendorButtonText,
-                        watch('vendor_id') === vendor.id && styles.vendorButtonTextSelected,
-                      ]}
-                    >
-                      {vendor.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>User</Text>
-              <Controller
-                control={control}
-                name="user_id"
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.pickerContainer}>
-                    <Text style={styles.pickerText}>
-                      {value ? familyMembers.find(m => m.id === value)?.user?.display_name || 'Select user' : 'Select user'}
-                    </Text>
-                  </View>
-                )}
-              />
-              <View style={styles.userGrid}>
-                {familyMembers.map((member) => (
-                  <TouchableOpacity
-                    key={member.id}
-                    style={[
-                      styles.userButton,
-                      watch('user_id') === member.id && styles.userButtonSelected,
-                    ]}
-                    onPress={() => {
-                      setValue('user_id', member.id);
-                      setValue('vendor_id', ''); // Clear vendor selection
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.userButtonText,
-                        watch('user_id') === member.id && styles.userButtonTextSelected,
-                      ]}
-                    >
-                      {member.user?.display_name || member.user?.full_name || 'User'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                    {vendor.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 

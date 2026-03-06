@@ -19,6 +19,8 @@ import { useFiltersStore } from '../../../lib/stores/filtersStore';
 import DatePicker from '../../DatePicker';
 
 
+
+const EMPTY_ARRAY: any[] = [];
 interface Filter {
   id: string;
   name: string;
@@ -36,7 +38,7 @@ function EditFilterScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const filters = useFiltersStore(state => state.filtersByHome[homeId] || []);
+  const filters = useFiltersStore(state => state.filtersByHome[homeId] || EMPTY_ARRAY);
   const updateFilter = useFiltersStore(state => state.updateFilter);
   const fetchFilters = useFiltersStore(state => state.fetchFilters);
   const setFilters = useFiltersStore(state => state.setFilters);

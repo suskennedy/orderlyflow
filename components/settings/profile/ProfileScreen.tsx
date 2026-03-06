@@ -5,7 +5,6 @@ import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
-import { useFamilyStore } from '../../../lib/stores/familyStore';
 import { supabase } from '../../../lib/supabase';
 import { ProfileSkeleton } from '../../ui/ProfileSkeleton';
 
@@ -24,14 +23,13 @@ interface UserProfile {
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const { colors } = useTheme();
-  const familyMembers = useFamilyStore(state => state.familyMembers);
   const insets = useSafeAreaInsets();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUserProfile = useCallback(async () => {
     if (!user?.id) return;
-    
+
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -45,7 +43,7 @@ export default function ProfileScreen() {
         return;
       }
 
-      setUserProfile(data);
+      setUserProfile(data as any);
     } catch (error) {
       console.error('Error fetching user profile:', error);
     } finally {
@@ -86,8 +84,8 @@ export default function ProfileScreen() {
       'Are you sure you want to sign out?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Sign Out', 
+        {
+          text: 'Sign Out',
           style: 'destructive',
           onPress: () => signOut()
         }
@@ -118,17 +116,17 @@ export default function ProfileScreen() {
 
   const renderProfileSection = () => {
     const avatarUrl = getAvatarUrl();
-    
+
     return (
       <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <View style={styles.profileHeader}>
-        <TouchableOpacity 
-          style={[styles.avatar, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push({
-            pathname: '/(profile)/edit',
-            params: { userProfile: JSON.stringify(userProfile) }
-          })}
-        >
+          <TouchableOpacity
+            style={[styles.avatar, { backgroundColor: colors.primaryLight }]}
+            onPress={() => router.push({
+              pathname: '/(profile)/edit',
+              params: { userProfile: JSON.stringify(userProfile) }
+            })}
+          >
             {avatarUrl ? (
               <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
             ) : (
@@ -159,7 +157,7 @@ export default function ProfileScreen() {
   const renderPersonalInfo = () => (
     <View style={[styles.section, { backgroundColor: colors.surface }]}>
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Profile Information</Text>
-      
+
       <View style={styles.infoItem}>
         <Ionicons name="person-outline" size={20} color={colors.textSecondary} />
         <View style={styles.infoContent}>
@@ -204,11 +202,11 @@ export default function ProfileScreen() {
 
   const renderAccountInfo = () => {
     const subscription = getSubscriptionStatus();
-    
+
     return (
       <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Account Details</Text>
-        
+
         <View style={styles.infoItem}>
           <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
           <View style={styles.infoContent}>
@@ -239,7 +237,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: colors.primary }]}
           onPress={() => router.push('/(profile)/subscription')}
         >
@@ -247,26 +245,14 @@ export default function ProfileScreen() {
           <Text style={styles.actionButtonText}>Manage Subscription</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.infoItem}
-          onPress={() => router.push('/(settings)')}
-        >
-          <Ionicons name="people-outline" size={20} color={colors.textSecondary} />
-          <View style={styles.infoContent}>
-            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>People Connected</Text>
-            <Text style={[styles.infoValue, { color: colors.text }]}>
-              {familyMembers?.length || 0} members
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-        </TouchableOpacity>
+
       </View>
     );
   };
 
   const renderActions = () => (
     <View style={[styles.section, { backgroundColor: colors.surface }]}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.actionItem}
         onPress={handleSignOut}
       >
@@ -280,7 +266,7 @@ export default function ProfileScreen() {
   );
 
   return (
-    <View style={[styles.container, { 
+    <View style={[styles.container, {
       backgroundColor: colors.background,
       paddingTop: insets.top,
     }]}>
@@ -289,9 +275,9 @@ export default function ProfileScreen() {
       ) : (
         <>
           {renderHeader()}
-          
-          <ScrollView 
-            style={styles.scrollView} 
+
+          <ScrollView
+            style={styles.scrollView}
             contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
             showsVerticalScrollIndicator={false}
           >

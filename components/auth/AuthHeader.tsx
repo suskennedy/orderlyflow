@@ -10,11 +10,11 @@ interface AuthHeaderProps {
   onBackPress?: () => void;
 }
 
-export default function AuthHeader({ 
-  title, 
-  subtitle, 
-  showBackButton = false, 
-  onBackPress 
+export default function AuthHeader({
+  title,
+  subtitle,
+  showBackButton = false,
+  onBackPress
 }: AuthHeaderProps) {
   const { colors } = useTheme();
 
@@ -25,14 +25,14 @@ export default function AuthHeader({
           {/* Back button would go here if needed */}
         </View>
       )}
-      
+
       <View style={styles.content}>
         <View style={[styles.logoContainer, { backgroundColor: colors.primaryLight }]}>
           <Ionicons name="home" size={32} color={colors.primary} />
         </View>
-        
+
         <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-        
+
         {subtitle && (
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             {subtitle}
@@ -72,12 +72,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontFamily: 'CormorantGaramond_700Bold',
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
+    fontFamily: 'Jost_400Regular',
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 20,

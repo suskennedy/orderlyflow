@@ -18,6 +18,8 @@ import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscript
 import { useWarrantiesStore } from '../../../lib/stores/warrantiesStore';
 import DatePicker from '../../DatePicker';
 
+
+const EMPTY_ARRAY: any[] = [];
 interface Warranty {
   id: string;
   item_name: string;
@@ -32,7 +34,7 @@ export default function EditWarrantyScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const warranties = useWarrantiesStore(state => state.warrantiesByHome[homeId] || []);
+  const warranties = useWarrantiesStore(state => state.warrantiesByHome[homeId] || EMPTY_ARRAY);
   const updateWarranty = useWarrantiesStore(state => state.updateWarranty);
   const fetchWarranties = useWarrantiesStore(state => state.fetchWarranties);
   const setWarranties = useWarrantiesStore(state => state.setWarranties);

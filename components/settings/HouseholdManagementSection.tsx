@@ -23,8 +23,8 @@ export default function HouseholdManagementSection() {
       'This will sign out all other devices except this one. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Logout Others', 
+        {
+          text: 'Logout Others',
           style: 'destructive',
           onPress: () => {
             // Handle logout other devices logic
@@ -35,9 +35,7 @@ export default function HouseholdManagementSection() {
     );
   };
 
-  const handleFamilyManagement = () => {
-    router.push('/(tabs)/(settings)/family-management');
-  };
+
 
   const renderActionItem = (
     icon: string,
@@ -46,15 +44,15 @@ export default function HouseholdManagementSection() {
     onPress: () => void,
     isDestructive = false
   ) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.actionItem}
       onPress={onPress}
     >
       <View style={[styles.actionIcon, { backgroundColor: isDestructive ? colors.error + '15' : colors.primaryLight }]}>
-        <Ionicons 
-          name={icon as any} 
-          size={20} 
-          color={isDestructive ? colors.error : colors.primary} 
+        <Ionicons
+          name={icon as any}
+          size={20}
+          color={isDestructive ? colors.error : colors.primary}
         />
       </View>
       <View style={styles.actionContent}>
@@ -71,7 +69,7 @@ export default function HouseholdManagementSection() {
         <Ionicons name="people-outline" size={24} color={colors.primary} />
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Household Management</Text>
       </View>
-      
+
       <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
         Invite your family or home manager to help keep things running smoothly
       </Text>
@@ -85,12 +83,6 @@ export default function HouseholdManagementSection() {
         handleInviteUsers
       )}
 
-      {renderActionItem(
-        'people-outline',
-        'Manage Family & Permissions',
-        'View and manage family members and their permissions',
-        handleFamilyManagement
-      )}
 
       {renderActionItem(
         'phone-portrait-outline',

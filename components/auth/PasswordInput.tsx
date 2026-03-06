@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 
@@ -49,7 +49,7 @@ export default function PasswordInput({
   return (
     <View style={styles.container}>
       <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
-      
+
       <View style={[
         styles.inputContainer,
         {
@@ -57,13 +57,13 @@ export default function PasswordInput({
           backgroundColor: colors.surface,
         }
       ]}>
-        <Ionicons 
-          name="lock-closed" 
-          size={20} 
-          color={colors.textTertiary} 
+        <Ionicons
+          name="lock-closed"
+          size={20}
+          color={colors.textTertiary}
           style={styles.inputIcon}
         />
-        
+
         <TextInput
           style={[styles.input, { color: colors.text }]}
           value={value}
@@ -76,7 +76,7 @@ export default function PasswordInput({
           autoCapitalize="none"
           autoCorrect={false}
         />
-        
+
         <TouchableOpacity
           style={styles.eyeButton}
           onPress={togglePasswordVisibility}
@@ -89,7 +89,7 @@ export default function PasswordInput({
           />
         </TouchableOpacity>
       </View>
-      
+
       {error && (
         <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
       )}
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Jost_600SemiBold',
     marginBottom: 8,
   },
   inputContainer: {
@@ -124,6 +124,7 @@ const styles = StyleSheet.create({
     paddingLeft: 48,
     paddingRight: 48,
     fontSize: 16,
+    fontFamily: 'Jost_400Regular',
   },
   eyeButton: {
     position: 'absolute',
@@ -132,6 +133,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
+    fontFamily: 'Jost_400Regular',
     marginTop: 4,
   },
 });

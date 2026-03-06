@@ -25,6 +25,8 @@ import { supabase } from '../../lib/supabase';
 import TaskCompletionModal from '../ui/TaskCompletionModal';
 
 
+
+const EMPTY_ARRAY: any[] = [];
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
@@ -45,10 +47,10 @@ export default function DashboardScreen() {
   const inventoryRefresh = useInventoryStore(state => state.onRefresh);
   const fetchItems = useInventoryStore(state => state.fetchItems);
   const [refreshing, setRefreshing] = useState(false);
-  
+
   const hasFetchedInventoryRef = useRef(false);
   const hasFetchedTasksRef = useRef(false);
-  
+
   // Initial inventory data fetch
   useEffect(() => {
     if (user?.id && !hasFetchedInventoryRef.current) {
@@ -59,7 +61,7 @@ export default function DashboardScreen() {
       hasFetchedInventoryRef.current = false;
     };
   }, [user?.id, fetchItems]);
-  
+
   // Initial tasks data fetch
   useEffect(() => {
     if (user?.id && !hasFetchedTasksRef.current) {
@@ -71,14 +73,14 @@ export default function DashboardScreen() {
       hasFetchedTasksRef.current = false;
     };
   }, [user?.id, fetchTemplateTasks, fetchAllHomeTasks]);
-  
+
   // Real-time subscriptions for inventory tables
   const handleInventoryChange = useCallback((payload: any) => {
     if (user?.id) {
       fetchItems(user.id);
     }
   }, [user?.id, fetchItems]);
-  
+
   useRealTimeSubscription(
     { table: 'appliances', event: '*' },
     handleInventoryChange
@@ -103,14 +105,14 @@ export default function DashboardScreen() {
     { table: 'paint_colors', event: '*' },
     handleInventoryChange
   );
-  
+
   // Real-time subscriptions for tasks
   const handleTaskChange = useCallback((payload: any) => {
     if (user?.id) {
       fetchAllHomeTasks(user.id);
     }
   }, [user?.id, fetchAllHomeTasks]);
-  
+
   useRealTimeSubscription(
     { table: 'home_tasks', event: '*' },
     handleTaskChange
@@ -123,7 +125,7 @@ export default function DashboardScreen() {
     { table: 'projects', event: '*' },
     handleTaskChange
   );
-  
+
   const [completionModalVisible, setCompletionModalVisible] = useState(false);
   const [selectedTaskForCompletion, setSelectedTaskForCompletion] = useState<any>(null);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
@@ -131,7 +133,7 @@ export default function DashboardScreen() {
 
   // Use allHomeTasks for dashboard to show tasks from all homes - ensure it's always an array
   const allTasks = useMemo(() => Array.isArray(allHomeTasks) ? allHomeTasks : [], [allHomeTasks]);
-  
+
   // Debug: Log when allTasks changes
   console.log('Dashboard: allTasks changed, count:', allTasks?.length || 0, 'tasksLoading:', tasksLoading);
 
@@ -144,10 +146,10 @@ export default function DashboardScreen() {
     if (!allTasks) return [];
     const now = new Date();
     const endOfWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    
+
     console.log('Dashboard: getTasksForThisWeek called - now:', now.toISOString(), 'endOfWeek:', endOfWeek.toISOString());
     console.log('Dashboard: getTasksForThisWeek - allTasks count:', allTasks.length);
-    
+
     const filteredTasks = allTasks
       .filter(task => {
         // Only show non-completed tasks
@@ -155,7 +157,7 @@ export default function DashboardScreen() {
           console.log('Dashboard: Task filtered out (completed):', task.title, task.status);
           return false;
         }
-        
+
         // If task has a due date, check if it's within this week
         if (task.due_date) {
           // Parse due date and set time to start of day for comparison
@@ -171,12 +173,12 @@ export default function DashboardScreen() {
           });
           return isInRange;
         }
-        
+
         // If no due date, show the task (newly added tasks)
         console.log('Dashboard: Task included (no due date):', task.title);
         return true;
       });
-    
+
     console.log('Dashboard: getTasksForThisWeek - filtered tasks count:', filteredTasks.length);
     return filteredTasks
       .sort((a, b) => {
@@ -194,18 +196,18 @@ export default function DashboardScreen() {
     const now = new Date();
     const endOfWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const endOfMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    
+
     return allTasks
       .filter(task => {
         // Only show non-completed tasks
         if (task.status === 'completed') return false;
-        
+
         // If task has a due date, check if it's within this month but after this week
         if (task.due_date) {
           const dueDate = new Date(task.due_date + 'T00:00:00.000Z');
           return dueDate > endOfWeek && dueDate <= endOfMonth;
         }
-        
+
         // If no due date, don't show in this month (already shown in this week)
         return false;
       })
@@ -222,18 +224,18 @@ export default function DashboardScreen() {
     const now = new Date();
     const endOfMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const endOfYear = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
-    
+
     return allTasks
       .filter(task => {
         // Only show non-completed tasks
         if (task.status === 'completed') return false;
-        
+
         // If task has a due date, check if it's within this year but after this month
         if (task.due_date) {
           const dueDate = new Date(task.due_date + 'T00:00:00.000Z');
           return dueDate > endOfMonth && dueDate <= endOfYear;
         }
-        
+
         // If no due date, don't show in this year (already shown in this week/month)
         return false;
       })
@@ -258,16 +260,16 @@ export default function DashboardScreen() {
         due_date: allTasks[0].due_date,
         home_id: allTasks[0].home_id
       });
-      
+
       // Test the filtering functions immediately
       const weekTasks = getTasksForThisWeek();
       const monthTasks = getTasksForThisMonth();
       const yearTasks = getTasksForThisYear();
-      
+
       console.log('Dashboard: Immediate filtering test:', {
-        week: (weekTasks || []).length,
-        month: (monthTasks || []).length,
-        year: (yearTasks || []).length,
+        week: (weekTasks || EMPTY_ARRAY).length,
+        month: (monthTasks || EMPTY_ARRAY).length,
+        year: (yearTasks || EMPTY_ARRAY).length,
         total: allTasks.length
       });
     }
@@ -302,18 +304,18 @@ export default function DashboardScreen() {
     if (!allTasks) return [];
     const now = new Date();
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    
+
     return allTasks
       .filter(task => {
         // Only show active, non-completed tasks
         if (task.status === 'completed') return false;
-        
+
         // If task has a due date, check if it's within 30 days
         if (task.due_date) {
           const dueDate = new Date(task.due_date + 'T00:00:00.000Z');
           return dueDate >= now && dueDate <= thirtyDaysFromNow;
         }
-        
+
         // If no due date, show the task (newly added tasks)
         return true;
       })
@@ -322,16 +324,16 @@ export default function DashboardScreen() {
         if (a.due_date && b.due_date) {
           return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
         }
-        
+
         // If one has due date and other doesn't, prioritize the one with due date
         if (a.due_date && !b.due_date) return -1;
         if (!a.due_date && b.due_date) return 1;
-        
+
         // Finally sort by creation date (newest first)
         if (a.created_at && b.created_at) {
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         }
-        
+
         return 0;
       })
       .slice(0, 5); // Show top 5 upcoming tasks
@@ -339,9 +341,9 @@ export default function DashboardScreen() {
 
   const groupTasksByCategory = (tasks: any[]) => {
     const grouped: { [key: string]: any[] } = {};
-    
+
     console.log('Dashboard: groupTasksByCategory - input tasks:', tasks.length);
-    
+
     tasks.forEach(task => {
       const category = task.category || 'Other';
       console.log('Dashboard: Task category:', { title: task.title, category: task.category, assignedCategory: category });
@@ -350,7 +352,7 @@ export default function DashboardScreen() {
       }
       grouped[category].push(task);
     });
-    
+
     console.log('Dashboard: groupTasksByCategory - result:', Object.keys(grouped), Object.values(grouped).map(arr => arr.length));
     return grouped;
   };
@@ -394,7 +396,7 @@ export default function DashboardScreen() {
 
     try {
       setCompletingTaskId(selectedTaskForCompletion.id);
-      
+
       const completionPayload: any = {
         status: 'completed',
         completed_at: new Date().toISOString(),
@@ -413,7 +415,7 @@ export default function DashboardScreen() {
       }
 
       await completeHomeTask(selectedTaskForCompletion.id, currentHomeId, completionPayload);
-      
+
       // Close modal and reset state
       setCompletionModalVisible(false);
       setSelectedTaskForCompletion(null);
@@ -442,7 +444,7 @@ export default function DashboardScreen() {
     >
       <View style={[
         styles.checkbox,
-        { 
+        {
           backgroundColor: task.status === 'completed' ? colors.primary : 'transparent',
           borderColor: colors.primary
         }
@@ -453,7 +455,7 @@ export default function DashboardScreen() {
       </View>
       <Text style={[
         styles.taskCheckboxText,
-        { 
+        {
           color: colors.text,
           textDecorationLine: task.status === 'completed' ? 'line-through' : 'none',
           opacity: task.status === 'completed' ? 0.6 : 1
@@ -480,14 +482,14 @@ export default function DashboardScreen() {
       return null;
     }
     console.log('Dashboard: renderTasksSection called - allTasks.length:', allTasks.length, 'tasksLoading:', tasksLoading);
-    
+
     // Don't render if still loading
     if (tasksLoading) {
       console.log('Dashboard: renderTasksSection - still loading');
       return (
         <View style={styles.tasksContainer}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Tasks</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Reminders</Text>
           </View>
           <View style={styles.tasksColumns}>
             <View style={styles.tasksColumn}>
@@ -506,47 +508,47 @@ export default function DashboardScreen() {
         </View>
       );
     }
-    
+
     // If no tasks, show empty state
     if (allTasks.length === 0) {
       console.log('Dashboard: renderTasksSection - no tasks available');
       return (
         <View style={styles.tasksContainer}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Tasks</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Reminders</Text>
           </View>
           <View style={styles.tasksColumns}>
             <View style={styles.tasksColumn}>
               <Text style={[styles.columnTitle, { color: colors.text }]}>This Week</Text>
-              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks</Text>
+              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No reminders</Text>
             </View>
             <View style={styles.tasksColumn}>
               <Text style={[styles.columnTitle, { color: colors.text }]}>This Month</Text>
-              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks</Text>
+              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No reminders</Text>
             </View>
             <View style={styles.tasksColumn}>
               <Text style={[styles.columnTitle, { color: colors.text }]}>This Year</Text>
-              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks</Text>
+              <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No reminders</Text>
             </View>
           </View>
         </View>
       );
     }
-    
+
     const weekTasks = getTasksForThisWeek();
     const monthTasks = getTasksForThisMonth();
     const yearTasks = getTasksForThisYear();
-    
+
     console.log('Dashboard: renderTasksSection - task counts:', {
-      week: (weekTasks || []).length,
-      month: (monthTasks || []).length,
-      year: (yearTasks || []).length,
+      week: (weekTasks || EMPTY_ARRAY).length,
+      month: (monthTasks || EMPTY_ARRAY).length,
+      year: (yearTasks || EMPTY_ARRAY).length,
       total: allTasks.length
     });
-    
-    const weekTasksGrouped = groupTasksByCategory(weekTasks || []);
-    const monthTasksGrouped = groupTasksByCategory(monthTasks || []);
-    const yearTasksGrouped = groupTasksByCategory(yearTasks || []);
+
+    const weekTasksGrouped = groupTasksByCategory(weekTasks || EMPTY_ARRAY);
+    const monthTasksGrouped = groupTasksByCategory(monthTasks || EMPTY_ARRAY);
+    const yearTasksGrouped = groupTasksByCategory(yearTasks || EMPTY_ARRAY);
 
     return (
       <View style={styles.tasksContainer}>
@@ -560,18 +562,18 @@ export default function DashboardScreen() {
           {/* This Week Column */}
           <View style={styles.tasksColumn}>
             <Text style={[styles.columnTitle, { color: colors.text }]}>This Week</Text>
-            {(weekTasks || []).length > 0 ? (
+            {(weekTasks || EMPTY_ARRAY).length > 0 ? (
               Object.keys(weekTasksGrouped || {}).length > 0 ? (
-                Object.entries(weekTasksGrouped || {}).map(([category, tasks]) => 
+                Object.entries(weekTasksGrouped || {}).map(([category, tasks]) =>
                   renderTaskCategory(category, tasks)
                 )
               ) : (
                 // Fallback: show tasks without categories
-                (weekTasks || []).map(renderTaskWithCheckbox)
+                (weekTasks || EMPTY_ARRAY).map(renderTaskWithCheckbox)
               )
             ) : (
               <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
-                No tasks this week
+                No reminders this week
               </Text>
             )}
           </View>
@@ -579,18 +581,18 @@ export default function DashboardScreen() {
           {/* This Month Column */}
           <View style={styles.tasksColumn}>
             <Text style={[styles.columnTitle, { color: colors.text }]}>This Month</Text>
-            {(monthTasks || []).length > 0 ? (
+            {(monthTasks || EMPTY_ARRAY).length > 0 ? (
               Object.keys(monthTasksGrouped || {}).length > 0 ? (
-                Object.entries(monthTasksGrouped || {}).map(([category, tasks]) => 
+                Object.entries(monthTasksGrouped || {}).map(([category, tasks]) =>
                   renderTaskCategory(category, tasks)
                 )
               ) : (
                 // Fallback: show tasks without categories
-                (monthTasks || []).map(renderTaskWithCheckbox)
+                (monthTasks || EMPTY_ARRAY).map(renderTaskWithCheckbox)
               )
             ) : (
               <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
-                No tasks this month
+                No reminders this month
               </Text>
             )}
           </View>
@@ -598,18 +600,18 @@ export default function DashboardScreen() {
           {/* This Year Column */}
           <View style={styles.tasksColumn}>
             <Text style={[styles.columnTitle, { color: colors.text }]}>This Year</Text>
-            {(yearTasks || []).length > 0 ? (
+            {(yearTasks || EMPTY_ARRAY).length > 0 ? (
               Object.keys(yearTasksGrouped || {}).length > 0 ? (
-                Object.entries(yearTasksGrouped || {}).map(([category, tasks]) => 
+                Object.entries(yearTasksGrouped || {}).map(([category, tasks]) =>
                   renderTaskCategory(category, tasks)
                 )
               ) : (
                 // Fallback: show tasks without categories
-                (yearTasks || []).map(renderTaskWithCheckbox)
+                (yearTasks || EMPTY_ARRAY).map(renderTaskWithCheckbox)
               )
             ) : (
               <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>
-                No tasks this year
+                No reminders this year
               </Text>
             )}
           </View>
@@ -658,7 +660,7 @@ export default function DashboardScreen() {
           <View style={[styles.quickActionIcon, { backgroundColor: colors.surfaceVariant }]}>
             <Ionicons name="checkmark-circle-outline" size={24} color={colors.secondary} />
           </View>
-          <Text style={[styles.quickActionText, { color: colors.text }]}>Add Task</Text>
+          <Text style={[styles.quickActionText, { color: colors.text }]}>Add Reminder</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -681,16 +683,16 @@ export default function DashboardScreen() {
           <Text style={[styles.quickActionText, { color: colors.text }]}>Add Item</Text>
         </TouchableOpacity>
       </View>
-      
+
       {/* Test button for debugging recurring tasks */}
       <TouchableOpacity
         style={[styles.testButton, { backgroundColor: colors.primary }]}
         onPress={handleSyncTasksToCalendar}
       >
         <Ionicons name="sync-outline" size={20} color={colors.textInverse} />
-        <Text style={[styles.testButtonText, { color: colors.textInverse }]}>Sync Tasks to Calendar (Debug)</Text>
+        <Text style={[styles.testButtonText, { color: colors.textInverse }]}>Sync Reminders to Calendar (Debug)</Text>
       </TouchableOpacity>
-      
+
       {/* Test button for checking calendar events */}
       <TouchableOpacity
         style={[styles.testButton, { marginTop: 8, backgroundColor: colors.secondary }]}
@@ -700,19 +702,19 @@ export default function DashboardScreen() {
               .from('calendar_events')
               .select('*')
               .eq('user_id', user?.id || '');
-            
+
             if (error) {
               console.error('Error fetching calendar events:', error);
             } else {
               console.log('=== CALENDAR EVENTS DATABASE CHECK ===');
               console.log('Total calendar events in database:', data?.length);
-              
+
               const recurringEvents = data?.filter(event => event.is_recurring) || [];
               const regularEvents = data?.filter(event => !event.is_recurring) || [];
-              
+
               console.log('Regular events:', regularEvents.length);
               console.log('Recurring events:', recurringEvents.length);
-              
+
               recurringEvents.forEach((event, index) => {
                 console.log(`Recurring Event ${index + 1}:`, {
                   id: event.id,
@@ -724,7 +726,7 @@ export default function DashboardScreen() {
                   task_id: event.task_id
                 });
               });
-              
+
               console.log('=== END CALENDAR EVENTS DATABASE CHECK ===');
             }
           } catch (error) {
@@ -735,7 +737,7 @@ export default function DashboardScreen() {
         <Ionicons name="eye-outline" size={20} color={colors.textInverse} />
         <Text style={[styles.testButtonText, { color: colors.textInverse }]}>Check Calendar Events</Text>
       </TouchableOpacity>
-      
+
       {/* Cleanup button for removing duplicate events */}
       <TouchableOpacity
         style={[styles.testButton, { marginTop: 8, backgroundColor: colors.warning }]}
@@ -756,17 +758,17 @@ export default function DashboardScreen() {
                         .from('calendar_events')
                         .select('*')
                         .eq('user_id', user?.id || '');
-                      
+
                       if (fetchError) {
                         console.error('Error fetching events:', fetchError);
                         Alert.alert('Error', 'Failed to fetch calendar events');
                         return;
                       }
-                      
+
                       // Find duplicates (same task_id and start_time)
                       const duplicates = new Set();
                       const toDelete: string[] = [];
-                      
+
                       allEvents?.forEach((event, index) => {
                         const key = `${event.task_id}_${event.start_time}`;
                         if (duplicates.has(key)) {
@@ -775,14 +777,14 @@ export default function DashboardScreen() {
                           duplicates.add(key);
                         }
                       });
-                      
+
                       if (toDelete.length > 0) {
                         // Delete duplicate events
                         const { error: deleteError } = await supabase
                           .from('calendar_events')
                           .delete()
                           .in('id', toDelete);
-                        
+
                         if (deleteError) {
                           console.error('Error deleting duplicates:', deleteError);
                           Alert.alert('Error', 'Failed to delete duplicate events');
@@ -839,7 +841,7 @@ export default function DashboardScreen() {
               <Ionicons name="checkmark-circle" size={20} color={colors.secondary} />
             </View>
             <Text style={[styles.statNumber, { color: colors.text }]}>{completedTasks}/{totalTasks}</Text>
-            <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Tasks</Text>
+            <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Reminders</Text>
           </View>
 
           <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
@@ -913,28 +915,28 @@ export default function DashboardScreen() {
 
   const renderUpcomingTasks = () => {
     const upcomingTasks = getUpcomingTasks() || [];
-    
+
     if (upcomingTasks.length === 0) {
       return (
         <View style={styles.upcomingTasksContainer}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Upcoming Tasks</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Upcoming Reminders</Text>
             <TouchableOpacity onPress={() => router.push(routes.tasks.selector as any)}>
               <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
             </TouchableOpacity>
           </View>
           <View style={[styles.emptyState, { backgroundColor: colors.surface }]}>
             <Ionicons name="checkmark-circle-outline" size={48} color={colors.textTertiary} />
-            <Text style={[styles.emptyStateTitle, { color: colors.text }]}>No Upcoming Tasks</Text>
+            <Text style={[styles.emptyStateTitle, { color: colors.text }]}>No Upcoming Reminders</Text>
             <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
-              You&apos;re all caught up! Add new tasks to see them here.
+              You&apos;re all caught up! Add new reminders to see them here.
             </Text>
             <TouchableOpacity
               style={[styles.addTaskButton, { backgroundColor: colors.primary }]}
               onPress={() => router.push(routes.tasks.add as any)}
             >
               <Ionicons name="add" size={20} color={colors.textInverse} />
-              <Text style={[styles.addTaskButtonText, { color: colors.textInverse }]}>Add Task</Text>
+              <Text style={[styles.addTaskButtonText, { color: colors.textInverse }]}>Add Reminder</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -949,13 +951,13 @@ export default function DashboardScreen() {
             <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
           </TouchableOpacity>
         </View>
-        
+
         {upcomingTasks.map((task, index) => {
           const dueDate = task.due_date ? new Date(task.due_date) : null;
           const isOverdue = dueDate && dueDate < new Date();
           const isDueToday = dueDate && dueDate.toDateString() === new Date().toDateString();
           const isDueTomorrow = dueDate && dueDate.toDateString() === new Date(Date.now() + 24 * 60 * 60 * 1000).toDateString();
-          
+
           const getPriorityColor = () => {
             switch (task.priority?.toLowerCase()) {
               case 'urgent': return colors.error;
@@ -1024,7 +1026,7 @@ export default function DashboardScreen() {
                   )}
                 </View>
               </View>
-              
+
               <View style={styles.taskCardFooter}>
                 <View style={styles.taskCardInfo}>
                   <Ionicons name="calendar-outline" size={14} color={getDueDateColor()} />
@@ -1045,15 +1047,15 @@ export default function DashboardScreen() {
   };
 
   const renderHeader = () => (
-    <View style={[styles.header, { 
+    <View style={[styles.header, {
       backgroundColor: colors.surface,
-      borderBottomColor: colors.border 
+      borderBottomColor: colors.border
     }]}>
       <View style={styles.headerLeft}>
         <Text style={[styles.appTitle, { color: colors.text }]}>OrderlyFlow</Text>
         <Text style={[styles.appSubtitle, { color: colors.textTertiary }]}>Property Management</Text>
       </View>
-      
+
       <View style={styles.headerRight}>
         <TouchableOpacity
           style={[styles.headerButton, { backgroundColor: colors.surfaceVariant }]}
@@ -1061,14 +1063,14 @@ export default function DashboardScreen() {
         >
           <Ionicons name="notifications-outline" size={20} color={colors.text} />
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[styles.headerButton, { backgroundColor: colors.surfaceVariant }]}
           onPress={() => router.push(routes.profile.index as any)}
         >
           <Ionicons name="person-outline" size={20} color={colors.text} />
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[styles.headerButton, { backgroundColor: colors.surfaceVariant }]}
           onPress={() => router.push(routes.settings.index as any)}
@@ -1092,13 +1094,13 @@ export default function DashboardScreen() {
   }
 
   return (
-    <View style={[styles.container, { 
+    <View style={[styles.container, {
       backgroundColor: colors.background,
       paddingTop: insets.top,
       paddingBottom: insets.bottom + 80
     }]}>
       {renderHeader()}
-      
+
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -1118,7 +1120,7 @@ export default function DashboardScreen() {
           {renderRecentActivity()}
         </View>
       </ScrollView>
-      
+
       {/* Task Completion Modal */}
       <TaskCompletionModal
         visible={completionModalVisible}

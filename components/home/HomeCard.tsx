@@ -9,15 +9,9 @@ interface Home {
   id: string;
   name: string;
   address?: string | null;
-  city?: string | null;
-  state?: string | null;
-  zip?: string | null;
   bedrooms?: number | null;
   bathrooms?: number | null;
   square_footage?: number | null;
-  year_built?: number | null;
-  purchase_date?: string | null;
-  notes?: string | null;
   user_id?: string | null;
 }
 
@@ -37,9 +31,6 @@ export default function HomeCard({ home, onDelete }: HomeCardProps) {
           {home.address && (
             <Text style={[styles.homeAddress, { color: colors.textSecondary }]}>
               {home.address}
-              {home.city && `, ${home.city}`}
-              {home.state && `, ${home.state}`}
-              {home.zip && ` ${home.zip}`}
             </Text>
           )}
         </View>
@@ -60,7 +51,7 @@ export default function HomeCard({ home, onDelete }: HomeCardProps) {
               <Text style={[styles.detailText, { color: colors.textSecondary }]}>{home.bedrooms} bed</Text>
             </View>
           )}
-          
+
           {home.bathrooms && (
             <View style={styles.detailItem}>
               <Ionicons name="water-outline" size={16} color={colors.textTertiary} />
@@ -76,31 +67,11 @@ export default function HomeCard({ home, onDelete }: HomeCardProps) {
               <Text style={[styles.detailText, { color: colors.textSecondary }]}>{home.square_footage.toLocaleString()} sq ft</Text>
             </View>
           )}
-          
-          {home.year_built && (
-            <View style={styles.detailItem}>
-              <Ionicons name="calendar-outline" size={16} color={colors.textTertiary} />
-              <Text style={[styles.detailText, { color: colors.textSecondary }]}>Built {home.year_built}</Text>
-            </View>
-          )}
         </View>
       </View>
 
-      {home.purchase_date && (
-        <Text style={[styles.purchaseDate, { color: colors.textTertiary }]}>
-          Purchased: {new Date(home.purchase_date).toLocaleDateString()}
-        </Text>
-      )}
-
-      {home.notes && (
-        <View style={styles.notesSection}>
-          <Text style={[styles.notesLabel, { color: colors.text }]}>Notes</Text>
-          <Text style={[styles.notesText, { color: colors.textSecondary }]}>{home.notes}</Text>
-        </View>
-      )}
-
       <View style={styles.cardActions}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.viewButton, { backgroundColor: colors.primaryLight }]}
           onPress={() => router.push(routes.home.detail(home.id) as any)}
         >
@@ -108,7 +79,7 @@ export default function HomeCard({ home, onDelete }: HomeCardProps) {
           <Text style={[styles.viewButtonText, { color: colors.primary }]}>View Details</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.editButton, { backgroundColor: colors.success + '15' }]}
           onPress={() => router.push(routes.home.edit(home.id) as any)}
         >
@@ -169,25 +140,6 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontSize: 14,
     fontWeight: '500',
-  },
-  purchaseDate: {
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  notesSection: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  notesLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  notesText: {
-    fontSize: 14,
-    lineHeight: 20,
   },
   cardActions: {
     flexDirection: 'row',

@@ -6,13 +6,13 @@ import { useTheme } from '../../../lib/contexts/ThemeContext';
 
 interface PaintColor {
   id: string;
-  name: string;
+  paint_color_name: string;
   room: string | null;
-  color_hex: string | null;
-  brand: string | null;
-  color_code?: string | null;
-  notes?: string | null;
-  finish?: string | null;
+  finish: string | null;
+  wallpaper: boolean | null;
+  trim_color: string | null;
+  color_code: string | null;
+  notes: string | null;
 }
 
 interface PaintColorCardProps {
@@ -33,11 +33,11 @@ export default function PaintColorCard({ paint }: PaintColorCardProps) {
     <View style={[styles.card, { backgroundColor: colors.surface }]}>
       <TouchableOpacity style={styles.header} onPress={() => setIsExpanded(!isExpanded)}>
         <View style={styles.colorAndText}>
-          <View style={[styles.colorPreview, { backgroundColor: paint.color_hex || '#ccc' }]} />
+          <View style={[styles.colorPreview, { backgroundColor: '#ccc' }]} />
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={[styles.name, { color: colors.text }]}>{paint.name}</Text>
+            <Text style={[styles.name, { color: colors.text }]}>{paint.paint_color_name}</Text>
             <Text style={[styles.room, { color: colors.textSecondary }]}>
-              {paint.room || 'No room specified'} • {paint.brand || 'No brand'}
+              {paint.room || 'No room specified'}
             </Text>
           </View>
         </View>
@@ -54,13 +54,10 @@ export default function PaintColorCard({ paint }: PaintColorCardProps) {
       {isExpanded && (
         <View style={styles.details}>
           <Text style={[styles.detailText, { color: colors.text }]}>
-            Brand: {paint.brand || 'Not specified'}
-          </Text>
-          <Text style={[styles.detailText, { color: colors.text }]}>
             Color Code: {paint.color_code || 'Not specified'}
           </Text>
           <Text style={[styles.detailText, { color: colors.text }]}>
-            Hex Code: {paint.color_hex || 'Not specified'}
+            Trim Color: {paint.trim_color || 'Not specified'}
           </Text>
           <Text style={[styles.detailText, { color: colors.text }]}>
             Finish: {paint.finish || 'Not specified'}

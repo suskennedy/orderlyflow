@@ -9,10 +9,12 @@ import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscript
 import { INSTALLATION_TYPES, POOL_TYPES } from '../../../lib/schemas/home/poolFormSchema';
 import { usePoolsStore } from '../../../lib/stores/poolsStore';
 
+
+const EMPTY_ARRAY: any[] = [];
 interface Pool {
     id: string;
-    type: string | null;
-    installation_type: string | null;
+    salt_water_vs_chlorine: string | null;
+    in_ground_vs_above_ground: string | null;
     notes: string | null;
 }
 
@@ -20,7 +22,7 @@ export default function EditPoolScreen() {
     const insets = useSafeAreaInsets();
     const { colors } = useTheme();
     const { homeId } = useLocalSearchParams<{ homeId: string }>();
-    const pools = usePoolsStore(state => state.poolsByHome[homeId] || []);
+    const pools = usePoolsStore(state => state.poolsByHome[homeId] || EMPTY_ARRAY);
     const updatePool = usePoolsStore(state => state.updatePool);
     const fetchPools = usePoolsStore(state => state.fetchPools);
     const setPools = usePoolsStore(state => state.setPools);
@@ -60,8 +62,8 @@ export default function EditPoolScreen() {
 
     const [pool, setPool] = useState<Pool | null>(null);
     const [formData, setFormData] = useState({
-        type: POOL_TYPES[0] as string,
-        installation_type: INSTALLATION_TYPES[0] as string,
+        salt_water_vs_chlorine: POOL_TYPES[0] as string,
+        in_ground_vs_above_ground: INSTALLATION_TYPES[0] as string,
         notes: ''
     });
     const [isLoading, setIsLoading] = useState(false);
@@ -71,8 +73,8 @@ export default function EditPoolScreen() {
         if (foundPool) {
             setPool(foundPool);
             setFormData({
-                type: foundPool.type || POOL_TYPES[0],
-                installation_type: foundPool.installation_type || INSTALLATION_TYPES[0],
+                salt_water_vs_chlorine: foundPool.salt_water_vs_chlorine || POOL_TYPES[0],
+                in_ground_vs_above_ground: foundPool.in_ground_vs_above_ground || INSTALLATION_TYPES[0],
                 notes: foundPool.notes || ''
             });
         }
@@ -84,10 +86,10 @@ export default function EditPoolScreen() {
         setIsLoading(true);
         try {
             await updatePool(homeId, poolId.id, {
-                type: formData.type || null,
-                installation_type: formData.installation_type || null,
+                salt_water_vs_chlorine: formData.salt_water_vs_chlorine || null,
+                in_ground_vs_above_ground: formData.in_ground_vs_above_ground || null,
                 notes: formData.notes || null
-            });
+            } as any);
 
             Alert.alert('Success', 'Pool updated successfully!', [
                 { text: 'OK', onPress: () => router.back() }
@@ -170,8 +172,8 @@ export default function EditPoolScreen() {
                         <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Water Type *</Text>
                         <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                             <Picker
-                                selectedValue={formData.type}
-                                onValueChange={(itemValue) => setFormData({ ...formData, type: itemValue })}
+                                selectedValue={formData.salt_water_vs_chlorine}
+                                onValueChange={(itemValue) => setFormData({ ...formData, salt_water_vs_chlorine: itemValue })}
                                 style={[{ color: colors.text }]}
                                 dropdownIconColor={colors.text}
                             >
@@ -186,8 +188,8 @@ export default function EditPoolScreen() {
                         <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Installation Type *</Text>
                         <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                             <Picker
-                                selectedValue={formData.installation_type}
-                                onValueChange={(itemValue) => setFormData({ ...formData, installation_type: itemValue })}
+                                selectedValue={formData.in_ground_vs_above_ground}
+                                onValueChange={(itemValue) => setFormData({ ...formData, in_ground_vs_above_ground: itemValue })}
                                 style={[{ color: colors.text }]}
                                 dropdownIconColor={colors.text}
                             >

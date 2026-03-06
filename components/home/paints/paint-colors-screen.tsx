@@ -8,17 +8,19 @@ import { usePaintsStore } from '../../../lib/stores/paintsStore';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 import PaintColorCard from './PaintColorCard';
 
+const EMPTY_ARRAY: any[] = [];
+
 export default function PaintColorsScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const paints = usePaintsStore(state => state.paintsByHome[homeId] || []);
+  const paints = usePaintsStore(state => state.paintsByHome[homeId] || EMPTY_ARRAY);
   const loading = usePaintsStore(state => state.loadingByHome[homeId] ?? false);
   const fetchPaints = usePaintsStore(state => state.fetchPaints);
   const setPaints = usePaintsStore(state => state.setPaints);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  
+
   const lastHomeIdRef = useRef<string | null>(null);
-  
+
   // Initial data fetch
   useEffect(() => {
     if (homeId && homeId !== lastHomeIdRef.current) {
@@ -26,7 +28,7 @@ export default function PaintColorsScreen() {
       fetchPaints(homeId);
     }
   }, [homeId, fetchPaints]);
-  
+
   // Real-time subscription
   const handlePaintChange = useCallback((payload: any) => {
     if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
@@ -43,7 +45,7 @@ export default function PaintColorsScreen() {
       setPaints(homeId, currentPaints.filter(p => p.id !== payload.old.id));
     }
   }, [homeId, setPaints]);
-  
+
   useRealTimeSubscription(
     { table: 'paint_colors', filter: homeId ? `home_id=eq.${homeId}` : undefined },
     handlePaintChange
@@ -51,8 +53,8 @@ export default function PaintColorsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      <ScreenHeader 
-        title="Paint Colors" 
+      <ScreenHeader
+        title="Paint Colors"
         showBackButton
         onAddPress={() => router.push(`/(tabs)/(home)/${homeId}/paints/add`)}
       />
@@ -66,7 +68,7 @@ export default function PaintColorsScreen() {
           contentContainerStyle={[styles.list, { paddingBottom: 100 }]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyText, {color: colors.text}]}>No paint colors added yet.</Text>
+              <Text style={[styles.emptyText, { color: colors.text }]}>No paint colors added yet.</Text>
             </View>
           }
         />

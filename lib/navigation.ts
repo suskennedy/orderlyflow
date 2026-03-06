@@ -7,6 +7,7 @@ export const routes = {
     signin: '/(auth)/signin',
     signup: '/(auth)/signup',
     forgotPassword: '/(auth)/forgot-password',
+    onboarding: '/onboarding',
   },
   
   // Main tabs routes
@@ -134,6 +135,7 @@ export const navigate = {
   canGoBack: () => router.canGoBack(),
   replace: (route: string) => router.replace(route as any),
   push: (route: string) => router.push(route as any),
+  toOnboarding: () => router.replace(routes.auth.onboarding as any),
 };
 
 export default navigate; 

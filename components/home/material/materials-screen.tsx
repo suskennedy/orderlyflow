@@ -9,9 +9,11 @@ import { useMaterialsStore } from '../../../lib/stores/materialsStore';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 import MaterialCard from './MaterialCard';
 
+
+const EMPTY_ARRAY: any[] = [];
 export default function MaterialsScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const materials = useMaterialsStore(state => state.materialsByHome[homeId] || []);
+  const materials = useMaterialsStore(state => state.materialsByHome[homeId] || EMPTY_ARRAY);
   const loading = useMaterialsStore(state => state.loadingByHome[homeId] ?? false);
   const fetchMaterials = useMaterialsStore(state => state.fetchMaterials);
   const setMaterials = useMaterialsStore(state => state.setMaterials);

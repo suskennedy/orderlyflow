@@ -1,17 +1,17 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useRealTimeSubscription } from '../../lib/hooks/useRealTimeSubscription';
@@ -19,13 +19,14 @@ import { useProjectsStore } from '../../lib/stores/projectsStore';
 
 import { PROJECT_STATUS, PROJECT_TYPES } from '../../lib/schemas/projectSchema';
 import { UploadResult } from '../../lib/services/uploadService';
-import { useFamilyStore } from '../../lib/stores/familyStore';
 import { useVendorsStore } from '../../lib/stores/vendorsStore';
 import { supabase } from '../../lib/supabase';
 import DatePicker from '../DatePicker';
 import MediaPreview from '../ui/MediaPreview';
 import PhotoUploader from '../ui/PhotoUploader';
 
+
+const EMPTY_ARRAY: any[] = [];
 export default function ProjectDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -38,12 +39,11 @@ export default function ProjectDetailScreen() {
   const deleteProject = useProjectsStore(state => state.deleteProject);
   const setProjects = useProjectsStore(state => state.setProjects);
   const vendors = useVendorsStore(state => state.vendors);
-  const familyMembers = useFamilyStore(state => state.familyMembers);
-  
+
   // Use a component ID to track current home per component instance
   const componentIdRef = useRef(`project-detail-${Date.now()}-${Math.random()}`);
   const currentHome = currentHomeByComponent[componentIdRef.current] || null;
-  const projects = currentHome ? (projectsByHome[currentHome] || []) : [];
+  const projects = currentHome ? (projectsByHome[currentHome] || EMPTY_ARRAY) : [];
 
   const [project, setProject] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -64,14 +64,13 @@ export default function ProjectDetailScreen() {
     completion_date: '',
     location_in_home: '',
     vendor_ids: [] as string[],
-    assigned_user_ids: [] as string[],
     reminders_enabled: false,
     reminder_date: '',
     notes: '',
     subtasks: [] as any[],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   // Real-time subscription for projects
   const handleProjectChange = useCallback((payload: any) => {
     const projectHomeId = payload.new?.home_id || payload.old?.home_id;
@@ -79,7 +78,7 @@ export default function ProjectDetailScreen() {
       fetchProjects(projectHomeId, user.id);
     }
   }, [currentHome, user?.id, fetchProjects]);
-  
+
   useRealTimeSubscription(
     { table: 'projects', event: '*' },
     handleProjectChange
@@ -88,7 +87,7 @@ export default function ProjectDetailScreen() {
   // Fetch project directly if not in current array - use ref to prevent loops
   const hasFetchedRef = React.useRef(false);
   const lastIdRef = React.useRef<string | undefined>(undefined);
-  
+
   useEffect(() => {
     // Reset if id changes
     if (id !== lastIdRef.current) {
@@ -96,11 +95,11 @@ export default function ProjectDetailScreen() {
       lastIdRef.current = id as string | undefined;
       setProject(null);
     }
-    
+
     if (!id || hasFetchedRef.current || project) return;
-    
+
     hasFetchedRef.current = true;
-    
+
     // First try to find in current projects array
     const foundProject = projects.find((p: any) => p.id === id);
     if (foundProject) {
@@ -120,7 +119,7 @@ export default function ProjectDetailScreen() {
             .select('*')
             .eq('id', id as string)
             .single();
-          
+
           if (!error && data) {
             const projectData = data as any;
             if (projectData.home_id) {
@@ -157,13 +156,12 @@ export default function ProjectDetailScreen() {
         completion_date: project.completion_date || '',
         location_in_home: project.location_in_home || '',
         vendor_ids: project.vendor_ids || [],
-        assigned_user_ids: project.assigned_user_ids || [],
         reminders_enabled: project.reminders_enabled || false,
         reminder_date: project.reminder_date || '',
         notes: project.notes || '',
         subtasks: project.subtasks || [],
       });
-      setUploadedFiles(project.photos_inspiration || []);
+      setUploadedFiles(project.photos_inspiration || EMPTY_ARRAY);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id, isEditing]); // Only depend on project id and editing state
@@ -220,7 +218,6 @@ export default function ProjectDetailScreen() {
         completion_date: formData.completion_date || undefined,
         location_in_home: formData.location_in_home.trim() || undefined,
         vendor_ids: formData.vendor_ids.length > 0 ? formData.vendor_ids : undefined,
-        assigned_user_ids: formData.assigned_user_ids.length > 0 ? formData.assigned_user_ids : undefined,
         photos_inspiration: uploadedFiles.length > 0 ? uploadedFiles : undefined,
         reminders_enabled: formData.reminders_enabled,
         reminder_date: formData.reminders_enabled && formData.reminder_date ? formData.reminder_date : undefined,
@@ -303,15 +300,6 @@ export default function ProjectDetailScreen() {
       handleInputChange('vendor_ids', current.filter(id => id !== vendorId));
     } else {
       handleInputChange('vendor_ids', [...current, vendorId]);
-    }
-  };
-
-  const toggleUser = (userId: string) => {
-    const current = formData.assigned_user_ids || [];
-    if (current.includes(userId)) {
-      handleInputChange('assigned_user_ids', current.filter(id => id !== userId));
-    } else {
-      handleInputChange('assigned_user_ids', [...current, userId]);
     }
   };
 
@@ -592,48 +580,7 @@ export default function ProjectDetailScreen() {
             )}
           </View>
 
-          {/* User Assignment Card */}
-          <View style={[styles.card, !isEditing && styles.cardView]}>
-            <Text style={styles.label}>User Assignment</Text>
-            {isEditing ? (
-              <View style={styles.categoryGrid}>
-                {familyMembers.map((member: any) => (
-                  <TouchableOpacity
-                    key={member.id}
-                    style={[
-                      styles.categoryButton,
-                      formData.assigned_user_ids.includes(member.id) && styles.categoryButtonSelected,
-                    ]}
-                    onPress={() => toggleUser(member.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.categoryButtonText,
-                        formData.assigned_user_ids.includes(member.id) && styles.categoryButtonTextSelected,
-                      ]}
-                    >
-                      {member.user?.display_name || member.user?.full_name || 'User'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.chipsContainer}>
-                {project.assigned_user_ids && project.assigned_user_ids.length > 0 ? (
-                  project.assigned_user_ids.map((userId: string) => {
-                    const member = familyMembers.find((m: any) => m.id === userId);
-                    return member ? (
-                      <View key={userId} style={styles.chip}>
-                        <Text style={styles.chipText}>{member.user?.display_name || member.user?.full_name || 'User'}</Text>
-                      </View>
-                    ) : null;
-                  })
-                ) : (
-                  <Text style={styles.displayValue}>No users assigned</Text>
-                )}
-              </View>
-            )}
-          </View>
+
 
           {/* Budget Card */}
           <View style={[styles.card, !isEditing && styles.cardView]}>

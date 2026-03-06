@@ -9,9 +9,11 @@ import { useFiltersStore } from '../../../lib/stores/filtersStore';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 import FilterCard from './FilterCard';
 
+
+const EMPTY_ARRAY: any[] = [];
 export default function FiltersScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const filters = useFiltersStore(state => state.filtersByHome[homeId] || []);
+  const filters = useFiltersStore(state => state.filtersByHome[homeId] || EMPTY_ARRAY);
   const loading = useFiltersStore(state => state.loadingByHome[homeId] ?? false);
   const fetchFilters = useFiltersStore(state => state.fetchFilters);
   const setFilters = useFiltersStore(state => state.setFilters);
@@ -21,6 +23,7 @@ export default function FiltersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
 
   const lastHomeIdRef = useRef<string | null>(null);
 
@@ -59,6 +62,7 @@ export default function FiltersScreen() {
 
   const uniqueTypes = Array.from(new Set(filters.map(f => f.type).filter(Boolean))) as string[];
   const uniqueSizes = Array.from(new Set(filters.map(f => f.size).filter(Boolean))) as string[];
+  const uniqueLocations = Array.from(new Set(filters.map(f => f.room).filter(Boolean))) as string[];
 
   const filteredData = filters.filter(f => {
     const searchLower = searchQuery.toLowerCase();
@@ -69,8 +73,9 @@ export default function FiltersScreen() {
 
     const matchesType = !selectedType || f.type === selectedType;
     const matchesSize = !selectedSize || f.size === selectedSize;
+    const matchesLocation = !selectedLocation || f.room === selectedLocation;
 
-    return matchesSearch && matchesType && matchesSize;
+    return matchesSearch && matchesType && matchesSize && matchesLocation;
   });
 
   return (
@@ -98,8 +103,34 @@ export default function FiltersScreen() {
           )}
         </View>
 
-        {(uniqueTypes.length > 0 || uniqueSizes.length > 0) && (
+        {(uniqueTypes.length > 0 || uniqueSizes.length > 0 || uniqueLocations.length > 0) && (
           <View style={styles.chipsContainer}>
+            {uniqueLocations.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                <TouchableOpacity
+                  style={[
+                    styles.chip,
+                    { backgroundColor: !selectedLocation ? colors.primary : colors.surface, borderColor: colors.border }
+                  ]}
+                  onPress={() => setSelectedLocation(null)}
+                >
+                  <Text style={[styles.chipText, { color: !selectedLocation ? '#fff' : colors.text }]}>All Locations</Text>
+                </TouchableOpacity>
+                {uniqueLocations.map(loc => (
+                  <TouchableOpacity
+                    key={loc}
+                    style={[
+                      styles.chip,
+                      { backgroundColor: selectedLocation === loc ? colors.primary : colors.surface, borderColor: colors.border }
+                    ]}
+                    onPress={() => setSelectedLocation(loc)}
+                  >
+                    <Text style={[styles.chipText, { color: selectedLocation === loc ? '#fff' : colors.text }]}>{loc}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
             {uniqueTypes.length > 0 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
                 <TouchableOpacity

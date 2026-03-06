@@ -89,7 +89,7 @@ export default function AddPaintColorScreen() {
   } = useForm({
     resolver: zodResolver(paintColorFormSchema),
     defaultValues: {
-      name: '',
+      paint_color_name: '',
       room: '',
       color_code: '',
       finish: '',
@@ -102,8 +102,8 @@ export default function AddPaintColorScreen() {
   const formData = watch();
 
   const handlePaintNameChange = (text: string) => {
-    setValue('name', text);
-    if (errors.name) clearErrors('name');
+    setValue('paint_color_name', text);
+    if (errors.paint_color_name) clearErrors('paint_color_name');
 
     // Auto-populate color based on paint name
     const paintName = text.toLowerCase().trim();
@@ -121,7 +121,7 @@ export default function AddPaintColorScreen() {
       const paintData = transformPaintColorFormData(data);
       await createPaint(homeId, paintData);
 
-      showToast(`${data.name} paint color added successfully!`, 'success');
+      showToast(`${data.paint_color_name} paint color added successfully!`, 'success');
 
       // Navigate back after a short delay to ensure toast is visible
       setTimeout(() => {
@@ -182,20 +182,20 @@ export default function AddPaintColorScreen() {
           <Text style={[styles.label, { color: colors.text }]}>Paint Name *</Text>
           <TextInput
             style={[
-              getInputStyle('name'),
-              errors.name && { borderColor: colors.error, borderWidth: 2 }
+              getInputStyle('paint_color_name'),
+              errors.paint_color_name && { borderColor: colors.error, borderWidth: 2 }
             ]}
-            value={formData.name}
+            value={formData.paint_color_name}
             onChangeText={handlePaintNameChange}
             placeholder="e.g., White, Navy Blue, Sage Green"
             placeholderTextColor={colors.textSecondary}
-            onFocus={() => handleFocus('name')}
+            onFocus={() => handleFocus('paint_color_name')}
             onBlur={handleBlur}
             returnKeyType="next"
           />
-          {errors.name && (
+          {errors.paint_color_name && (
             <Text style={[styles.errorText, { color: colors.error }]}>
-              {errors.name.message}
+              {errors.paint_color_name.message}
             </Text>
           )}
 

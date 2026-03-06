@@ -23,6 +23,8 @@ import { useHomesStore } from '../../lib/stores/homesStore';
 import { useTasksStore } from '../../lib/stores/tasksStore';
 import { supabase } from '../../lib/supabase';
 
+
+const EMPTY_ARRAY: any[] = [];
 const EVENT_COLORS = [
   { label: 'Gray', value: 'gray' },
   { label: 'Red', value: 'red' },
@@ -80,7 +82,7 @@ export default function AddCalendarEventScreen() {
         .order('title');
 
       if (error) throw error;
-      setTasks(data || []);
+      setTasks(data || EMPTY_ARRAY);
     } catch (error) {
       console.error('Error fetching tasks:', error);
     }

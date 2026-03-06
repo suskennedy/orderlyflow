@@ -18,17 +18,17 @@ import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscript
 import { useAppliancesStore } from '../../../lib/stores/appliancesStore';
 
 
+
+const EMPTY_ARRAY: any[] = [];
 interface Appliance {
   id: string;
-  name: string;
   type?: string | null;
   brand?: string | null;
   model?: string | null;
   manual_url?: string | null;
   warranty_url?: string | null;
   notes?: string | null;
-  room?: string | null;
-  purchased_store?: string | null;
+  location?: string | null;
 }
 
 function EditApplianceScreen() {
@@ -37,7 +37,7 @@ function EditApplianceScreen() {
   const params = useLocalSearchParams();
   const homeId = params.homeId as string;
   const applianceId = params.id as string;
-  const appliances = useAppliancesStore(state => state.appliancesByHome[homeId || ''] || []);
+  const appliances = useAppliancesStore(state => state.appliancesByHome[homeId || ''] || EMPTY_ARRAY);
   const updateAppliance = useAppliancesStore(state => state.updateAppliance);
   const fetchAppliances = useAppliancesStore(state => state.fetchAppliances);
   const setAppliances = useAppliancesStore(state => state.setAppliances);
@@ -76,14 +76,12 @@ function EditApplianceScreen() {
 
   const [appliance, setAppliance] = useState<Appliance | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
     type: '',
     brand: '',
     model: '',
-    room: '',
+    location: '',
     manual_url: '',
     warranty_url: '',
-    purchased_store: '',
     notes: ''
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -93,14 +91,12 @@ function EditApplianceScreen() {
     if (foundAppliance) {
       setAppliance(foundAppliance);
       setFormData({
-        name: foundAppliance.name || '',
         type: foundAppliance.type || '',
         brand: foundAppliance.brand || '',
         model: foundAppliance.model || '',
-        room: foundAppliance.room || '',
+        location: foundAppliance.location || '',
         manual_url: foundAppliance.manual_url || '',
         warranty_url: foundAppliance.warranty_url || '',
-        purchased_store: foundAppliance.purchased_store || '',
         notes: foundAppliance.notes || ''
       });
     }
@@ -109,22 +105,20 @@ function EditApplianceScreen() {
   const handleSave = async () => {
     if (!appliance) return;
 
-    if (!formData.name.trim()) {
-      Alert.alert('Error', 'Appliance name is required');
+    if (!formData.location.trim()) {
+      Alert.alert('Error', 'Location is required');
       return;
     }
 
     setIsLoading(true);
     try {
       await updateAppliance(homeId || '', applianceId, {
-        name: formData.name.trim(),
         type: formData.type || null,
         brand: formData.brand || null,
         model: formData.model || null,
-        room: formData.room || null,
+        location: formData.location || null,
         manual_url: formData.manual_url || null,
         warranty_url: formData.warranty_url || null,
-        purchased_store: formData.purchased_store || null,
         notes: formData.notes || null
       });
 
@@ -208,21 +202,6 @@ function EditApplianceScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Basic Information</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Appliance Name *</Text>
-            <TextInput
-              style={[styles.textInput, {
-                backgroundColor: colors.background,
-                color: colors.text,
-                borderColor: colors.border
-              }]}
-              value={formData.name}
-              onChangeText={(text) => setFormData({ ...formData, name: text })}
-              placeholder="Enter appliance name"
-              placeholderTextColor={colors.textSecondary}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
             <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Appliance Type</Text>
             <TextInput
               style={[styles.textInput, {
@@ -268,16 +247,16 @@ function EditApplianceScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Room</Text>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Location *</Text>
             <TextInput
               style={[styles.textInput, {
                 backgroundColor: colors.background,
                 color: colors.text,
                 borderColor: colors.border
               }]}
-              value={formData.room}
-              onChangeText={(text) => setFormData({ ...formData, room: text })}
-              placeholder="Enter room location"
+              value={formData.location}
+              onChangeText={(text) => setFormData({ ...formData, location: text })}
+              placeholder="Enter location"
               placeholderTextColor={colors.textSecondary}
             />
           </View>
@@ -286,23 +265,6 @@ function EditApplianceScreen() {
         {/* Purchase Information */}
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Purchase Information</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Purchased Store</Text>
-            <TextInput
-              style={[styles.textInput, {
-                backgroundColor: colors.background,
-                color: colors.text,
-                borderColor: colors.border
-              }]}
-              value={formData.purchased_store}
-              onChangeText={(text) => setFormData({ ...formData, purchased_store: text })}
-              placeholder="Enter store name"
-              placeholderTextColor={colors.textSecondary}
-            />
-          </View>
-
-
         </View>
 
         {/* Manual URL */}

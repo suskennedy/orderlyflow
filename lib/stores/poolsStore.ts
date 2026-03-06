@@ -1,15 +1,8 @@
 import { create } from 'zustand';
 import { supabase } from '../supabase';
+import { Database } from '../../supabase-types';
 
-export interface Pool {
-  id: string;
-  home_id: string;
-  type: string;
-  installation_type: string;
-  notes: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-}
+export type Pool = Database['public']['Tables']['pools']['Row'];
 
 interface PoolsState {
   poolsByHome: Record<string, Pool[]>;

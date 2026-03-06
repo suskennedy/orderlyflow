@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Animated,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../../../lib/contexts/ThemeContext';
@@ -17,17 +17,18 @@ import { useRealTimeSubscription } from '../../../../../lib/hooks/useRealTimeSub
 import { useAppliancesStore } from '../../../../../lib/stores/appliancesStore';
 
 
+
+const EMPTY_ARRAY: any[] = [];
 interface Appliance {
   id: string;
-  name: string;
+  type?: string | null;
   brand?: string | null;
   model?: string | null;
   purchase_date?: string | null;
   warranty_expiration?: string | null;
   manual_url?: string | null;
   notes?: string | null;
-  room?: string | null;
-  purchased_store?: string | null;
+  location?: string | null;
 }
 
 function ApplianceDetailScreen() {
@@ -36,13 +37,13 @@ function ApplianceDetailScreen() {
   const params = useLocalSearchParams();
   const applianceId = params.id as string;
   const homeId = params.homeId as string;
-  const appliances = useAppliancesStore(state => state.appliancesByHome[homeId || ''] || []);
+  const appliances = useAppliancesStore(state => state.appliancesByHome[homeId || ''] || EMPTY_ARRAY);
   const deleteAppliance = useAppliancesStore(state => state.deleteAppliance);
   const fetchAppliances = useAppliancesStore(state => state.fetchAppliances);
   const setAppliances = useAppliancesStore(state => state.setAppliances);
-  
+
   const lastHomeIdRef = useRef<string | null>(null);
-  
+
   // Initial data fetch
   useEffect(() => {
     if (homeId && homeId !== lastHomeIdRef.current) {
@@ -50,7 +51,7 @@ function ApplianceDetailScreen() {
       fetchAppliances(homeId);
     }
   }, [homeId, fetchAppliances]);
-  
+
   // Real-time subscription
   const handleApplianceChange = useCallback((payload: any) => {
     if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
@@ -67,12 +68,12 @@ function ApplianceDetailScreen() {
       setAppliances(homeId || '', currentAppliances.filter(a => a.id !== payload.old.id));
     }
   }, [homeId, setAppliances]);
-  
+
   useRealTimeSubscription(
     { table: 'appliances', filter: homeId ? `home_id=eq.${homeId}` : undefined },
     handleApplianceChange
   );
-  
+
   const [appliance, setAppliance] = useState<Appliance | null>(null);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(50));
@@ -101,14 +102,14 @@ function ApplianceDetailScreen() {
       Alert.alert('No Manual', 'This appliance does not have a manual URL.');
       return;
     }
-    
+
     Alert.alert(
       'Open Manual',
-      `Open the manual for ${appliance.name}?`,
+      `Open the manual for ${appliance.type || 'this appliance'}?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Open', 
+        {
+          text: 'Open',
           onPress: () => Linking.openURL(appliance.manual_url!)
         }
       ]
@@ -117,14 +118,14 @@ function ApplianceDetailScreen() {
 
   const handleDelete = () => {
     if (!appliance) return;
-    
+
     Alert.alert(
       'Delete Appliance',
-      `Are you sure you want to delete ${appliance.name}? This action cannot be undone.`,
+      `Are you sure you want to delete ${appliance.type || 'this appliance'}? This action cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -198,10 +199,10 @@ function ApplianceDetailScreen() {
         alwaysBounceVertical={false}
       >
         {/* Hero Section */}
-        <Animated.View 
+        <Animated.View
           style={[
-            styles.heroSection, 
-            { 
+            styles.heroSection,
+            {
               backgroundColor: colors.surface,
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }]
@@ -211,24 +212,24 @@ function ApplianceDetailScreen() {
           <View style={[styles.heroIcon, { backgroundColor: colors.primaryLight }]}>
             <Ionicons name="hardware-chip" size={40} color={colors.primary} />
           </View>
-          <Text style={[styles.heroTitle, { color: colors.text }]}>{appliance.name}</Text>
+          <Text style={[styles.heroTitle, { color: colors.text }]}>{`${appliance.brand || ''} ${appliance.type || 'Appliance'}`}</Text>
           {appliance.brand && (
             <View style={[styles.brandBadge, { backgroundColor: colors.primaryLight }]}>
               <Text style={[styles.brandText, { color: colors.primary }]}>{appliance.brand}</Text>
             </View>
           )}
-          {appliance.room && (
+          {appliance.location && (
             <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
-              Room: {appliance.room}
+              Location: {appliance.location}
             </Text>
           )}
         </Animated.View>
 
         {/* Basic Information */}
-        <Animated.View 
+        <Animated.View
           style={[
-            styles.section, 
-            { 
+            styles.section,
+            {
               backgroundColor: colors.surface,
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }]
@@ -239,7 +240,7 @@ function ApplianceDetailScreen() {
             <Ionicons name="information-circle" size={24} color={colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Basic Information</Text>
           </View>
-          
+
           {appliance.model && (
             <View style={styles.infoRow}>
               <View style={[styles.infoIcon, { backgroundColor: colors.primaryLight }]}>
@@ -251,25 +252,13 @@ function ApplianceDetailScreen() {
               </View>
             </View>
           )}
-          
-          {appliance.purchased_store && (
-            <View style={styles.infoRow}>
-              <View style={[styles.infoIcon, { backgroundColor: colors.primaryLight }]}>
-                <Ionicons name="storefront" size={16} color={colors.primary} />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Purchased Store</Text>
-                <Text style={[styles.infoText, { color: colors.text }]}>{appliance.purchased_store}</Text>
-              </View>
-            </View>
-          )}
         </Animated.View>
 
         {/* Dates Information */}
-        <Animated.View 
+        <Animated.View
           style={[
-            styles.section, 
-            { 
+            styles.section,
+            {
               backgroundColor: colors.surface,
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }]
@@ -280,7 +269,7 @@ function ApplianceDetailScreen() {
             <Ionicons name="calendar" size={24} color={colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Important Dates</Text>
           </View>
-          
+
           <View style={styles.infoRow}>
             <View style={[styles.infoIcon, { backgroundColor: colors.primaryLight }]}>
               <Ionicons name="calendar-outline" size={16} color={colors.primary} />
@@ -292,7 +281,7 @@ function ApplianceDetailScreen() {
               </Text>
             </View>
           </View>
-          
+
           <View style={styles.infoRow}>
             <View style={[styles.infoIcon, { backgroundColor: colors.primaryLight }]}>
               <Ionicons name="shield-checkmark" size={16} color={colors.primary} />
@@ -308,10 +297,10 @@ function ApplianceDetailScreen() {
 
         {/* Notes Section */}
         {appliance.notes && (
-          <Animated.View 
+          <Animated.View
             style={[
-              styles.section, 
-              { 
+              styles.section,
+              {
                 backgroundColor: colors.surface,
                 opacity: fadeAnim,
                 transform: [{ translateY: slideAnim }]
@@ -329,10 +318,10 @@ function ApplianceDetailScreen() {
         )}
 
         {/* Bottom Action Buttons - Now part of scrollable content */}
-        <Animated.View 
+        <Animated.View
           style={[
-            styles.bottomActions, 
-            { 
+            styles.bottomActions,
+            {
               backgroundColor: colors.surface,
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }]
@@ -348,7 +337,7 @@ function ApplianceDetailScreen() {
               <Text style={[styles.actionButtonText, { color: colors.background }]}>Manual</Text>
             </TouchableOpacity>
           )}
-          
+
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
             onPress={handleDelete}

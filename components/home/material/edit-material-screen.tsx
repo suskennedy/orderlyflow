@@ -9,6 +9,8 @@ import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscript
 import { MATERIAL_TYPES } from '../../../lib/schemas/home/materialFormSchema';
 import { useMaterialsStore } from '../../../lib/stores/materialsStore';
 
+
+const EMPTY_ARRAY: any[] = [];
 interface Material {
   id: string;
   type: string | null;
@@ -21,7 +23,7 @@ export default function EditMaterialScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const materials = useMaterialsStore(state => state.materialsByHome[homeId] || []);
+  const materials = useMaterialsStore(state => state.materialsByHome[homeId] || EMPTY_ARRAY);
   const updateMaterial = useMaterialsStore(state => state.updateMaterial);
   const fetchMaterials = useMaterialsStore(state => state.fetchMaterials);
   const setMaterials = useMaterialsStore(state => state.setMaterials);

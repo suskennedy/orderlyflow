@@ -1,17 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { useHomesStore } from '../../lib/stores/homesStore';
+import { useToast } from '../../lib/contexts/ToastContext';
+import { Home, useHomesStore } from '../../lib/stores/homesStore';
 import ScreenHeader from '../layouts/layout/ScreenHeader';
 import HomeCard from './HomeCard';
 
 export default function HomesScreen() {
   const homes = useHomesStore(state => state.homes);
   const loading = useHomesStore(state => state.loading);
+  const deleteHome = useHomesStore(state => state.deleteHome);
   const { colors } = useTheme();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
 
   const renderEmptyState = () => (
@@ -54,12 +57,38 @@ export default function HomesScreen() {
     );
   }
 
+  const handleHomeDelete = (home: Home) => {
+    Alert.alert(
+      "Delete Home",
+      `Are you sure you want to delete ${home.name}? This will permanently delete all associated tasks, vendors, and data.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteHome(home.id);
+              showToast("Home deleted successfully", "success");
+            } catch (error) {
+              console.error("Error deleting home:", error);
+              showToast("Failed to delete home", "error");
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScreenHeader 
-        title="My Homes" 
+      <ScreenHeader
+        title="My Homes"
         subtitle={`${homes.length} ${homes.length === 1 ? 'property' : 'properties'}`}
-        showBackButton 
+        showBackButton
         showDecorativeIcons={true}
         onBackPress={() => router.push('/(dashboard)')}
       />
@@ -68,7 +97,7 @@ export default function HomesScreen() {
       ) : (
         <FlatList
           data={homes}
-          renderItem={({ item }) => <HomeCard home={item} onDelete={() => {}} />}
+          renderItem={({ item }) => <HomeCard home={item} onDelete={handleHomeDelete} />}
           keyExtractor={item => item.id}
           contentContainerStyle={[styles.listContainer, { paddingBottom: 100 }]}
           ListFooterComponent={renderFooter}

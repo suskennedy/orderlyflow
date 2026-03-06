@@ -100,7 +100,6 @@ export const useTasksStore = create<TasksState>((set, get) => ({
           homes!inner(name)
         `)
         .eq('home_id', homeId)
-        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (homeTasksError) throw homeTasksError;
@@ -145,7 +144,6 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         recurrence_end_date: null,
         created_at: repair.created_at,
         updated_at: repair.updated_at,
-        created_by: repair.created_by,
         completed_at: repair.status === 'completed' ? repair.updated_at : null,
         next_due: null,
         actual_cost: repair.final_cost,
@@ -158,7 +156,6 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         completed_by_user_id: null,
         completed_by_vendor_id: null,
         completed_by_external_name: null,
-        family_account_id: repair.family_account_id,
         user_notes: null,
         vendor_notes: null,
         photos: repair.photos_videos,
@@ -239,7 +236,6 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         recurrence_end_date: null,
         created_at: project.created_at,
         updated_at: project.updated_at,
-        created_by: project.created_by,
         completed_at: project.completion_date,
         next_due: null,
         actual_cost: project.final_cost,
@@ -254,7 +250,6 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         completed_by_user_id: null,
         completed_by_vendor_id: null,
         completed_by_external_name: null,
-        family_account_id: project.family_account_id,
         user_notes: null,
         vendor_notes: null,
         photos: project.photos_inspiration,
@@ -424,7 +419,6 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         recurrence_end_date: null,
         created_at: repair.created_at,
         updated_at: repair.updated_at,
-        created_by: repair.created_by,
         completed_at: repair.status === 'completed' ? repair.updated_at : null,
         next_due: null,
         actual_cost: repair.final_cost,
@@ -436,7 +430,6 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         completed_by_user_id: null,
         completed_by_vendor_id: null,
         completed_by_external_name: null,
-        family_account_id: repair.family_account_id,
         user_notes: null,
         vendor_notes: null,
         photos: repair.photos_videos,
@@ -517,7 +510,6 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         recurrence_end_date: null,
         created_at: project.created_at,
         updated_at: project.updated_at,
-        created_by: project.created_by,
         completed_at: project.completion_date,
         next_due: null,
         actual_cost: project.final_cost,
@@ -531,7 +523,6 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         completed_by_user_id: null,
         completed_by_vendor_id: null,
         completed_by_external_name: null,
-        family_account_id: project.family_account_id,
         user_notes: null,
         vendor_notes: null,
         photos: project.photos_inspiration,
@@ -634,9 +625,9 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         is_recurring: details.customSettings?.is_recurring || false,
         recurrence_pattern: details.customSettings?.recurrence_pattern || null,
         recurrence_end_date: details.customSettings?.recurrence_end_date || null,
+        next_due: details.customSettings?.due_date || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        created_by: userId || null,
       };
 
       const { data, error } = await supabase
@@ -647,34 +638,6 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
       if (error) throw error;
 
-      // If calendar options are provided, create calendar event
-      if (details.calendarOptions && details.calendarOptions.create_calendar_event) {
-        const calendarEventData = {
-          title: template.title,
-          description: template.description,
-          start_time: details.calendarOptions.start_time,
-          end_time: details.calendarOptions.end_time,
-          home_id: homeId,
-          task_id: templateId,
-          home_task_id: data.id,
-          task_type: 'task',
-          is_recurring: details.calendarOptions.is_recurring || false,
-          recurrence_pattern: details.calendarOptions.recurrence_pattern || null,
-          recurrence_end_date: details.calendarOptions.recurrence_end_date || null,
-          user_id: userId || null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-
-        const { error: calendarError } = await supabase
-          .from('calendar_events')
-          .insert(calendarEventData);
-
-        if (calendarError) {
-          console.error('Error creating calendar event:', calendarError);
-        }
-      }
-      
       // Update local state
       const currentTasks = get().homeTasksByHome[homeId] || [];
       get().setHomeTasks(homeId, [data, ...currentTasks]);
@@ -790,6 +753,10 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
       } else {
         // Regular home task
+        const currentTasks = get().homeTasksByHome[currentHomeId || ''] || [];
+        const task = get().allHomeTasks.find((t: HomeTask) => t.id === homeTaskId) || 
+                     currentTasks.find((t: HomeTask) => t.id === homeTaskId);
+
         const updates: HomeTaskUpdate = {
           status: 'completed',
           completed_at: new Date().toISOString(),
@@ -803,6 +770,68 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         };
 
         await get().updateHomeTask(homeTaskId, updates);
+
+        // --- Recurrence Logic ---
+        if (task && task.is_recurring && task.recurrence_pattern) {
+          const nextDueDate = new Date(task.due_date || task.next_due || new Date());
+          const interval = task.recurrence_interval || 1;
+          const unit = task.recurrence_unit || 'days';
+          const pattern = task.recurrence_pattern.toLowerCase();
+
+          if (pattern === 'daily' || unit === 'days') {
+            nextDueDate.setDate(nextDueDate.getDate() + interval);
+          } else if (pattern === 'weekly' || unit === 'weeks') {
+            nextDueDate.setDate(nextDueDate.getDate() + (interval * 7));
+          } else if (pattern === 'monthly' || unit === 'months') {
+            nextDueDate.setMonth(nextDueDate.getMonth() + interval);
+          } else if (pattern === 'yearly' || unit === 'years' || pattern === 'annually') {
+            nextDueDate.setFullYear(nextDueDate.getFullYear() + interval);
+          }
+
+          // Create next occurrence
+          const nextTaskData: HomeTaskInsert = {
+            home_id: task.home_id,
+            task_id: task.task_id,
+            title: task.title,
+            description: task.description,
+            category: task.category,
+            subcategory: task.subcategory,
+            priority: task.priority,
+            assigned_user_id: task.assigned_user_id,
+            assigned_vendor_id: task.assigned_vendor_id,
+            notes: task.notes,
+            instructions: task.instructions,
+            room_location: task.room_location,
+            equipment_required: task.equipment_required,
+            safety_notes: task.safety_notes,
+            estimated_duration_minutes: task.estimated_duration_minutes,
+            estimated_cost: task.estimated_cost,
+            is_active: true,
+            status: 'pending',
+            due_date: nextDueDate.toISOString().split('T')[0],
+            next_due: nextDueDate.toISOString(),
+            is_recurring: true,
+            recurrence_pattern: task.recurrence_pattern,
+            recurrence_interval: task.recurrence_interval,
+            recurrence_unit: task.recurrence_unit,
+            recurrence_end_date: task.recurrence_end_date,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+
+          // Check if we haven't reached the end date
+          let shouldCreateNext = true;
+          if (task.recurrence_end_date) {
+            const endDate = new Date(task.recurrence_end_date);
+            if (nextDueDate > endDate) {
+                shouldCreateNext = false;
+            }
+          }
+
+          if (shouldCreateNext) {
+            await supabase.from('home_tasks').insert(nextTaskData);
+          }
+        }
 
         // Remove calendar events associated with this completed task
         await supabase
@@ -837,7 +866,6 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         status: 'pending',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        created_by: userId || null,
       };
 
       const { data, error } = await supabase

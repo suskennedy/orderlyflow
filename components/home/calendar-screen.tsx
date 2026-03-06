@@ -19,6 +19,8 @@ import { useHomesStore } from '../../lib/stores/homesStore';
 import { useTasksStore } from '../../lib/stores/tasksStore';
 import { getCalendarTheme, getColorHex } from '../../lib/utils/colorHelpers';
 
+
+const EMPTY_ARRAY: any[] = [];
 // Define MarkingProps interface for TypeScript
 interface MarkingProps {
   selected?: boolean;
@@ -51,7 +53,7 @@ export default function CalendarScreen() {
   const currentTasksHomeId = useTasksStore(state => state.currentHomeId);
   const setCurrentHomeId = useTasksStore(state => state.setCurrentHomeId);
   const fetchHomeTasks = useTasksStore(state => state.fetchHomeTasks);
-  const homeTasks = currentTasksHomeId ? (homeTasksByHome[currentTasksHomeId] || []) : [];
+  const homeTasks = currentTasksHomeId ? (homeTasksByHome[currentTasksHomeId] || EMPTY_ARRAY) : [];
   const homes = useHomesStore(state => state.homes);
   const currentHome = currentHomeId ? homes.find(home => home.id === currentHomeId) : null;
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);

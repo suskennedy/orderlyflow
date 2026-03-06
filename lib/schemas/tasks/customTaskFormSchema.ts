@@ -8,6 +8,14 @@ export const CUSTOM_TASK_CATEGORIES = [
   'Repairs',
   'Custom'
 ] as const;
+
+export const CUSTOM_TASK_CATEGORIES_MUTABLE = [
+  'Deep Cleaning',
+  'Health + Safety', 
+  'Home Maintenance',
+  'Repairs',
+  'Custom'
+] as [string, ...string[]];
 export const CUSTOM_RECURRENCE_PATTERNS = [
   'daily',
   'weekly',
@@ -21,7 +29,7 @@ export const CUSTOM_RECURRENCE_PATTERNS = [
 export const customTaskFormSchema = z.object({
   // Required fields
   title: z.string().min(1, 'Task title is required').max(255, 'Task title must be less than 255 characters'),
-  category: z.enum(CUSTOM_TASK_CATEGORIES, { errorMap: () => ({ message: 'Category is required' }) }),
+  category: z.enum(CUSTOM_TASK_CATEGORIES_MUTABLE),
   home_id: z.string().min(1, 'Please select a home for this task'),
   
   // Optional basic info

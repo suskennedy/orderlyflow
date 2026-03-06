@@ -6,9 +6,10 @@ interface LinkButtonProps {
   title: string;
   onPress: () => void;
   disabled?: boolean;
+  color?: string;
 }
 
-export default function LinkButton({ title, onPress, disabled = false }: LinkButtonProps) {
+export default function LinkButton({ title, onPress, disabled = false, color }: LinkButtonProps) {
   const { colors } = useTheme();
 
   return (
@@ -18,7 +19,7 @@ export default function LinkButton({ title, onPress, disabled = false }: LinkBut
       disabled={disabled}
       activeOpacity={0.7}
     >
-      <Text style={[styles.buttonText, { color: colors.primary }]}>{title}</Text>
+      <Text style={[styles.buttonText, { color: color || colors.primary, fontFamily: 'Jost_600SemiBold' }]}>{title}</Text>
     </TouchableOpacity>
   );
 }

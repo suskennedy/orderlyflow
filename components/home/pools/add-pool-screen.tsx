@@ -29,8 +29,8 @@ export default function AddPoolScreen() {
     } = useForm<PoolFormData>({
         resolver: zodResolver(poolFormSchema),
         defaultValues: {
-            type: POOL_TYPES[0],
-            installation_type: INSTALLATION_TYPES[0],
+            salt_water_vs_chlorine: POOL_TYPES[0],
+            in_ground_vs_above_ground: INSTALLATION_TYPES[0],
             notes: '',
         }
     });
@@ -43,7 +43,7 @@ export default function AddPoolScreen() {
         setLoading(true);
         try {
             const transformedData = transformPoolFormData(data);
-            await createPool(homeId, transformedData);
+            await createPool(homeId, transformedData as any);
             router.back();
         } catch (error) {
             Alert.alert('Error', 'Failed to add pool. Please try again.');
@@ -86,8 +86,8 @@ export default function AddPoolScreen() {
                     <Text style={[styles.label, { color: colors.text }]}>Water Type *</Text>
                     <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                         <Picker
-                            selectedValue={formData.type}
-                            onValueChange={(itemValue) => setValue('type', itemValue)}
+                            selectedValue={formData.salt_water_vs_chlorine}
+                            onValueChange={(itemValue) => setValue('salt_water_vs_chlorine', itemValue)}
                             style={[{ color: colors.text }]}
                             dropdownIconColor={colors.text}
                         >
@@ -96,17 +96,17 @@ export default function AddPoolScreen() {
                             ))}
                         </Picker>
                     </View>
-                    {errors.type && (
+                    {errors.salt_water_vs_chlorine && (
                         <Text style={[styles.errorText, { color: colors.error }]}>
-                            {errors.type.message}
+                            {errors.salt_water_vs_chlorine.message}
                         </Text>
                     )}
 
                     <Text style={[styles.label, { color: colors.text }]}>Installation Type *</Text>
                     <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                         <Picker
-                            selectedValue={formData.installation_type}
-                            onValueChange={(itemValue) => setValue('installation_type', itemValue)}
+                            selectedValue={formData.in_ground_vs_above_ground}
+                            onValueChange={(itemValue) => setValue('in_ground_vs_above_ground', itemValue)}
                             style={[{ color: colors.text }]}
                             dropdownIconColor={colors.text}
                         >
@@ -115,9 +115,9 @@ export default function AddPoolScreen() {
                             ))}
                         </Picker>
                     </View>
-                    {errors.installation_type && (
+                    {errors.in_ground_vs_above_ground && (
                         <Text style={[styles.errorText, { color: colors.error }]}>
-                            {errors.installation_type.message}
+                            {errors.in_ground_vs_above_ground.message}
                         </Text>
                     )}
 

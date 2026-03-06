@@ -13,16 +13,19 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { useAuth } from '../../lib/hooks/useAuth';
 import { useHomesStore } from '../../lib/stores/homesStore';
+import { useProjectsStore } from '../../lib/stores/projectsStore';
+import { useRepairsStore } from '../../lib/stores/repairsStore';
 import { useTasksStore } from '../../lib/stores/tasksStore';
 import { useVendorsStore } from '../../lib/stores/vendorsStore';
-import { getHomeDisplayText } from '../../lib/utils/homeDisplayUtils';
-import { getVendorDisplayText } from '../../lib/utils/vendorDisplayUtils';
-import { Vendor } from '../../types/database';
 import TaskCompletionModal from '../TaskCompletionModal';
 import TaskSkeleton from '../ui/TaskSkeleton';
 import TaskSpinner from '../ui/TaskSpinner';
+import TaskListItem from './list/TaskListItem';
 
+
+const EMPTY_ARRAY: any[] = [];
 interface TasksScreenProps {
   homeId?: string;
 }
@@ -35,14 +38,26 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
   const setCurrentHomeId = useTasksStore(state => state.setCurrentHomeId);
   const fetchHomeTasks = useTasksStore(state => state.fetchHomeTasks);
   const completeHomeTask = useTasksStore(state => state.completeHomeTask);
-  const homeTasks = currentHomeId ? (homeTasksByHome[currentHomeId] || []) : [];
+  const homeTasks = currentHomeId ? (homeTasksByHome[currentHomeId] || EMPTY_ARRAY) : [];
   const homes = useHomesStore(state => state.homes);
   const vendors = useVendorsStore(state => state.vendors);
   const { colors } = useTheme();
-  
+  const { user } = useAuth();
+
+  // Custom Repairs and Projects
+  const repairsByHome = useRepairsStore(state => state.repairsByHome);
+  const fetchRepairs = useRepairsStore(state => state.fetchRepairs);
+  const updateRepair = useRepairsStore(state => state.updateRepair);
+  const projectsByHome = useProjectsStore(state => state.projectsByHome);
+  const fetchProjects = useProjectsStore(state => state.fetchProjects);
+  const updateProject = useProjectsStore(state => state.updateProject);
+
+  const repairs = homeId ? (repairsByHome[homeId] || EMPTY_ARRAY) : [];
+  const projects = homeId ? (projectsByHome[homeId] || EMPTY_ARRAY) : [];
+
   // Get the current home name
   const currentHome = homeId ? homes.find(home => home.id === homeId) : null;
-  
+
   // Set current home when component mounts - use ref to prevent loops
   const lastHomeIdRef = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -50,6 +65,11 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
       lastHomeIdRef.current = homeId;
       setCurrentHomeId(homeId);
       fetchHomeTasks(homeId);
+
+      if (user?.id) {
+        fetchRepairs(homeId, user.id);
+        fetchProjects(homeId, user.id);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [homeId]); // Only depend on homeId - functions are stable
@@ -65,7 +85,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
       return () => clearTimeout(timeout);
     }
   }, [loading]);
-  
+
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -78,25 +98,67 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
   const [currentTask, setCurrentTask] = useState<any>(null);
 
 
-  // Active tasks filter - only show truly active tasks
+  // Unified active tasks
   const activeTasks = useMemo(() => {
-    if (!homeId || !homeTasks) return [];
-    return homeTasks.filter(ht => 
-      ht.home_id === homeId && 
-      ht.is_active === true && 
-      ht.status !== 'completed' && 
+    if (!homeId) return [];
+
+    const tasks = (homeTasks as any[]).filter(ht =>
+      ht.home_id === homeId &&
+      ht.is_active === true &&
+      ht.status !== 'completed' &&
       ht.status !== 'inactive'
-    );
-  }, [homeId, homeTasks]);
+    ).map(t => ({ ...t, item_type: 'task' }));
 
-  // Fast completed tasks filter - no unnecessary mapping
+    const activeRepairs = (repairs as any[]).filter(r =>
+      r.status !== 'complete' && r.status !== 'cancelled'
+    ).map(r => ({ ...r, item_type: 'repair', due_date: r.reminder_date }));
+
+    const activeProjects = (projects as any[]).filter(p =>
+      p.status !== 'completed' && p.status !== 'on_hold'
+    ).map(p => ({ ...p, item_type: 'project', due_date: p.start_date }));
+
+    return [...tasks, ...activeRepairs, ...activeProjects].sort((a, b) => {
+      const dateA = (a as any).next_due || (a as any).due_date;
+      const dateB = (b as any).next_due || (b as any).due_date;
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
+    });
+  }, [homeId, homeTasks, repairs, projects]);
+
+  // Unified completed tasks
   const completedTasks = useMemo(() => {
-    if (!homeId || !homeTasks) return [];
-    return homeTasks.filter(ht => ht.home_id === homeId && ht.status === 'completed');
-  }, [homeId, homeTasks]);
+    if (!homeId) return [];
 
-  // Simple combined tasks - fast array combination
-  const allTasks = useMemo(() => [...activeTasks, ...completedTasks], [activeTasks, completedTasks]);
+    const tasks = (homeTasks as any[]).filter(ht => ht.home_id === homeId && ht.status === 'completed')
+      .map(t => ({ ...t, item_type: 'task' }));
+
+    const completedRepairs = (repairs as any[]).filter(r => r.status === 'complete')
+      .map(r => ({ ...r, item_type: 'repair', completed_at: r.updated_at }));
+
+    const completedProjects = (projects as any[]).filter(p => p.status === 'completed')
+      .map(p => ({ ...p, item_type: 'project', completed_at: p.updated_at }));
+
+    return [...tasks, ...completedRepairs, ...completedProjects].sort((a, b) => {
+      const dateA = (a as any).completed_at;
+      const dateB = (b as any).completed_at;
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+      return new Date(dateB).getTime() - new Date(dateA).getTime();
+    });
+  }, [homeId, homeTasks, repairs, projects]);
+
+  // Combined list for display
+  const allTasks = useMemo(() => {
+    const list: any[] = [...activeTasks];
+    if (completedTasks.length > 0) {
+      list.push({ id: 'completed-header', isHeader: true, title: 'Completed' });
+      list.push(...completedTasks);
+    }
+    return list;
+  }, [activeTasks, completedTasks]);
 
   // Tasks are automatically fetched when setCurrentHome is called
 
@@ -129,24 +191,33 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
   // Handle task completion toggle
   const handleTaskToggle = useCallback(async (taskId: string, isCompleted: boolean) => {
     if (isCompleted) {
-      const task = homeTasks.find(ht => ht.id === taskId);
+      const task = allTasks.find(t => t.id === taskId);
       if (task) {
         setCurrentTask(task);
         setShowCompletionModal(true);
       }
     } else {
-      // Mark task as incomplete
+      // Mark as incomplete
       try {
         setSavingTaskId(taskId);
-        await completeHomeTask(taskId, currentHomeId, { status: 'pending', is_active: true });
+        const task = allTasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        if (task.item_type === 'task') {
+          await completeHomeTask(taskId, currentHomeId || '', { status: 'pending', is_active: true });
+        } else if (task.item_type === 'repair' && currentHomeId) {
+          await updateRepair(currentHomeId, taskId, { status: 'to_do' });
+        } else if (task.item_type === 'project' && currentHomeId) {
+          await updateProject(currentHomeId, taskId, { status: 'in_progress' });
+        }
         setExpandedTask(null);
       } catch (error) {
-        console.error('Error marking task as incomplete:', error);
+        console.error('Error marking as incomplete:', error);
       } finally {
         setSavingTaskId(null);
       }
     }
-  }, [homeTasks, completeHomeTask, currentHomeId]);
+  }, [allTasks, completeHomeTask, updateRepair, updateProject, currentHomeId]);
 
   // Handle completion from modal
   const handleTaskCompletion = useCallback(async (completionData: any) => {
@@ -155,24 +226,37 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
     try {
       setSavingTaskId(currentTask.id);
       setShowCompletionModal(false);
-      
-      const completionPayload = {
-        ...completionData,
-        is_active: false, // Deactivate task when completed
-      };
 
-      await completeHomeTask(currentTask.id, currentHomeId, completionPayload);
-      
+      if (currentTask.item_type === 'task') {
+        const completionPayload = {
+          ...completionData,
+          is_active: false, // Deactivate task when completed
+        };
+        await completeHomeTask(currentTask.id, currentHomeId || '', completionPayload);
+      } else if (currentTask.item_type === 'repair' && currentHomeId) {
+        await updateRepair(currentHomeId, currentTask.id, {
+          status: 'complete',
+          final_cost: completionData.final_cost,
+          notes: completionData.notes ? `${currentTask.notes || ''}\n\nCompletion Notes: ${completionData.notes}` : currentTask.notes
+        });
+      } else if (currentTask.item_type === 'project' && currentHomeId) {
+        await updateProject(currentHomeId, currentTask.id, {
+          status: 'completed',
+          final_cost: completionData.final_cost,
+          notes: completionData.notes ? `${currentTask.notes || ''}\n\nCompletion Notes: ${completionData.notes}` : currentTask.notes
+        });
+      }
+
       // Close dropdown and clear current task
       setExpandedTask(null);
       setCurrentTask(null);
     } catch (error) {
       console.error('Task completion error:', error);
-      Alert.alert('Error', 'Failed to complete task. Please try again.');
+      Alert.alert('Error', 'Failed to complete item. Please try again.');
     } finally {
       setSavingTaskId(null);
     }
-  }, [currentTask, completeHomeTask, currentHomeId]);
+  }, [currentTask, completeHomeTask, updateRepair, updateProject, currentHomeId]);
 
   // Handle modal close
   const handleCompletionModalClose = useCallback(() => {
@@ -211,160 +295,41 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
     } else if (item.item_type === 'project') {
       return { icon: 'hammer', color: '#4ECDC4', label: 'Project' };
     } else {
-      return { icon: 'checkmark-circle', color: colors.primary, label: 'Task' };
+      return { icon: 'checkmark-circle', color: colors.primary, label: 'Reminder' };
     }
   }, [colors.primary]);
 
   // Memoized task item renderer for better performance
-  const renderTaskItem = useCallback(({ item, index }: { item: any; index: number }) => {
-    const isCompleted = item.status === 'completed';
-    const isExpanded = expandedTask === item.id;
-    const isRecurring = isRecurringTask(item);
-    const displayDate = getTaskDisplayDate(item);
-    const typeInfo = getTaskTypeInfo(item);
-    
+  const renderTaskItem = useCallback(({ item }: { item: any }) => {
+    if (item.isHeader) {
+      return (
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            {item.title}
+          </Text>
+        </View>
+      );
+    }
+
     return (
-      <Animated.View
-        style={[
-          styles.taskItem,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }]
-          }
-        ]}
-      >
-        <TouchableOpacity
-          style={[
-            styles.taskCard, 
-            { 
-              backgroundColor: isCompleted ? '#F5F5F5' : colors.surface,
-              opacity: isCompleted ? 0.7 : 1,
-              borderLeftWidth: 4,
-              borderLeftColor: typeInfo.color
-            }
-          ]}
-          onPress={() => handleTaskPress(item)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.taskContent}>
-            <View style={styles.taskInfo}>
-              <View style={styles.taskHeader}>
-                <View style={styles.titleRow}>
-                  <Ionicons 
-                    name={typeInfo.icon as any} 
-                    size={16} 
-                    color={typeInfo.color} 
-                    style={styles.typeIcon}
-                  />
-                  <Text style={[
-                    styles.taskTitle, 
-                    { 
-                      color: isCompleted ? colors.textSecondary : colors.text,
-                      textDecorationLine: isCompleted ? 'line-through' : 'none'
-                    }
-                  ]}>
-                    {item.title}
-                  </Text>
-                  <Text style={[styles.typeLabel, { color: typeInfo.color }]}>
-                    {typeInfo.label}
-                  </Text>
-                </View>
-                {/* {item.description && (
-                  <Text style={[styles.taskDescription, { color: colors.textSecondary }]}>
-                    {item.description}
-                  </Text>
-                )} */}
-              </View>
-              {item.category && (
-                <Text style={[styles.taskCategory, { color: colors.textSecondary }]}>
-                  {item.category} • {getHomeDisplayText(item, homes)}
-                </Text>
-              )}
-              {isCompleted && item.completed_at && (
-                <Text style={[styles.completionDate, { color: colors.textSecondary }]}>
-                  Completed: {formatDate(item.completed_at)}
-                </Text>
-              )}
-              {isRecurring && !isCompleted && (
-                <Text style={[styles.recurrenceInfo, { color: colors.textSecondary }]}>
-                  Recurring: {item.recurrence_pattern}
-                </Text>
-              )}
-            </View>
-            
-            <View style={styles.taskActions}>
-              <View style={[
-                styles.datePill, 
-                { 
-                  backgroundColor: isCompleted ? colors.textSecondary : '#1976D2' 
-                }
-              ]}>
-                <Text style={[styles.dateText, { color: '#FFFFFF' }]}>
-                  {isCompleted ? formatDate(item.completed_at) : formatDate(displayDate)}
-                </Text>
-              </View>
-              
-                <TouchableOpacity
-                style={[
-                  styles.completeButton, 
-                  { 
-                    backgroundColor: isCompleted ? colors.success : colors.border,
-                    opacity: savingTaskId === item.id ? 0.6 : 1,
-                  }
-                ]}
-                onPress={() => handleTaskToggle(item.id, !isCompleted)}
-                disabled={savingTaskId === item.id}
-              >
-                <Ionicons 
-                  name={isCompleted ? "checkmark-circle" : "ellipse-outline"} 
-                  size={24} 
-                  color={isCompleted ? colors.textInverse : colors.text} 
-                />
-                </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableOpacity>
-        
-        {/* Task Details Dropdown */}
-        {isExpanded && (
-          <View style={[styles.dropdownContainer, { backgroundColor: colors.surface }]}>
-            <View style={styles.dropdownRow}>
-              <Text style={[styles.dropdownLabel, { color: colors.textSecondary }]}>Assigned Vendor</Text>
-              <Text style={[styles.dropdownValue, { color: colors.text }]}>
-                {getVendorDisplayText(item, vendors as Vendor[])}
-              </Text>
-            </View>
-            
-            <View style={styles.dropdownRow}>
-              <Text style={[styles.dropdownLabel, { color: colors.textSecondary }]}>Due Date</Text>
-              <Text style={[styles.dropdownValue, { color: colors.text }]}>
-                {formatDate(item.next_due || item.due_date)}
-              </Text>
-            </View>
-            
-            {item.notes && (
-              <View style={styles.dropdownRow}>
-                <Text style={[styles.dropdownLabel, { color: colors.textSecondary }]}>Notes</Text>
-                <Text style={[styles.dropdownValue, { color: colors.text }]}>
-                  {item.notes}
-                </Text>
-              </View>
-            )}
-            
-            <TouchableOpacity
-              style={[styles.closeButton, { backgroundColor: colors.primary }]}
-              onPress={() => setExpandedTask(null)}
-            >
-              <Text style={[styles.closeButtonText, { color: colors.textInverse }]}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </Animated.View>
+      <TaskListItem
+        item={item}
+        isExpanded={expandedTask === item.id}
+        isCompleted={item.status === 'completed' || item.status === 'complete'}
+        savingTaskId={savingTaskId}
+        colors={colors}
+        homes={homes}
+        vendors={vendors}
+        onPress={() => handleTaskPress(item)}
+        onToggle={() => handleTaskToggle(item.id, item.status !== 'completed' && item.status !== 'complete')}
+        onClose={() => setExpandedTask(null)}
+        formatDate={formatDate}
+      />
     );
-  }, [expandedTask, savingTaskId, colors, fadeAnim, slideAnim, handleTaskToggle, handleTaskPress, vendors, homes, getTaskDisplayDate, formatDate, isRecurringTask, getTaskTypeInfo]);
+  }, [expandedTask, savingTaskId, colors, homes, vendors, handleTaskPress, handleTaskToggle, formatDate]);
 
   const renderEmptyState = () => (
-    <Animated.View 
+    <Animated.View
       style={[
         styles.emptyContainer,
         {
@@ -378,9 +343,9 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
           <Ionicons name="checkmark-circle" size={32} color={colors.background} />
         </View>
       </View>
-      <Text style={[styles.emptyTitle, { color: colors.text }]}>No Active Tasks</Text>
+      <Text style={[styles.emptyTitle, { color: colors.text }]}>No Active Reminders</Text>
       <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-        Go to Task Settings to add tasks or activate existing ones
+        Go to Settings to add reminders or activate existing ones
       </Text>
       <TouchableOpacity
         style={[styles.addFirstButton, { backgroundColor: colors.primary }]}
@@ -390,7 +355,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
         <View style={styles.addFirstButtonContent}>
           <Ionicons name="settings" size={24} color={colors.background} />
           <Text style={[styles.addFirstButtonText, { color: colors.background }]}>
-            Add/Edit Tasks
+            Add/Edit Reminders
           </Text>
         </View>
       </TouchableOpacity>
@@ -398,7 +363,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
   );
 
   const renderHeader = () => (
-    <Animated.View 
+    <Animated.View
       style={[
         styles.headerSection,
         {
@@ -408,12 +373,12 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
       ]}
     >
       <View style={styles.headerTitleContainer}>
-        <Text style={[styles.sectionHeaderTitle, { color: colors.text }]}>Active Tasks</Text>
+        <Text style={[styles.sectionHeaderTitle, { color: colors.text }]}>Active Reminders</Text>
         <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
           {activeTasks.length} active • {completedTasks.length} completed
         </Text>
       </View>
-      
+
       <View style={styles.actionButtons}>
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: colors.primary }]}
@@ -421,10 +386,10 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
         >
           <Ionicons name="settings" size={20} color={colors.background} />
           <Text style={[styles.actionButtonText, { color: colors.background }]}>
-            Add/Edit Tasks
+            Add/Edit Reminders
           </Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={() => router.push(`/(tabs)/(home)/${homeId}/calendar` as any)}
@@ -445,9 +410,9 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { 
+      <View style={[styles.header, {
         backgroundColor: colors.background,
-        paddingTop: insets.top + 20 
+        paddingTop: insets.top + 20
       }]}>
         <View style={styles.headerLeft}>
           {homeId && (
@@ -460,7 +425,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
           )}
           <View>
             <Text style={[styles.headerTitle, { color: colors.text }]}>
-              {homeId ? 'Tasks' : 'Select Home'}
+              {homeId ? 'Reminders' : 'Select Home'}
             </Text>
             {currentHome && (
               <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
@@ -470,7 +435,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
           </View>
         </View>
       </View>
-          
+
       {loading && homeId ? (
         <TaskSkeleton count={5} />
       ) : allTasks.length === 0 ? (
@@ -500,12 +465,12 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
           ListEmptyComponent={null} // Empty state handled outside FlatList
         />
       )}
-      
+
       {/* Task Spinner */}
-      <TaskSpinner 
-        visible={!!savingTaskId} 
-        message="Saving task..." 
-        type="saving" 
+      <TaskSpinner
+        visible={!!savingTaskId}
+        message="Saving reminder..."
+        type="saving"
       />
 
       {/* Task Completion Modal */}
@@ -792,22 +757,28 @@ const styles = StyleSheet.create({
   dropdownContainer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
+    borderTopColor: 'rgba(0,0,0,0.05)',
+    gap: 12,
   },
   dropdownRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    minHeight: 32,
+  },
+  dropdownLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
   },
   dropdownLabel: {
     fontSize: 14,
     fontWeight: '500',
-    flex: 1,
   },
   dropdownValue: {
     fontSize: 14,
-    flex: 2,
+    flex: 1.5,
     textAlign: 'right',
   },
   closeButton: {
@@ -823,5 +794,16 @@ const styles = StyleSheet.create({
   },
   taskList: {
     paddingBottom: 120, // Add padding for the spinner at the bottom
+  },
+  sectionHeader: {
+    marginTop: 24,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
   },
 });

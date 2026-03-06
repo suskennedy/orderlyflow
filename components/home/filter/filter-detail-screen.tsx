@@ -15,6 +15,8 @@ import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscript
 import { useFiltersStore } from '../../../lib/stores/filtersStore';
 
 
+
+const EMPTY_ARRAY: any[] = [];
 interface Filter {
   id: string;
   name: string;
@@ -32,7 +34,7 @@ function FilterDetailScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const filters = useFiltersStore(state => state.filtersByHome[homeId] || []);
+  const filters = useFiltersStore(state => state.filtersByHome[homeId] || EMPTY_ARRAY);
   const deleteFilter = useFiltersStore(state => state.deleteFilter);
   const fetchFilters = useFiltersStore(state => state.fetchFilters);
   const setFilters = useFiltersStore(state => state.setFilters);

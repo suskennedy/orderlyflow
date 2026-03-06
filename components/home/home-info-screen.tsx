@@ -56,21 +56,21 @@ export default function HomeInfoScreen() {
   );
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScreenHeader 
-        title="Home Info" 
-        showBackButton 
+      <ScreenHeader
+        title="Home Info"
+        showBackButton
       />
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.editButton, { backgroundColor: colors.primary }]}
         onPress={() => setIsEditing(!isEditing)}
       >
         <Ionicons name={isEditing ? "close" : "create-outline"} size={24} color={colors.textInverse} />
       </TouchableOpacity>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={[styles.scrollContainer, { paddingBottom: insets.bottom + 100 }]}
         keyboardShouldPersistTaps="handled"
       >
@@ -78,8 +78,9 @@ export default function HomeInfoScreen() {
         <InfoRow label="Square Footage" value={home?.square_footage || null} field="square_footage" keyboardType="numeric" />
         <InfoRow label="Bedrooms" value={home?.bedrooms || null} field="bedrooms" keyboardType="numeric" />
         <InfoRow label="Bathrooms" value={home?.bathrooms || null} field="bathrooms" keyboardType="numeric" />
-        <InfoRow label="Year Built" value={home?.year_built || null} field="year_built" keyboardType="numeric" />
-        <InfoRow label="Purchase Date" value={home?.purchase_date || null} field="purchase_date" />
+        <InfoRow label="Sewer Type" value={home?.sewer_vs_septic ? home.sewer_vs_septic.charAt(0).toUpperCase() + home.sewer_vs_septic.slice(1) : null} field="sewer_vs_septic" />
+        <InfoRow label="Water Source" value={home?.water_source === 'city' ? 'City Water' : home?.water_source === 'well' ? 'Well Water' : null} field="water_source" />
+        <InfoRow label="Water Heater Location" value={home?.water_heater_location || null} field="water_heater_location" />
 
         {isEditing && (
           <TouchableOpacity

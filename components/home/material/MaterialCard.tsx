@@ -6,12 +6,9 @@ import { useTheme } from '../../../lib/contexts/ThemeContext';
 
 interface Material {
   id: string;
-  name: string;
-  room: string | null;
   type: string | null;
+  location: string | null;
   brand: string | null;
-  source: string | null;
-  purchase_date: string | null;
   notes: string | null;
 }
 
@@ -33,9 +30,11 @@ export default function MaterialCard({ material }: MaterialCardProps) {
     <View style={[styles.card, { backgroundColor: colors.surface }]}>
       <TouchableOpacity style={styles.header} onPress={() => setIsExpanded(!isExpanded)}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.name, { color: colors.text }]}>{material.name}</Text>
+          <Text style={[styles.name, { color: colors.text }]}>
+            {material.brand ? `${material.brand} ${material.type || ''}`.trim() : material.type || 'Material'}
+          </Text>
           <Text style={[styles.type, { color: colors.textSecondary }]}>
-            {material.type || 'Material'} • {material.room || 'No room specified'}
+            {material.location || 'No location specified'}
           </Text>
         </View>
         <View style={styles.headerActions}>
@@ -57,10 +56,7 @@ export default function MaterialCard({ material }: MaterialCardProps) {
             Brand: {material.brand || 'Not specified'}
           </Text>
           <Text style={[styles.detailText, { color: colors.text }]}>
-            Source: {material.source || 'Not specified'}
-          </Text>
-          <Text style={[styles.detailText, { color: colors.text }]}>
-            Purchase Date: {material.purchase_date || 'Not specified'}
+            Location: {material.location || 'Not specified'}
           </Text>
           <Text style={[styles.detailText, { color: colors.text }]}>
             Notes: {material.notes || 'No notes'}

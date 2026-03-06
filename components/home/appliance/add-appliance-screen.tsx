@@ -31,14 +31,12 @@ export default function AddApplianceScreen() {
   } = useForm<ApplianceFormData>({
     resolver: zodResolver(applianceFormSchema),
     defaultValues: {
-      name: '',
       type: APPLIANCE_TYPES[0],
       brand: '',
       model: '',
-      room: '',
+      location: '',
       manual_url: '',
       warranty_url: '',
-      purchased_store: '',
       notes: '',
     }
   });
@@ -46,13 +44,11 @@ export default function AddApplianceScreen() {
   const formData = watch();
 
   // Refs for input fields
-  const nameRef = useRef<TextInput>(null);
   const brandRef = useRef<TextInput>(null);
   const modelRef = useRef<TextInput>(null);
-  const roomRef = useRef<TextInput>(null);
+  const locationRef = useRef<TextInput>(null);
   const manualUrlRef = useRef<TextInput>(null);
   const warrantyUrlRef = useRef<TextInput>(null);
-  const purchasedStoreRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
   const onSubmit = async (data: ApplianceFormData) => {
@@ -119,31 +115,6 @@ export default function AddApplianceScreen() {
         <View style={styles.form}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Basic Information</Text>
 
-          <Text style={[styles.label, { color: colors.text }]}>Appliance Name *</Text>
-          <TextInput
-            ref={nameRef}
-            style={[
-              getInputStyle('name'),
-              errors.name && { borderColor: colors.error, borderWidth: 2 }
-            ]}
-            value={formData.name}
-            onChangeText={text => {
-              setValue('name', text);
-              if (errors.name) clearErrors('name');
-            }}
-            placeholder="e.g., Oven 1, Refrigerator, Dishwasher"
-            placeholderTextColor={colors.textSecondary}
-            onFocus={() => handleFocus('name')}
-            onBlur={handleBlur}
-            returnKeyType="next"
-            onSubmitEditing={() => brandRef.current?.focus()}
-          />
-          {errors.name && (
-            <Text style={[styles.errorText, { color: colors.error }]}>
-              {errors.name.message}
-            </Text>
-          )}
-
           <Text style={[styles.label, { color: colors.text }]}>Appliance Type *</Text>
           <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Picker
@@ -208,7 +179,7 @@ export default function AddApplianceScreen() {
                 onFocus={() => handleFocus('model')}
                 onBlur={handleBlur}
                 returnKeyType="next"
-                onSubmitEditing={() => roomRef.current?.focus()}
+                onSubmitEditing={() => locationRef.current?.focus()}
               />
               {errors.model && (
                 <Text style={[styles.errorText, { color: colors.error }]}>
@@ -218,28 +189,28 @@ export default function AddApplianceScreen() {
             </View>
           </View>
 
-          <Text style={[styles.label, { color: colors.text }]}>Room *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Location *</Text>
           <TextInput
-            ref={roomRef}
+            ref={locationRef}
             style={[
-              getInputStyle('room'),
-              errors.room && { borderColor: colors.error, borderWidth: 2 }
+              getInputStyle('location'),
+              errors.location && { borderColor: colors.error, borderWidth: 2 }
             ]}
-            value={formData.room}
+            value={formData.location}
             onChangeText={text => {
-              setValue('room', text);
-              if (errors.room) clearErrors('room');
+              setValue('location', text);
+              if (errors.location) clearErrors('location');
             }}
             placeholder="e.g., Kitchen, Living Room, Basement"
             placeholderTextColor={colors.textSecondary}
-            onFocus={() => handleFocus('room')}
+            onFocus={() => handleFocus('location')}
             onBlur={handleBlur}
             returnKeyType="next"
             onSubmitEditing={() => manualUrlRef.current?.focus()}
           />
-          {errors.room && (
+          {errors.location && (
             <Text style={[styles.errorText, { color: colors.error }]}>
-              {errors.room.message}
+              {errors.location.message}
             </Text>
           )}
 
@@ -291,36 +262,11 @@ export default function AddApplianceScreen() {
             onFocus={() => handleFocus('warranty_url')}
             onBlur={handleBlur}
             returnKeyType="next"
-            onSubmitEditing={() => purchasedStoreRef.current?.focus()}
+            onSubmitEditing={() => notesRef.current?.focus()}
           />
           {errors.warranty_url && (
             <Text style={[styles.errorText, { color: colors.error }]}>
               {errors.warranty_url.message}
-            </Text>
-          )}
-
-          <Text style={[styles.label, { color: colors.text }]}>Purchased Store *</Text>
-          <TextInput
-            ref={purchasedStoreRef}
-            style={[
-              getInputStyle('purchased_store'),
-              errors.purchased_store && { borderColor: colors.error, borderWidth: 2 }
-            ]}
-            value={formData.purchased_store}
-            onChangeText={text => {
-              setValue('purchased_store', text);
-              if (errors.purchased_store) clearErrors('purchased_store');
-            }}
-            placeholder="e.g., Home Depot, Best Buy, Local Store"
-            placeholderTextColor={colors.textSecondary}
-            onFocus={() => handleFocus('purchased_store')}
-            onBlur={handleBlur}
-            returnKeyType="next"
-            onSubmitEditing={() => notesRef.current?.focus()}
-          />
-          {errors.purchased_store && (
-            <Text style={[styles.errorText, { color: colors.error }]}>
-              {errors.purchased_store.message}
             </Text>
           )}
 

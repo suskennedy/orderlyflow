@@ -12,7 +12,7 @@ export type PaintColorItem = Database['public']['Tables']['paint_colors']['Row']
 // Generic inventory item with type discriminator
 export interface InventoryItem {
   id: string;
-  name: string;
+  name?: string | null;
   item_type: 'appliance' | 'filter' | 'light_fixture' | 'cabinet' | 'tile' | 'paint';
   brand?: string | null;
   model?: string | null;

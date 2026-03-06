@@ -7,8 +7,8 @@ import { usePoolsStore } from '../../../lib/stores/poolsStore';
 
 interface Pool {
     id: string;
-    type: string | null;
-    installation_type: string | null;
+    salt_water_vs_chlorine: string | null;
+    in_ground_vs_above_ground: string | null;
     notes: string | null;
 }
 
@@ -59,7 +59,7 @@ export default function PoolCard({ pool }: PoolCardProps) {
                 <View style={styles.headerContent}>
                     <Text style={[styles.title, { color: colors.text }]}>Pool</Text>
                     <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                        {pool.installation_type?.replace('_', ' ').toUpperCase()} • {pool.type?.replace('_', ' ').toUpperCase()}
+                        {pool.in_ground_vs_above_ground?.replace('_', ' ').toUpperCase()} • {pool.salt_water_vs_chlorine?.replace('_', ' ').toUpperCase()}
                     </Text>
                 </View>
                 <Ionicons

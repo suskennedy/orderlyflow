@@ -4,15 +4,18 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 import { signUp } from '../../../lib/auth/actions';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
+import { useOnboarding } from '../../../lib/hooks/useOnboarding';
 import navigate from '../../../lib/navigation';
 import Button from '../../ui/Button';
 import LoadingScreen from '../../ui/LoadingScreen';
 import AuthCard from '../AuthCard';
-import AuthContainer from '../AuthContainer';
 import AuthHeader from '../AuthHeader';
 import FormInput from '../FormInput';
 import LinkButton from '../LinkButton';
 import PasswordInput from '../PasswordInput';
+
+const HARBOR_BLUE = '#5B8FA8';
+const DEEP_NAVY = '#2B3240';
 
 
 // Validation functions
@@ -50,10 +53,15 @@ interface FormData {
   confirmPassword: string;
 }
 
-export default function SignUpForm() {
+interface SignUpFormProps {
+  isOnboarding?: boolean;
+}
+
+export default function SignUpForm({ isOnboarding }: SignUpFormProps) {
   const { user, loading: authLoading } = useAuth();
+  const { completeOnboarding } = useOnboarding();
   const { colors } = useTheme();
-  
+
   // Form state
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
@@ -62,13 +70,13 @@ export default function SignUpForm() {
     confirmPassword: '',
   });
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{[key in keyof FormData]: string}>({
+  const [errors, setErrors] = useState<{ [key in keyof FormData]: string }>({
     fullName: '',
     email: '',
     password: '',
     confirmPassword: '',
   });
-  const [touched, setTouched] = useState<{[key in keyof FormData]: boolean}>({
+  const [touched, setTouched] = useState<{ [key in keyof FormData]: boolean }>({
     fullName: false,
     email: false,
     password: false,
@@ -98,7 +106,7 @@ export default function SignUpForm() {
         error = validateConfirmPassword(formData.password, value);
         break;
     }
-    
+
     setErrors(prev => ({ ...prev, [field]: error }));
     return error === '';
   };
@@ -107,12 +115,12 @@ export default function SignUpForm() {
   const handleInputChange = (field: keyof FormData, value: string) => {
     const newFormData = { ...formData, [field]: value };
     setFormData(newFormData);
-    
+
     // If field has been touched, validate it on change
     if (touched[field]) {
       validateField(field, value);
     }
-    
+
     // Special case for confirm password, revalidate when password changes
     if (field === 'password' && touched.confirmPassword) {
       validateField('confirmPassword', formData.confirmPassword);
@@ -127,7 +135,7 @@ export default function SignUpForm() {
       password: validatePassword(formData.password),
       confirmPassword: validateConfirmPassword(formData.password, formData.confirmPassword)
     };
-    
+
     setErrors(fieldErrors);
     setTouched({
       fullName: true,
@@ -135,7 +143,7 @@ export default function SignUpForm() {
       password: true,
       confirmPassword: true
     });
-    
+
     return !Object.values(fieldErrors).some(error => error);
   };
 
@@ -151,12 +159,14 @@ export default function SignUpForm() {
 
     try {
       setLoading(true);
-      
+
       await signUp(
         formData.email.trim(),
         formData.password,
         formData.fullName.trim()
       );
+
+      await completeOnboarding();
 
       Alert.alert(
         'Account Created!',
@@ -188,10 +198,10 @@ export default function SignUpForm() {
       <View style={styles.passwordHints}>
         {hints.map((hint, index) => (
           <View key={index} style={styles.hintRow}>
-            <Ionicons 
-              name={hint.met ? 'checkmark-circle' : 'ellipse-outline'} 
-              size={16} 
-              color={hint.met ? colors.success : colors.textTertiary} 
+            <Ionicons
+              name={hint.met ? 'checkmark-circle' : 'ellipse-outline'}
+              size={16}
+              color={hint.met ? colors.success : colors.textTertiary}
               style={styles.hintIcon}
             />
             <Text style={[
@@ -208,16 +218,35 @@ export default function SignUpForm() {
   };
 
   return (
-    <AuthContainer>
-      <AuthHeader 
-        title="OrderlyFlow" 
-        subtitle="Create your account" 
-      />
+    <View style={isOnboarding ? styles.onboardingContainer : styles.fullContainer}>
+      {!isOnboarding && (
+        <AuthHeader
+          title="OrderlyFlow"
+          subtitle="Create your account"
+        />
+      )}
 
-      <AuthCard>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>Get started</Text>
-        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>Create your account to begin</Text>
-        
+      {isOnboarding ? (
+        <View style={styles.formContent}>
+          {renderFormContent()}
+        </View>
+      ) : (
+        <AuthCard>
+          {renderFormContent()}
+        </AuthCard>
+      )}
+    </View>
+  );
+
+  function renderFormContent() {
+    const textColor = isOnboarding ? DEEP_NAVY : colors.text;
+    const secondaryTextColor = isOnboarding ? DEEP_NAVY : colors.textSecondary;
+
+    return (
+      <>
+        <Text style={[styles.cardTitle, { color: textColor, fontFamily: 'CormorantGaramond_700Bold' }]}>Get started</Text>
+        <Text style={[styles.cardSubtitle, { color: secondaryTextColor, fontFamily: 'Jost_400Regular' }]}>Create your account to begin</Text>
+
         <FormInput
           label="Full Name"
           placeholder="Enter your full name"
@@ -244,7 +273,7 @@ export default function SignUpForm() {
           onChangeText={(text) => handleInputChange('password', text)}
           error={touched.password ? errors.password : ''}
         />
-        
+
         {touched.password && getPasswordStrengthHints()}
 
         <PasswordInput
@@ -259,19 +288,30 @@ export default function SignUpForm() {
           title="Create Account"
           onPress={handleSignUp}
           loading={loading}
-          style={styles.signUpButton}
+          style={[styles.signUpButton, isOnboarding && { backgroundColor: HARBOR_BLUE }]}
         />
 
         <LinkButton
           title="Already have an account? Sign in"
           onPress={() => navigate.toSignIn()}
+          color={isOnboarding ? HARBOR_BLUE : undefined}
         />
-      </AuthCard>
-    </AuthContainer>
-  );
+      </>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
+  fullContainer: {
+    flex: 1,
+  },
+  onboardingContainer: {
+    flex: 1,
+    paddingHorizontal: 0,
+  },
+  formContent: {
+    width: '100%',
+  },
   signUpButton: {
     marginBottom: 24,
   },

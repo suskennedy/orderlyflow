@@ -9,7 +9,7 @@ import { fetchTaskCountsForHomes, useHomesStore } from '../stores/homesStore';
  */
 export function useHomesSubscriptionManager() {
   const { user } = useAuth();
-  const taskCountUpdateTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const taskCountUpdateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Set up real-time subscription for homes table
   const handleHomeChange = useCallback(async (payload: any) => {

@@ -1,10 +1,10 @@
 -- Create Pools table
 CREATE TABLE IF NOT EXISTS "public"."pools" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
-    "home_id" "uuid" NOT NULL,
-    "type" "text", -- salt water vs chlorine
-    "installation_type" "text", -- in-ground vs above-ground
-    "notes" "text",
+    "id" uuid DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "home_id" uuid NOT NULL,
+    "type" text, -- salt water vs chlorine
+    "installation_type" text, -- in-ground vs above-ground
+    "notes" text,
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"(),
     PRIMARY KEY ("id"),
@@ -36,9 +36,9 @@ CREATE POLICY "Users can delete their own pools" ON "public"."pools"
 
 -- Modify Paint Colors table
 ALTER TABLE "public"."paint_colors"
-  ADD COLUMN IF NOT EXISTS "finish" "text",
-  ADD COLUMN IF NOT EXISTS "wallpaper" "boolean" DEFAULT false,
-  ADD COLUMN IF NOT EXISTS "trim_color" "text";
+  ADD COLUMN IF NOT EXISTS "finish" text,
+  ADD COLUMN IF NOT EXISTS "wallpaper" boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS "trim_color" text;
 
 ALTER TABLE "public"."paint_colors"
   DROP COLUMN IF EXISTS "brand",
@@ -48,8 +48,8 @@ ALTER TABLE "public"."paint_colors"
 
 -- Modify Appliances table
 ALTER TABLE "public"."appliances"
-  ADD COLUMN IF NOT EXISTS "type" "text",
-  ADD COLUMN IF NOT EXISTS "warranty_url" "text";
+  ADD COLUMN IF NOT EXISTS "type" text,
+  ADD COLUMN IF NOT EXISTS "warranty_url" text;
 
 ALTER TABLE "public"."appliances"
   DROP COLUMN IF EXISTS "serial_number",

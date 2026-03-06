@@ -17,9 +17,11 @@ import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
 import { usePaintsStore } from '../../../lib/stores/paintsStore';
 
+
+const EMPTY_ARRAY: any[] = [];
 interface PaintColor {
   id: string;
-  name: string;
+  paint_color_name: string;
   room: string | null;
   color_code: string | null;
   finish: string | null;
@@ -32,7 +34,7 @@ export default function EditPaintColorScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
-  const paints = usePaintsStore(state => state.paintsByHome[homeId] || []);
+  const paints = usePaintsStore(state => state.paintsByHome[homeId] || EMPTY_ARRAY);
   const updatePaint = usePaintsStore(state => state.updatePaint);
   const fetchPaints = usePaintsStore(state => state.fetchPaints);
   const setPaints = usePaintsStore(state => state.setPaints);
@@ -72,7 +74,7 @@ export default function EditPaintColorScreen() {
 
   const [paint, setPaint] = useState<PaintColor | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
+    paint_color_name: '',
     room: '',
     color_code: '',
     finish: '',
@@ -87,7 +89,7 @@ export default function EditPaintColorScreen() {
     if (foundPaint) {
       setPaint(foundPaint);
       setFormData({
-        name: foundPaint.name || '',
+        paint_color_name: foundPaint.paint_color_name || '',
         room: foundPaint.room || '',
         color_code: foundPaint.color_code || '',
         finish: foundPaint.finish || '',
@@ -101,7 +103,7 @@ export default function EditPaintColorScreen() {
   const handleSave = async () => {
     if (!paint) return;
 
-    if (!formData.name.trim()) {
+    if (!formData.paint_color_name.trim()) {
       Alert.alert('Error', 'Paint name is required');
       return;
     }
@@ -109,7 +111,7 @@ export default function EditPaintColorScreen() {
     setIsLoading(true);
     try {
       await updatePaint(homeId, paintId.id, {
-        name: formData.name.trim(),
+        paint_color_name: formData.paint_color_name.trim(),
         room: formData.room || null,
         color_code: formData.color_code || null,
         finish: formData.finish || null,
@@ -207,8 +209,8 @@ export default function EditPaintColorScreen() {
                 color: colors.text,
                 borderColor: colors.border
               }]}
-              value={formData.name}
-              onChangeText={(text) => setFormData({ ...formData, name: text })}
+              value={formData.paint_color_name}
+              onChangeText={(text) => setFormData({ ...formData, paint_color_name: text })}
               placeholder="Enter paint name"
               placeholderTextColor={colors.textSecondary}
             />

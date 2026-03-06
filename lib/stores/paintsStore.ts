@@ -3,7 +3,7 @@ import { supabase } from '../supabase';
 
 export interface PaintColor {
   id: string;
-  name: string;
+  paint_color_name: string;
   room: string | null;
   finish: string | null;
   wallpaper: boolean | null;
@@ -62,7 +62,7 @@ export const usePaintsStore = create<PaintsState>((set, get) => ({
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      get().setPaints(homeId, data || []);
+      get().setPaints(homeId, (data as any) || []);
     } catch (error) {
       console.error('Error fetching paints:', error);
       get().setPaints(homeId, []);
@@ -78,7 +78,7 @@ export const usePaintsStore = create<PaintsState>((set, get) => ({
       
       const { error } = await supabase
         .from('paint_colors')
-        .insert([{ ...paintData, home_id: homeId }])
+        .insert([{ ...paintData, home_id: homeId }] as any)
         .select()
         .single();
         
@@ -95,7 +95,7 @@ export const usePaintsStore = create<PaintsState>((set, get) => ({
     try {
       const { error } = await supabase
         .from('paint_colors')
-        .update(updates)
+        .update(updates as any)
         .eq('id', id)
         .select()
         .single();

@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 
@@ -47,7 +47,7 @@ export default function FormInput({
   return (
     <View style={styles.container}>
       <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
-      
+
       <View style={[
         styles.inputContainer,
         {
@@ -56,18 +56,18 @@ export default function FormInput({
         }
       ]}>
         {icon && (
-          <Ionicons 
-            name={icon} 
-            size={20} 
-            color={colors.textTertiary} 
+          <Ionicons
+            name={icon}
+            size={20}
+            color={colors.textTertiary}
             style={styles.inputIcon}
           />
         )}
-        
+
         <TextInput
           style={[
             styles.input,
-            { 
+            {
               color: colors.text,
               paddingLeft: icon ? 40 : 16,
             }
@@ -84,7 +84,7 @@ export default function FormInput({
           multiline={multiline}
           numberOfLines={numberOfLines}
         />
-        
+
         {secureTextEntry && (
           <TouchableOpacity
             style={styles.passwordToggle}
@@ -98,7 +98,7 @@ export default function FormInput({
           </TouchableOpacity>
         )}
       </View>
-      
+
       {error && (
         <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
       )}
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Jost_600SemiBold',
     marginBottom: 8,
   },
   inputContainer: {
@@ -132,6 +132,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingRight: 16,
     fontSize: 16,
+    fontFamily: 'Jost_400Regular',
   },
   passwordToggle: {
     padding: 8,
@@ -139,6 +140,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
+    fontFamily: 'Jost_400Regular',
     marginTop: 4,
   },
 });

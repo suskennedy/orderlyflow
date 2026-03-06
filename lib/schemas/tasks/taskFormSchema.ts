@@ -13,19 +13,15 @@ export const TASK_CATEGORIES = [
   'Other'
 ] as const;
 export const RECURRENCE_PATTERNS = [
-  'daily',
   'weekly', 
-  'bi-weekly',
   'monthly',
-  'quarterly',
-  'semi-annually',
-  'annually'
+  'yearly'
 ] as const;
 
 export const taskFormSchema = z.object({
   // Required fields
-  title: z.string().min(1, 'Task title is required').max(255, 'Task title must be less than 255 characters'),
-  home_id: z.string().min(1, 'Please select a home for this task'),
+  title: z.string().min(1, 'Reminder title is required').max(255, 'Reminder title must be less than 255 characters'),
+  home_id: z.string().min(1, 'Please select a home for this reminder'),
   
   // Optional basic info
   description: z.string().max(2000, 'Description must be less than 2000 characters').optional(),
@@ -55,7 +51,7 @@ export const taskFormSchema = z.object({
     return true;
   },
   {
-    message: 'Recurrence pattern is required for recurring tasks',
+    message: 'Recurrence pattern is required for recurring reminders',
     path: ['recurrence_pattern'],
   }
 ).refine(
