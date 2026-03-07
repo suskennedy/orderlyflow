@@ -1,10 +1,6 @@
 ---
-description: 
-globs: 
 alwaysApply: true
 ---
-
-
   You are an expert in JavaScript, React Native, Expo, and Mobile UI development.
   
   Code Style and Structure:
