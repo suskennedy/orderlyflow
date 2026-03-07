@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 
 interface ApplianceCardProps {
@@ -87,20 +87,28 @@ export default function ApplianceCard({ appliance, onPress }: ApplianceCardProps
             </View>
           )}
           {appliance.manual_url && (
-            <View style={styles.detailRow}>
-              <Ionicons name="book" size={16} color={colors.textSecondary} />
-              <Text style={[styles.detailText, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">
-                Manual: {appliance.manual_url}
+            <TouchableOpacity
+              style={styles.detailRow}
+              onPress={() => Linking.openURL(appliance.manual_url)}
+            >
+              <Ionicons name="book" size={16} color={colors.primary} />
+              <Text style={[styles.detailText, { color: colors.primary }]} numberOfLines={1} ellipsizeMode="tail">
+                Manual (PDF)
               </Text>
-            </View>
+              <Ionicons name="open-outline" size={14} color={colors.primary} />
+            </TouchableOpacity>
           )}
           {appliance.warranty_url && (
-            <View style={styles.detailRow}>
-              <Ionicons name="shield" size={16} color={colors.textSecondary} />
-              <Text style={[styles.detailText, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">
-                Warranty: {appliance.warranty_url}
+            <TouchableOpacity
+              style={styles.detailRow}
+              onPress={() => Linking.openURL(appliance.warranty_url)}
+            >
+              <Ionicons name="shield" size={16} color={colors.primary} />
+              <Text style={[styles.detailText, { color: colors.primary }]} numberOfLines={1} ellipsizeMode="tail">
+                Warranty (PDF)
               </Text>
-            </View>
+              <Ionicons name="open-outline" size={14} color={colors.primary} />
+            </TouchableOpacity>
           )}
           {appliance.notes && (
             <View style={styles.detailRow}>

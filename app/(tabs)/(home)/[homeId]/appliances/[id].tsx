@@ -16,8 +16,6 @@ import { useTheme } from '../../../../../lib/contexts/ThemeContext';
 import { useRealTimeSubscription } from '../../../../../lib/hooks/useRealTimeSubscription';
 import { useAppliancesStore } from '../../../../../lib/stores/appliancesStore';
 
-
-
 const EMPTY_ARRAY: any[] = [];
 interface Appliance {
   id: string;
@@ -27,6 +25,7 @@ interface Appliance {
   purchase_date?: string | null;
   warranty_expiration?: string | null;
   manual_url?: string | null;
+  warranty_url?: string | null;
   notes?: string | null;
   location?: string | null;
 }
@@ -99,7 +98,7 @@ function ApplianceDetailScreen() {
 
   const handleManual = () => {
     if (!appliance?.manual_url) {
-      Alert.alert('No Manual', 'This appliance does not have a manual URL.');
+      Alert.alert('No Manual', 'This appliance does not have a manual PDF.');
       return;
     }
 
@@ -111,6 +110,25 @@ function ApplianceDetailScreen() {
         {
           text: 'Open',
           onPress: () => Linking.openURL(appliance.manual_url!)
+        }
+      ]
+    );
+  };
+
+  const handleWarranty = () => {
+    if (!appliance?.warranty_url) {
+      Alert.alert('No Warranty', 'This appliance does not have a warranty PDF.');
+      return;
+    }
+
+    Alert.alert(
+      'Open Warranty',
+      `Open the warranty for ${appliance.type || 'this appliance'}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Open',
+          onPress: () => Linking.openURL(appliance.warranty_url!)
         }
       ]
     );
@@ -317,7 +335,7 @@ function ApplianceDetailScreen() {
           </Animated.View>
         )}
 
-        {/* Bottom Action Buttons - Now part of scrollable content */}
+        {/* Bottom Action Buttons */}
         <Animated.View
           style={[
             styles.bottomActions,
@@ -335,6 +353,16 @@ function ApplianceDetailScreen() {
             >
               <Ionicons name="document-text" size={20} color={colors.background} />
               <Text style={[styles.actionButtonText, { color: colors.background }]}>Manual</Text>
+            </TouchableOpacity>
+          )}
+
+          {appliance.warranty_url && (
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.primary }]}
+              onPress={handleWarranty}
+            >
+              <Ionicons name="shield-checkmark" size={20} color={colors.background} />
+              <Text style={[styles.actionButtonText, { color: colors.background }]}>Warranty</Text>
             </TouchableOpacity>
           )}
 
@@ -541,4 +569,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
-}); 
+});

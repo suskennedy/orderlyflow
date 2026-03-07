@@ -21,6 +21,7 @@ export interface Repair {
   updated_at?: string | null;
   created_by?: string | null;
   family_account_id?: string | null;
+  is_active?: boolean;
 }
 
 interface RepairsState {
@@ -76,7 +77,12 @@ export const useRepairsStore = create<RepairsState>((set, get) => ({
   },
 
   fetchRepairs: async (homeId: string, userId: string) => {
-    if (!userId || !homeId) return;
+    if (!userId || !homeId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(homeId)) {
+      if (homeId && homeId !== 'all') { // Optional check if 'all' is a valid non-UUID case
+         console.warn('RepairsStore: Invalid or missing IDs:', { homeId, userId });
+      }
+      return;
+    }
     
     try {
       get().setLoading(homeId, true);
@@ -162,6 +168,7 @@ export const useRepairsStore = create<RepairsState>((set, get) => ({
       if (updates.schedule_reminder !== undefined) cleanUpdates.schedule_reminder = updates.schedule_reminder;
       if (updates.reminder_date !== undefined) cleanUpdates.reminder_date = updates.reminder_date;
       if (updates.notes !== undefined) cleanUpdates.notes = updates.notes;
+      if (updates.is_active !== undefined) cleanUpdates.is_active = updates.is_active;
       
       cleanUpdates.updated_at = new Date().toISOString();
       

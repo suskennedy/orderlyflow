@@ -8,11 +8,14 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useToast } from '../../../lib/contexts/ToastContext';
+import { useAuth } from '../../../lib/hooks/useAuth';
 import { APPLIANCE_TYPES, ApplianceFormData, applianceFormSchema, transformApplianceFormData } from '../../../lib/schemas/home/applianceFormSchema';
 import { useAppliancesStore } from '../../../lib/stores/appliancesStore';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
+import DocumentUploader from '../../ui/DocumentUploader';
 
 export default function AddApplianceScreen() {
+  const { user } = useAuth();
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
   const createAppliance = useAppliancesStore(state => state.createAppliance);
   const { colors } = useTheme();
@@ -47,8 +50,6 @@ export default function AddApplianceScreen() {
   const brandRef = useRef<TextInput>(null);
   const modelRef = useRef<TextInput>(null);
   const locationRef = useRef<TextInput>(null);
-  const manualUrlRef = useRef<TextInput>(null);
-  const warrantyUrlRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
   const onSubmit = async (data: ApplianceFormData) => {
@@ -206,7 +207,7 @@ export default function AddApplianceScreen() {
             onFocus={() => handleFocus('location')}
             onBlur={handleBlur}
             returnKeyType="next"
-            onSubmitEditing={() => manualUrlRef.current?.focus()}
+            onSubmitEditing={() => notesRef.current?.focus()}
           />
           {errors.location && (
             <Text style={[styles.errorText, { color: colors.error }]}>
@@ -218,25 +219,12 @@ export default function AddApplianceScreen() {
 
 
 
-          <Text style={[styles.label, { color: colors.text }]}>Manual URL</Text>
-          <TextInput
-            ref={manualUrlRef}
-            style={[
-              getInputStyle('manual_url'),
-              errors.manual_url && { borderColor: colors.error, borderWidth: 2 }
-            ]}
-            value={formData.manual_url}
-            onChangeText={text => {
-              setValue('manual_url', text);
-              if (errors.manual_url) clearErrors('manual_url');
-            }}
-            placeholder="https://example.com/manual.pdf"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="url"
-            onFocus={() => handleFocus('manual_url')}
-            onBlur={handleBlur}
-            returnKeyType="next"
-            onSubmitEditing={() => warrantyUrlRef.current?.focus()}
+          <DocumentUploader
+            label="Manual (PDF)"
+            currentFileUrl={formData.manual_url}
+            onUploadComplete={(result) => setValue('manual_url', result.url)}
+            userId={user?.id}
+            targetFolder="appliances"
           />
           {errors.manual_url && (
             <Text style={[styles.errorText, { color: colors.error }]}>
@@ -244,25 +232,12 @@ export default function AddApplianceScreen() {
             </Text>
           )}
 
-          <Text style={[styles.label, { color: colors.text }]}>Warranty URL</Text>
-          <TextInput
-            ref={warrantyUrlRef}
-            style={[
-              getInputStyle('warranty_url'),
-              errors.warranty_url && { borderColor: colors.error, borderWidth: 2 }
-            ]}
-            value={formData.warranty_url}
-            onChangeText={text => {
-              setValue('warranty_url', text);
-              if (errors.warranty_url) clearErrors('warranty_url');
-            }}
-            placeholder="https://example.com/warranty.pdf"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="url"
-            onFocus={() => handleFocus('warranty_url')}
-            onBlur={handleBlur}
-            returnKeyType="next"
-            onSubmitEditing={() => notesRef.current?.focus()}
+          <DocumentUploader
+            label="Warranty (PDF)"
+            currentFileUrl={formData.warranty_url}
+            onUploadComplete={(result) => setValue('warranty_url', result.url)}
+            userId={user?.id}
+            targetFolder="appliances"
           />
           {errors.warranty_url && (
             <Text style={[styles.errorText, { color: colors.error }]}>

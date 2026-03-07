@@ -51,6 +51,8 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
   const projectsByHome = useProjectsStore(state => state.projectsByHome);
   const fetchProjects = useProjectsStore(state => state.fetchProjects);
   const setProjects = useProjectsStore(state => state.setProjects);
+  const updateProject = useProjectsStore(state => state.updateProject);
+  const updateRepair = useRepairsStore(state => state.updateRepair);
   const repairs = currentHomeId ? (repairsByHome[currentHomeId] || EMPTY_ARRAY) : [];
   const projects = currentHomeId ? (projectsByHome[currentHomeId] || EMPTY_ARRAY) : [];
   const { showToast } = useToast();
@@ -181,19 +183,17 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
 
   // Dynamically derive categories from template tasks and existing items
   const dynamicCategories = useMemo(() => {
-    const categories = new Set<string>();
+    const fixedCategories = ['Deep Cleaning', 'Health + Safety', 'Home Maintenance', 'Repairs', 'Projects'];
+    const categories = new Set<string>(fixedCategories);
+
     allTemplateTasks.forEach(task => {
-      if (task.category) {
+      if (task.category && !fixedCategories.includes(task.category)) {
         categories.add(task.category);
       }
     });
 
-    // Ensure Repairs and Projects are included if they have items
-    if (repairs.length > 0) categories.add('Repairs');
-    if (projects.length > 0) categories.add('Projects');
-
-    return Array.from(categories).sort();
-  }, [allTemplateTasks, repairs.length, projects.length]);
+    return Array.from(categories);
+  }, [allTemplateTasks]);
 
   // Get only database tasks for each category (no preset tasks)
   const getCombinedTasksForCategory = (categoryName: string) => {
@@ -355,6 +355,28 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
         toggleTaskExpansion(taskName);
         showToast('Configure task details and save to activate', 'info');
       }
+    }
+  };
+
+  const toggleRepair = async (repair: any) => {
+    const isCurrentlyActive = repair.is_active !== false;
+    try {
+      await updateRepair(currentHomeId || '', repair.id, { is_active: !isCurrentlyActive });
+      showToast(`Repair "${repair.title}" ${!isCurrentlyActive ? 'activated' : 'deactivated'}`, 'success');
+    } catch (error) {
+      console.error('Error toggling repair:', error);
+      showToast('Failed to update repair status', 'error');
+    }
+  };
+
+  const toggleProject = async (project: any) => {
+    const isCurrentlyActive = project.is_active !== false;
+    try {
+      await updateProject(currentHomeId || '', project.id, { is_active: !isCurrentlyActive });
+      showToast(`Project "${project.title}" ${!isCurrentlyActive ? 'activated' : 'deactivated'}`, 'success');
+    } catch (error) {
+      console.error('Error toggling project:', error);
+      showToast('Failed to update project status', 'error');
     }
   };
 
@@ -724,11 +746,20 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
           return (
             <CategorySection
               key={category}
-              category={`${category} (${totalItems})`}
+              category={`${category} (${category === 'Repairs' ? repairs.length : projects.length})`}
               isExpanded={expandedCategory === category}
               onToggle={() => toggleCategory(category)}
-              onAdd={onAddCallback}
-              addLabel={addLabel}
+              onAdd={() => {
+                const targetHomeId = homeId || currentHomeId;
+                if (category === 'Repairs') {
+                  router.push(`/(tabs)/(tasks)/add-repair?homeId=${targetHomeId}` as any);
+                } else if (category === 'Projects') {
+                  router.push(`/(tabs)/(tasks)/add-project?homeId=${targetHomeId}` as any);
+                } else {
+                  router.push(targetHomeId ? `/(tabs)/(home)/${targetHomeId}/tasks/add?category=${category}` : '/(tabs)/(tasks)' as any);
+                }
+              }}
+              addLabel={category === 'Repairs' ? 'Add Repair' : (category === 'Projects' ? 'Add Project' : addLabel)}
               colors={colors}
             >
               {templateTasksForCat.map((task, index) => (
@@ -773,61 +804,109 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
               ))}
 
               {/* Render Custom Repairs inline */}
-              {category === 'Repairs' && repairs.map((repair) => (
-                <TouchableOpacity
+              {category === 'Repairs' && repairs.map((repair: any) => (
+                <TaskItem
                   key={`repair-${repair.id}`}
-                  style={[settingsStyles.repairProjectItem, { backgroundColor: colors.background }]}
-                  onPress={() => router.push(`/(tabs)/(tasks)/repair/${repair.id}` as any)}
-                >
-                  <View style={settingsStyles.repairProjectInfo}>
-                    <Text style={[settingsStyles.repairProjectTitle, { color: colors.text }]}>
-                      {repair.title}
-                    </Text>
-                    <Text style={[settingsStyles.repairProjectStatus, { color: colors.textSecondary }]}>
-                      Status: {repair.status}
-                    </Text>
-                    {repair.vendor_id && (
-                      <Text style={[settingsStyles.repairProjectVendor, { color: colors.textSecondary }]}>
-                        Vendor: {getVendorDisplayText(repair, vendors as Vendor[])}
-                      </Text>
-                    )}
-                    {repair.reminder_date && (
-                      <Text style={[settingsStyles.repairProjectDue, { color: colors.textSecondary }]}>
-                        Due: {new Date(repair.reminder_date).toLocaleDateString()}
-                      </Text>
-                    )}
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
+                  task={{
+                    name: repair.title,
+                    suggestedFrequency: 'Repair',
+                    category: 'Repairs',
+                    isPreset: false,
+                    databaseTask: repair,
+                    dueDate: repair.reminder_date,
+                    assignedVendor: vendors.find(v => v.id === repair.vendor_id)
+                  }}
+                  isExpanded={expandedTasks.has(`repair-${repair.id}`)}
+                  isSelected={repair.is_active !== false}
+                  onToggle={() => toggleRepair(repair)}
+                  onExpand={() => {
+                    const newExpanded = new Set(expandedTasks);
+                    if (newExpanded.has(`repair-${repair.id}`)) {
+                      newExpanded.delete(`repair-${repair.id}`);
+                    } else {
+                      newExpanded.add(`repair-${repair.id}`);
+                    }
+                    setExpandedTasks(newExpanded);
+                  }}
+                  renderDetailForm={() => (
+                    <TouchableOpacity
+                      style={[settingsStyles.repairProjectItem, { backgroundColor: colors.background, marginTop: 8 }]}
+                      onPress={() => router.push(`/(tabs)/(tasks)/repair/${repair.id}` as any)}
+                    >
+                      <View style={settingsStyles.repairProjectInfo}>
+                        <Text style={[settingsStyles.repairProjectStatus, { color: colors.textSecondary }]}>
+                          Status: {repair.status}
+                        </Text>
+                        {repair.vendor_id && (
+                          <Text style={[settingsStyles.repairProjectVendor, { color: colors.textSecondary }]}>
+                            Vendor: {getVendorDisplayText(repair, vendors as Vendor[])}
+                          </Text>
+                        )}
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>Edit Details</Text>
+                        <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                  colors={colors}
+                />
               ))}
 
               {/* Render Custom Projects inline */}
-              {category === 'Projects' && projects.map((project) => (
-                <TouchableOpacity
+              {category === 'Projects' && projects.map((project: any) => (
+                <TaskItem
                   key={`project-${project.id}`}
-                  style={[settingsStyles.repairProjectItem, { backgroundColor: colors.background }]}
-                  onPress={() => router.push(`/(tabs)/(tasks)/project/${project.id}` as any)}
-                >
-                  <View style={settingsStyles.repairProjectInfo}>
-                    <Text style={[settingsStyles.repairProjectTitle, { color: colors.text }]}>
-                      {project.title}
-                    </Text>
-                    <Text style={[settingsStyles.repairProjectStatus, { color: colors.textSecondary }]}>
-                      Status: {project.status}
-                    </Text>
-                    {(project.vendor_ids && project.vendor_ids.length > 0) && (
-                      <Text style={[settingsStyles.repairProjectVendor, { color: colors.textSecondary }]}>
-                        Vendor: {getVendorDisplayText(project, vendors as Vendor[])}
-                      </Text>
-                    )}
-                    {project.estimated_budget && (
-                      <Text style={[settingsStyles.repairProjectBudget, { color: colors.textSecondary }]}>
-                        Budget: ${project.estimated_budget.toLocaleString()}
-                      </Text>
-                    )}
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
+                  task={{
+                    name: project.title,
+                    suggestedFrequency: 'Project',
+                    category: 'Projects',
+                    isPreset: false,
+                    databaseTask: project,
+                    dueDate: project.start_date,
+                    assignedVendor: project.vendor_ids && project.vendor_ids.length > 0 ?
+                      vendors.find(v => project.vendor_ids.includes(v.id)) : null
+                  }}
+                  isExpanded={expandedTasks.has(`project-${project.id}`)}
+                  isSelected={project.is_active !== false}
+                  onToggle={() => toggleProject(project)}
+                  onExpand={() => {
+                    const newExpanded = new Set(expandedTasks);
+                    if (newExpanded.has(`project-${project.id}`)) {
+                      newExpanded.delete(`project-${project.id}`);
+                    } else {
+                      newExpanded.add(`project-${project.id}`);
+                    }
+                    setExpandedTasks(newExpanded);
+                  }}
+                  renderDetailForm={() => (
+                    <TouchableOpacity
+                      style={[settingsStyles.repairProjectItem, { backgroundColor: colors.background, marginTop: 8 }]}
+                      onPress={() => router.push(`/(tabs)/(tasks)/project/${project.id}` as any)}
+                    >
+                      <View style={settingsStyles.repairProjectInfo}>
+                        <Text style={[settingsStyles.repairProjectStatus, { color: colors.textSecondary }]}>
+                          Status: {project.status}
+                        </Text>
+                        {(project.vendor_ids && project.vendor_ids.length > 0) && (
+                          <Text style={[settingsStyles.repairProjectVendor, { color: colors.textSecondary }]}>
+                            Vendor: {getVendorDisplayText(project, vendors as Vendor[])}
+                          </Text>
+                        )}
+                        {project.estimated_budget && (
+                          <Text style={[settingsStyles.repairProjectBudget, { color: colors.textSecondary }]}>
+                            Budget: ${project.estimated_budget.toLocaleString()}
+                          </Text>
+                        )}
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>Edit Details</Text>
+                        <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                  colors={colors}
+                />
               ))}
             </CategorySection>
           );

@@ -1,13 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Linking,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
@@ -15,6 +18,7 @@ import { useAuth } from '../../lib/hooks/useAuth';
 import { useRealTimeSubscription } from '../../lib/hooks/useRealTimeSubscription';
 import { useTasksStore } from '../../lib/stores/tasksStore';
 import { useVendorsStore } from '../../lib/stores/vendorsStore';
+import { getVendorCategoryInfo } from '../../lib/utils/vendorIcons';
 
 interface Vendor {
   id: string;
@@ -38,287 +42,178 @@ export default function VendorDetailScreen() {
   const fetchVendors = useVendorsStore(state => state.fetchVendors);
   const setVendors = useVendorsStore(state => state.setVendors);
   const allHomeTasks = useTasksStore(state => state.allHomeTasks);
-  
-  // Initial vendors data fetch
-  const hasFetchedVendorsRef = useRef(false);
-  useEffect(() => {
-    if (user?.id && !hasFetchedVendorsRef.current) {
-      hasFetchedVendorsRef.current = true;
-      fetchVendors(user.id);
-    }
-    return () => {
-      hasFetchedVendorsRef.current = false;
-    };
-  }, [user?.id, fetchVendors]);
-  
-  // Real-time subscription for vendors
-  const handleVendorChange = useCallback((payload: any) => {
-    if (payload.new?.user_id === user?.id || payload.old?.user_id === user?.id) {
-      const eventType = payload.eventType;
-      const currentVendors = useVendorsStore.getState().vendors;
-
-      if (eventType === 'INSERT') {
-        setVendors([payload.new, ...currentVendors]);
-      } 
-      else if (eventType === 'UPDATE') {
-        setVendors(
-          currentVendors.map(vendor => 
-            vendor.id === payload.new.id ? payload.new : vendor
-          )
-        );
-      } 
-      else if (eventType === 'DELETE') {
-        setVendors(
-          currentVendors.filter(vendor => vendor.id !== payload.old.id)
-        );
-      }
-    }
-  }, [user?.id, setVendors]);
-  
-  useRealTimeSubscription(
-    { 
-      table: 'vendors',
-      filter: user?.id ? `user_id=eq.${user.id}` : undefined
-    },
-    handleVendorChange
-  );
-  const tasksLoading = useTasksStore(state => state.loading);
   const fetchAllHomeTasks = useTasksStore(state => state.fetchAllHomeTasks);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [vendor, setVendor] = useState<Vendor | null>(null);
 
-  // Get tasks assigned to this vendor
-  const getVendorTasks = useCallback((vendorId: string) => {
-    return allHomeTasks.filter(task => task.assigned_vendor_id === vendorId);
-  }, [allHomeTasks]);
-
+  // Sync vendor from store
   useEffect(() => {
     if (id && vendors.length > 0) {
-      console.log('Looking for vendor with ID:', id);
-      console.log('Available vendors:', vendors.map(v => ({ id: v.id, name: v.name })));
       const foundVendor = vendors.find(v => v.id === id);
-      console.log('Found vendor:', foundVendor);
       setVendor(foundVendor || null);
-    } else if (id && vendors.length === 0) {
-      console.log('No vendors available, but looking for ID:', id);
     }
   }, [id, vendors]);
 
-  // Force refresh tasks when component mounts (only once) - use ref to prevent loops
-  const hasRefreshedRef = React.useRef(false);
+  // Initial data fetch
   useEffect(() => {
-    if (hasRefreshedRef.current) return;
-    
-    console.log('VendorDetail: Component mounted, refreshing all tasks...');
-    hasRefreshedRef.current = true;
-    // Use setTimeout to ensure this runs after initial render
     if (user?.id) {
-      setTimeout(() => {
-        fetchAllHomeTasks(user.id).catch(console.error);
-      }, 100);
+      fetchVendors(user.id);
+      fetchAllHomeTasks(user.id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - only run once on mount
+  }, [user?.id, fetchVendors, fetchAllHomeTasks]);
 
-  // Debug: Monitor allHomeTasks changes - memoize to prevent loops
-  const vendorTasks = React.useMemo(() => {
-    if (!vendor) return [];
-    return getVendorTasks(vendor.id);
-  }, [vendor, allHomeTasks, getVendorTasks]);
-  
-  useEffect(() => {
-    console.log('VendorDetail: allHomeTasks updated:', allHomeTasks.length);
-    if (vendor) {
-      console.log('VendorDetail: Tasks for vendor', vendor.id, ':', vendorTasks.length);
+  // Real-time sub
+  const handleVendorChange = useCallback((payload: any) => {
+    if (payload.new?.user_id === user?.id || payload.old?.user_id === user?.id) {
+      const currentVendors = useVendorsStore.getState().vendors;
+      if (payload.eventType === 'UPDATE' && payload.new.id === id) {
+        setVendor(payload.new);
+      }
     }
-  }, [allHomeTasks.length, vendor?.id, vendorTasks.length]);
+  }, [user?.id, id]);
+
+  useRealTimeSubscription({ table: 'vendors', filter: `id=eq.${id}` }, handleVendorChange);
+
+  // Tasks for this vendor
+  const vendorTasks = useMemo(() => {
+    return allHomeTasks.filter(task => task.assigned_vendor_id === id);
+  }, [allHomeTasks, id]);
+
+  const handleShare = async () => {
+    if (!vendor) return;
+    try {
+      await Share.share({
+        message: `Vendor: ${vendor.name}\n${vendor.phone ? `Phone: ${vendor.phone}\n` : ''}${vendor.email ? `Email: ${vendor.email}\n` : ''}${vendor.category ? `Category: ${vendor.category}` : ''}`,
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   if (!vendor) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={[styles.backButton, { backgroundColor: colors.surface }]}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="chevron-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Vendor Not Found</Text>
-          <View style={styles.headerRight} />
-        </View>
-        <View style={styles.content}>
-          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
-            The vendor you&apos;re looking for doesn&apos;t exist.
-          </Text>
-        </View>
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <Ionicons name="alert-circle-outline" size={64} color={colors.textTertiary} />
+        <Text style={[styles.errorText, { color: colors.textSecondary }]}>Vendor not found</Text>
+        <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { marginTop: 20 }]}>
+          <Text style={{ color: colors.primary }}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
-
-  const getCategoryIcon = (category?: string | null) => {
-    if (!category) return 'business';
-    
-    const categoryLower = category.toLowerCase();
-    if (categoryLower.includes('plumber')) return 'water';
-    if (categoryLower.includes('electrician')) return 'flash';
-    if (categoryLower.includes('cleaner') || categoryLower.includes('cleaning')) return 'sparkles';
-    if (categoryLower.includes('gardener') || categoryLower.includes('landscap')) return 'leaf';
-    if (categoryLower.includes('painter')) return 'color-palette';
-    if (categoryLower.includes('contractor')) return 'construct';
-    if (categoryLower.includes('organizer')) return 'grid';
-    if (categoryLower.includes('repair')) return 'build';
-    if (categoryLower.includes('maintenance')) return 'settings';
-    return 'business';
-  };
-
-  const getCategoryColor = (category?: string | null) => {
-    if (!category) return '#6B7280';
-    
-    const categoryLower = category.toLowerCase();
-    if (categoryLower.includes('plumber')) return '#3B82F6';
-    if (categoryLower.includes('electrician')) return '#F59E0B';
-    if (categoryLower.includes('cleaner') || categoryLower.includes('cleaning')) return '#10B981';
-    if (categoryLower.includes('gardener') || categoryLower.includes('landscap')) return '#059669';
-    if (categoryLower.includes('painter')) return '#8B5CF6';
-    if (categoryLower.includes('contractor')) return '#EF4444';
-    if (categoryLower.includes('organizer')) return '#EC4899';
-    if (categoryLower.includes('repair')) return '#F97316';
-    if (categoryLower.includes('maintenance')) return '#6366F1';
-    return '#6B7280';
-  };
-
-  const categoryIcon = getCategoryIcon(vendor?.category);
-  const categoryColor = getCategoryColor(vendor?.category);
+  const { icon, color } = getVendorCategoryInfo(vendor.category);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface }]}>
-        <TouchableOpacity
-          style={[styles.backButton, { backgroundColor: colors.background }]}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Vendor Details</Text>
-        <TouchableOpacity
-          style={[styles.editButton, { backgroundColor: colors.primary }]}
-          onPress={() => router.push(`/(vendors)/${vendor.id}/edit` as any)}
-        >
-          <Ionicons name="create" size={20} color={colors.background} />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Vendor Card */}
-        <View style={[styles.vendorCard, { backgroundColor: colors.surface }]}>
-          {/* Header Section */}
-          <View style={styles.vendorHeader}>
-            <View style={[styles.categoryIcon, { backgroundColor: categoryColor + '20' }]}>
-              <Ionicons name={categoryIcon as any} size={32} color={categoryColor} />
-            </View>
-            <View style={styles.vendorInfo}>
-              <Text style={[styles.vendorName, { color: colors.text }]}>{vendor.name}</Text>
-              {vendor.category && (
-                <View style={[styles.categoryBadge, { backgroundColor: categoryColor + '15' }]}>
-                  <Text style={[styles.categoryText, { color: categoryColor }]}>
-                    {vendor.category.toUpperCase()}
-                  </Text>
-                </View>
-              )}
+      <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+        {/* Featured Header */}
+        <View style={styles.featuredHeader}>
+          <LinearGradient
+            colors={[color, color + '80', 'transparent']}
+            style={styles.headerGradient}
+          />
+          <View style={[styles.headerTop, { paddingTop: insets.top + 10 }]}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+              <Ionicons name="chevron-back" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <View style={styles.headerTopActions}>
+              <TouchableOpacity onPress={handleShare} style={[styles.headerButton, { marginRight: 10 }]}>
+                <Ionicons name="share-outline" size={24} color="#FFF" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push(`/(tabs)/(vendors)/${vendor.id}/edit`)} style={styles.headerButton}>
+                <Ionicons name="create-outline" size={24} color="#FFF" />
+              </TouchableOpacity>
             </View>
           </View>
 
-          {/* Contact Information */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Contact Information</Text>
-            
-            {vendor.contact_name && (
-              <View style={styles.infoRow}>
-                <View style={[styles.iconContainer, { backgroundColor: colors.primary + '15' }]}>
-                  <Ionicons name="person" size={20} color={colors.primary} />
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Contact Person</Text>
-                  <Text style={[styles.infoValue, { color: colors.text }]}>{vendor.contact_name}</Text>
-                </View>
+          <View style={styles.headerContent}>
+            <View style={[styles.largeIconContainer, { backgroundColor: '#FFF' }]}>
+              <Ionicons name={icon as any} size={40} color={color} />
+            </View>
+            <Text style={styles.vendorNameLarge}>{vendor.name}</Text>
+            {vendor.category && (
+              <View style={styles.categoryBadgeLarge}>
+                <Text style={styles.categoryTextLarge}>{vendor.category}</Text>
               </View>
             )}
+          </View>
+        </View>
 
+        <View style={styles.contentWrapper}>
+          {/* Quick Actions */}
+          <View style={styles.actionRow}>
             {vendor.phone && (
-              <View style={styles.phoneContainer}>
-                <TouchableOpacity 
-                  style={styles.infoRow}
-                  onPress={() => Linking.openURL(`tel:${vendor.phone}`)}
-                >
-                  <View style={[styles.iconContainer, { backgroundColor: '#10B981' + '15' }]}>
-                    <Ionicons name="call" size={20} color="#10B981" />
-                  </View>
-                  <View style={styles.infoContent}>
-                    <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Phone</Text>
-                    <Text style={[styles.infoValue, { color: '#10B981' }]}>{vendor.phone}</Text>
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={styles.infoRow}
-                  onPress={() => Linking.openURL(`sms:${vendor.phone}`)}
-                >
-                  <View style={[styles.iconContainer, { backgroundColor: '#10B981' + '15' }]}>
-                    <Ionicons name="chatbubble" size={20} color="#10B981" />
-                  </View>
-                  <View style={styles.infoContent}>
-                    <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Send Text</Text>
-                    <Text style={[styles.infoValue, { color: '#10B981' }]}>{vendor.phone}</Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: colors.surface }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Linking.openURL(`tel:${vendor.phone}`);
+                }}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: '#10B98120' }]}>
+                  <Ionicons name="call" size={20} color="#10B981" />
+                </View>
+                <Text style={[styles.actionText, { color: colors.text }]}>Call</Text>
+              </TouchableOpacity>
             )}
-
+            {vendor.phone && (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: colors.surface }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Linking.openURL(`sms:${vendor.phone}`);
+                }}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: '#3B82F620' }]}>
+                  <Ionicons name="chatbubble" size={20} color="#3B82F6" />
+                </View>
+                <Text style={[styles.actionText, { color: colors.text }]}>Text</Text>
+              </TouchableOpacity>
+            )}
             {vendor.email && (
-              <TouchableOpacity 
-                style={styles.infoRow}
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: colors.surface }]}
                 onPress={() => Linking.openURL(`mailto:${vendor.email}`)}
               >
-                <View style={[styles.iconContainer, { backgroundColor: '#3B82F6' + '15' }]}>
-                  <Ionicons name="mail" size={20} color="#3B82F6" />
+                <View style={[styles.actionIcon, { backgroundColor: '#F59E0B20' }]}>
+                  <Ionicons name="mail" size={20} color="#F59E0B" />
                 </View>
-                <View style={styles.infoContent}>
-                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Email</Text>
-                  <Text style={[styles.infoValue, { color: '#3B82F6' }]}>{vendor.email}</Text>
-                </View>
+                <Text style={[styles.actionText, { color: colors.text }]}>Email</Text>
               </TouchableOpacity>
             )}
-
             {vendor.website && (
-              <TouchableOpacity 
-                style={styles.infoRow}
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: colors.surface }]}
                 onPress={() => Linking.openURL(vendor.website!)}
               >
-                <View style={[styles.iconContainer, { backgroundColor: '#8B5CF6' + '15' }]}>
+                <View style={[styles.actionIcon, { backgroundColor: '#8B5CF620' }]}>
                   <Ionicons name="globe" size={20} color="#8B5CF6" />
                 </View>
-                <View style={styles.infoContent}>
-                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Website</Text>
-                  <Text style={[styles.infoValue, { color: '#8B5CF6' }]}>{vendor.website}</Text>
-                </View>
+                <Text style={[styles.actionText, { color: colors.text }]}>Web</Text>
               </TouchableOpacity>
             )}
+          </View>
+
+          {/* Info Sections */}
+          <View style={[styles.infoSection, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitleRefined, { color: colors.textTertiary }]}>CONTACT DETAILS</Text>
+
+            <View style={styles.infoRowRefined}>
+              <Ionicons name="person-outline" size={20} color={colors.textTertiary} />
+              <View style={styles.infoValueWrapper}>
+                <Text style={[styles.infoLabelSmall, { color: colors.textTertiary }]}>Primary Contact</Text>
+                <Text style={[styles.infoValueLarge, { color: colors.text }]}>{vendor.contact_name || 'Not specified'}</Text>
+              </View>
+            </View>
 
             {vendor.address && (
-              <View style={styles.infoRow}>
-                <View style={[styles.iconContainer, { backgroundColor: '#F59E0B' + '15' }]}>
-                  <Ionicons name="location" size={20} color="#F59E0B" />
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Address</Text>
-                  <Text style={[styles.infoValue, { color: colors.text }]}>{vendor.address}</Text>
+              <View style={[styles.infoRowRefined, { marginTop: 15 }]}>
+                <Ionicons name="location-outline" size={20} color={colors.textTertiary} />
+                <View style={styles.infoValueWrapper}>
+                  <Text style={[styles.infoLabelSmall, { color: colors.textTertiary }]}>Address</Text>
+                  <Text style={[styles.infoValueLarge, { color: colors.text }]}>{vendor.address}</Text>
                 </View>
               </View>
             )}
@@ -326,62 +221,66 @@ export default function VendorDetailScreen() {
 
           {/* Notes Section */}
           {vendor.notes && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Notes</Text>
-              <View style={[styles.notesContainer, { backgroundColor: colors.background }]}>
-                <Text style={[styles.notesText, { color: colors.text }]}>{vendor.notes}</Text>
-              </View>
+            <View style={[styles.infoSection, { backgroundColor: colors.surface, marginTop: 15 }]}>
+              <Text style={[styles.sectionTitleRefined, { color: colors.textTertiary }]}>NOTES</Text>
+              <Text style={[styles.notesTextRefined, { color: colors.text }]}>{vendor.notes}</Text>
             </View>
           )}
 
-          {/* Assigned Tasks */}
-          {(() => {
-            return (
-              <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  Assigned Tasks ({vendorTasks.length})
-                </Text>
-                {tasksLoading ? (
-                  <Text style={[styles.taskTitle, { color: colors.textSecondary }]}>
-                    Loading tasks...
-                  </Text>
-                ) : vendorTasks.length === 0 ? (
-                  <Text style={[styles.taskTitle, { color: colors.textSecondary }]}>
-                    No tasks assigned to this vendor
-                  </Text>
-                ) : (
-                  vendorTasks.map((task) => (
-                <TouchableOpacity
-                  key={task.id}
-                  style={[styles.taskItem, { borderBottomColor: colors.border }]}
-                  onPress={() => {
-                    // Navigate to task details
-                    router.push(`/(tabs)/(tasks)/repair/${task.id}`);
-                  }}
-                >
-                  <Ionicons
-                    name={task.status === 'completed' ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={20}
-                    color={task.status === 'completed' ? colors.success : colors.textSecondary}
-                  />
-                  <View style={styles.taskContent}>
-                    <Text style={[styles.taskTitle, { color: colors.text }]}>
-                      {task.title}
-                    </Text>
-                    {task.category && (
-                      <Text style={[styles.taskCategory, { color: colors.textTertiary }]}>
-                        {task.category}
-                      </Text>
-                    )}
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-                </TouchableOpacity>
-              ))
-            )}
-              </View>
-            );
-          })()}
+          {/* Tasks Section */}
+          <View style={[styles.infoSection, { backgroundColor: colors.surface, marginTop: 15, paddingBottom: 10 }]}>
+            <Text style={[styles.sectionTitleRefined, { color: colors.textTertiary }]}>ASSIGNED TASKS</Text>
+            {vendorTasks.length === 0 ? (
+              <Text style={[styles.emptyTasksText, { color: colors.textTertiary }]}>No tasks assigned yet</Text>
+            ) : (
+              vendorTasks.map((task) => {
+                const itemType = (task as any).item_type || 'task';
+                const originalId = (task as any).original_id || task.id;
+                const homeName = (task as any).homes?.name || 'Unknown Property';
 
+                return (
+                  <TouchableOpacity
+                    key={task.id}
+                    style={[styles.taskItemRefined, { borderBottomColor: colors.border }]}
+                    onPress={() => {
+                      if (itemType === 'repair') {
+                        router.push(`/(tabs)/(tasks)/repair/${originalId}`);
+                      } else if (itemType === 'project') {
+                        router.push(`/(tabs)/(tasks)/project/${originalId}`);
+                      } else {
+                        router.push(`/(tabs)/(tasks)/task/${originalId}`);
+                      }
+                    }}
+                  >
+                    <View style={[styles.statusIndicator, { backgroundColor: task.status === 'completed' ? colors.success : colors.warning }]} />
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.taskHeaderRow}>
+                        <Text style={[styles.taskTitleRefined, { color: colors.text }]} numberOfLines={1}>
+                          {task.title}
+                        </Text>
+                        <View style={[styles.typeBadge, { backgroundColor: colors.surfaceVariant }]}>
+                          <Text style={[styles.typeBadgeText, { color: colors.textSecondary }]}>
+                            {itemType.toUpperCase()}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.taskMetaRow}>
+                        <Ionicons name="home-outline" size={12} color={colors.textTertiary} />
+                        <Text style={[styles.taskHomeRefined, { color: colors.textSecondary }]}> {homeName}</Text>
+                        <Text style={[styles.taskDot, { color: colors.textTertiary }]}> • </Text>
+                        <Text style={[styles.taskDateRefined, { color: colors.textTertiary }]}>
+                          {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No date'}
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.border} />
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </View>
+
+          <View style={{ height: 100 }} />
         </View>
       </ScrollView>
     </View>
@@ -389,167 +288,45 @@ export default function VendorDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    flex: 1,
-    textAlign: 'center',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  editButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerRight: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-  },
-  vendorCard: {
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  vendorHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  categoryIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  vendorInfo: {
-    flex: 1,
-  },
-  vendorName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  categoryBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  categoryText: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  infoContent: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  infoValue: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  notesContainer: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-  },
-  notesText: {
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  taskItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
-  },
-  taskContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  taskTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  taskCategory: {
-    fontSize: 14,
-  },
-  phoneContainer: {
-    marginBottom: 0,
-  },
+  container: { flex: 1 },
+  featuredHeader: { height: 320, paddingHorizontal: 20 },
+  headerGradient: { ...StyleSheet.absoluteFillObject },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 },
+  headerTopActions: { flexDirection: 'row' },
+  headerButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'center', alignItems: 'center' },
+  headerContent: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
+  largeIconContainer: { width: 80, height: 80, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 15, elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10 },
+  vendorNameLarge: { fontSize: 32, fontWeight: 'bold', color: '#FFF', textAlign: 'center', fontFamily: 'CormorantGaramond_700Bold' },
+  categoryBadgeLarge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 15, paddingVertical: 5, borderRadius: 20, marginTop: 10 },
+  categoryTextLarge: { color: '#FFF', fontSize: 14, fontWeight: '600', textTransform: 'uppercase' },
+
+  contentWrapper: { marginTop: -40, paddingHorizontal: 20, zIndex: 20 },
+  actionRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+  actionButton: { flex: 1, marginHorizontal: 5, paddingVertical: 15, borderRadius: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  actionIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  actionText: { fontSize: 12, fontWeight: '600' },
+
+  infoSection: { padding: 20, borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  sectionTitleRefined: { fontSize: 12, fontWeight: '800', letterSpacing: 1, marginBottom: 15 },
+  infoRowRefined: { flexDirection: 'row', alignItems: 'center' },
+  infoValueWrapper: { marginLeft: 15 },
+  infoLabelSmall: { fontSize: 11, fontWeight: '500', marginBottom: 2 },
+  infoValueLarge: { fontSize: 16, fontWeight: '600' },
+
+  notesTextRefined: { fontSize: 15, lineHeight: 22 },
+
+  emptyTasksText: { textAlign: 'center', paddingVertical: 20, fontStyle: 'italic' },
+  taskItemRefined: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
+  statusIndicator: { width: 6, height: 6, borderRadius: 3, marginRight: 15 },
+  taskTitleRefined: { fontSize: 16, fontWeight: '600', flex: 1 },
+  taskHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  taskMetaRow: { flexDirection: 'row', alignItems: 'center' },
+  taskHomeRefined: { fontSize: 13, fontWeight: '500' },
+  taskDateRefined: { fontSize: 13 },
+  taskDot: { fontSize: 13 },
+  typeBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 },
+  typeBadgeText: { fontSize: 10, fontWeight: 'bold', letterSpacing: 0.5 },
+
+  errorText: { fontSize: 18, marginTop: 15 },
+  backButton: { padding: 10 }
 });

@@ -14,10 +14,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useAuth } from '../../../lib/hooks/useAuth';
 import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
 import { useAppliancesStore } from '../../../lib/stores/appliancesStore';
-
-
+import DocumentUploader from '../../ui/DocumentUploader';
 
 const EMPTY_ARRAY: any[] = [];
 interface Appliance {
@@ -34,6 +34,7 @@ interface Appliance {
 function EditApplianceScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { user } = useAuth();
   const params = useLocalSearchParams();
   const homeId = params.homeId as string;
   const applianceId = params.id as string;
@@ -262,48 +263,25 @@ function EditApplianceScreen() {
           </View>
         </View>
 
-        {/* Purchase Information */}
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Purchase Information</Text>
-        </View>
-
-        {/* Manual URL */}
+        {/* Manual & Documentation */}
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Manual & Documentation</Text>
 
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Manual URL</Text>
-            <TextInput
-              style={[styles.textInput, {
-                backgroundColor: colors.background,
-                color: colors.text,
-                borderColor: colors.border
-              }]}
-              value={formData.manual_url}
-              onChangeText={(text) => setFormData({ ...formData, manual_url: text })}
-              placeholder="Enter manual URL"
-              placeholderTextColor={colors.textSecondary}
-              keyboardType="url"
-              autoCapitalize="none"
-            />
-          </View>
+          <DocumentUploader
+            label="Manual (PDF)"
+            currentFileUrl={formData.manual_url}
+            onUploadComplete={(result) => setFormData({ ...formData, manual_url: result.url })}
+            userId={user?.id}
+            targetFolder="appliances"
+          />
 
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Warranty URL</Text>
-            <TextInput
-              style={[styles.textInput, {
-                backgroundColor: colors.background,
-                color: colors.text,
-                borderColor: colors.border
-              }]}
-              value={formData.warranty_url}
-              onChangeText={(text) => setFormData({ ...formData, warranty_url: text })}
-              placeholder="Enter warranty URL"
-              placeholderTextColor={colors.textSecondary}
-              keyboardType="url"
-              autoCapitalize="none"
-            />
-          </View>
+          <DocumentUploader
+            label="Warranty (PDF)"
+            currentFileUrl={formData.warranty_url}
+            onUploadComplete={(result) => setFormData({ ...formData, warranty_url: result.url })}
+            userId={user?.id}
+            targetFolder="appliances"
+          />
         </View>
 
         {/* Notes */}

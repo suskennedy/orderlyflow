@@ -72,7 +72,8 @@ export const useTasksStore = create<TasksState>((set, get) => ({
   },
 
   fetchHomeTasks: async (homeId: string) => {
-    if (!homeId) {
+    if (!homeId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(homeId)) {
+      console.warn('TasksStore: Invalid or missing homeId:', homeId);
       get().setHomeTasks(homeId, []);
       set({ loading: false });
       return;
@@ -137,7 +138,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         assigned_vendor_id: repair.vendor_id,
         notes: repair.notes,
         room_location: repair.location_in_home,
-        is_active: true,
+        is_active: (repair as any).is_active !== false,
         status: repair.status === 'completed' ? 'completed' : 'pending',
         is_recurring: false,
         recurrence_pattern: null,
@@ -229,7 +230,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         assigned_vendor_id: project.vendor_ids?.[0] || null,
         notes: project.notes,
         room_location: project.location_in_home,
-        is_active: true,
+        is_active: (project as any).is_active !== false,
         status: project.status === 'completed' ? 'completed' : 'pending',
         is_recurring: false,
         recurrence_pattern: null,

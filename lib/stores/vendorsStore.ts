@@ -56,7 +56,7 @@ export const useVendorsStore = create<VendorsState>((set, get) => ({
         .from('vendors')
         .select('*')
         .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+        .order('name', { ascending: true });
         
       if (error) throw error;
       

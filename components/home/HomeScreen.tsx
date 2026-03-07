@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -20,6 +22,7 @@ import { useRepairsStore } from '../../lib/stores/repairsStore';
 import { useTasksStore } from '../../lib/stores/tasksStore';
 import { useVendorsStore } from '../../lib/stores/vendorsStore';
 import TaskCompletionModal from '../ui/TaskCompletionModal';
+import TaskSkeleton from '../ui/TaskSkeleton';
 
 export default function HomeScreen() {
   const { colors } = useTheme();
@@ -28,10 +31,16 @@ export default function HomeScreen() {
   const allHomeTasks = useTasksStore(state => state.allHomeTasks);
   const completeHomeTask = useTasksStore(state => state.completeHomeTask);
   const fetchAllHomeTasks = useTasksStore(state => state.fetchAllHomeTasks);
+  const tasksLoading = useTasksStore(state => state.loading);
   const currentHomeId = useTasksStore(state => state.currentHomeId);
+  const setCurrentHomeId = useTasksStore(state => state.setCurrentHomeId);
   const repairsByHome = useRepairsStore(state => state.repairsByHome);
   const fetchRepairs = useRepairsStore(state => state.fetchRepairs);
   const fetchProjects = useProjectsStore(state => state.fetchProjects);
+  const fetchHomes = useHomesStore(state => state.fetchHomes);
+  const homesLoading = useHomesStore(state => state.loading);
+
+  const loading = tasksLoading || homesLoading;
 
   // Get all repairs from all homes
   const repairs = useMemo(() => {
@@ -117,24 +126,46 @@ export default function HomeScreen() {
   const [completionModalVisible, setCompletionModalVisible] = useState(false);
   const [selectedTaskForCompletion, setSelectedTaskForCompletion] = useState<any>(null);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [isHomeModalVisible, setIsHomeModalVisible] = useState(false);
 
   // Use allHomeTasks to show tasks from all homes - ensure it's always an array
   const allTasks = useMemo(() => Array.isArray(allHomeTasks) ? allHomeTasks : [], [allHomeTasks]);
   const homesArray = useMemo(() => Array.isArray(homes) ? homes : [], [homes]);
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
+    if (!user?.id) return;
+
     setRefreshing(true);
     Promise.all([
-      (user?.id ? fetchAllHomeTasks(user.id) : Promise.resolve()).catch(console.error),
+      fetchAllHomeTasks(user.id).catch(console.error),
       // Fetch repairs and projects for all homes
-      ...(user?.id ? homesArray.map(home => fetchRepairs(home.id, user.id).catch(console.error)) : []),
-      ...(user?.id ? homesArray.map(home => fetchProjects(home.id, user.id).catch(console.error)) : []),
+      ...homesArray.map(home => fetchRepairs(home.id, user.id).catch(console.error)),
+      ...homesArray.map(home => fetchProjects(home.id, user.id).catch(console.error)),
       eventsRefresh?.() || Promise.resolve(),
-      (user?.id ? vendorsRefresh(user.id) : Promise.resolve()).catch(console.error),
+      vendorsRefresh(user.id).catch(console.error),
+      fetchHomes().catch(console.error),
     ]).finally(() => {
       setRefreshing(false);
     });
-  };
+  }, [user?.id, homesArray, fetchAllHomeTasks, fetchRepairs, fetchProjects, eventsRefresh, vendorsRefresh, fetchHomes]);
+
+  // Initial dashboard data fetch
+  const hasInitializedRef = useRef(false);
+  useEffect(() => {
+    if (user?.id && !hasInitializedRef.current) {
+      if (homesArray.length > 0) {
+        hasInitializedRef.current = true;
+        console.log('HomeScreen: Initializing dashboard data...');
+        onRefresh();
+      } else if (!homesLoading) {
+        // If not loading and no homes, still mark as initialized to avoid infinite loops
+        // but try to fetch once just in case
+        console.log('HomeScreen: No homes found, fetching homes...');
+        fetchHomes();
+        // We don't set hasInitializedRef yet because we want to run onRefresh once homes come in
+      }
+    }
+  }, [user?.id, homesArray.length, homesLoading, onRefresh, fetchHomes]);
 
   const handleTaskUncomplete = useCallback(async (taskId: string) => {
     try {
@@ -253,90 +284,77 @@ export default function HomeScreen() {
     return task.next_due || task.due_date;
   };
 
-  // Filter tasks, repairs, and projects based on current date and time - memoized to prevent re-renders
-  const filterTasksByTimePeriod = React.useMemo((): { thisWeekTasks: any[], thisMonthTasks: any[], thisYearTasks: any[] } => {
+  // Helper function to format date for comparison (midnight)
+  const getStartOfDay = (date: Date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  // Filter tasks, repairs, and projects based on urgency and homeId
+  const filterTasksByUrgency = React.useMemo((): { overdueTasks: any[], todayTasks: any[], upcomingTasks: any[] } => {
     const now = new Date();
-    const { startOfWeek, endOfWeek } = getCurrentWeekRange();
-    const { startOfMonth, endOfMonth } = getCurrentMonthRange();
-    const { startOfYear, endOfYear } = getCurrentYearRange();
+    const today = getStartOfDay(now);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 8); // Covers next 7 days after today
 
-    console.log('Date ranges:', {
-      now: now.toISOString(),
-      weekStart: startOfWeek.toISOString(),
-      weekEnd: endOfWeek.toISOString(),
-      monthStart: startOfMonth.toISOString(),
-      monthEnd: endOfMonth.toISOString(),
-      yearStart: startOfYear.toISOString(),
-      yearEnd: endOfYear.toISOString()
-    });
+    // Filter all tasks by active and current home (if selected)
+    const baseTasks = Array.isArray(allTasks) ? allTasks.filter(task => {
+      const isActive = task.is_active !== false;
+      const isNotComplete = task.status !== 'completed' && task.status !== 'complete';
+      const homeMatch = currentHomeId ? task.home_id === currentHomeId : true;
+      return isActive && isNotComplete && homeMatch;
+    }) : [];
 
-    const userTasks = Array.isArray(allTasks) ? allTasks.filter(task =>
-      task.is_active === true // Only show active home tasks
-    ) : [];
-
-    // Convert repairs to task-like format for filtering
-    const repairTasks = Array.isArray(repairs) ? repairs.map(repair => ({
+    const repairTasks = Array.isArray(repairs) ? repairs.filter(repair => {
+      const isNotComplete = repair.status !== 'complete';
+      const homeMatch = currentHomeId ? repair.home_id === currentHomeId : true;
+      return isNotComplete && homeMatch;
+    }).map(repair => ({
       ...repair,
       title: `🔧 ${repair.title}`,
       due_date: repair.reminder_date || null,
-      status: repair.status === 'complete' ? 'completed' : 'pending',
+      status: 'pending',
+      item_type: 'repair'
     })) : [];
 
-    // Filter tasks for this week
-    const thisWeekTasks = [...userTasks, ...repairTasks].filter(task => {
-      if (task.status === 'completed') return false; // Already filtered for active tasks
+    const unifiedList = [...baseTasks, ...repairTasks];
 
-      const dueDate = getTaskDueDate(task);
-      if (!dueDate) return false;
+    const overdueTasks: any[] = [];
+    const todayTasks: any[] = [];
+    const upcomingTasks: any[] = [];
 
-      const taskDueDate = new Date(dueDate);
+    unifiedList.forEach(task => {
+      const dueDateStr = getTaskDueDate(task);
+      if (!dueDateStr) return;
 
-      // Must be in this week
-      return isDateInRange(taskDueDate, startOfWeek, endOfWeek);
+      const dueDate = new Date(dueDateStr);
+      const dueStartOfDay = getStartOfDay(dueDate);
+
+      if (dueStartOfDay < today) {
+        overdueTasks.push(task);
+      } else if (dueStartOfDay.getTime() === today.getTime()) {
+        todayTasks.push(task);
+      } else if (dueStartOfDay >= tomorrow && dueStartOfDay < nextWeek) {
+        upcomingTasks.push(task);
+      }
     });
 
-    // Filter tasks for this month (excluding this week)
-    const thisMonthTasks = userTasks.filter(task => {
-      if (task.status === 'completed') return false; // Already filtered for active tasks
-
-      const dueDate = getTaskDueDate(task);
-      if (!dueDate) return false;
-
-      const taskDueDate = new Date(dueDate);
-
-      // Must be in this month but not in this week
-      return isDateInRange(taskDueDate, startOfMonth, endOfMonth) &&
-        !isDateInRange(taskDueDate, startOfWeek, endOfWeek);
-    });
-
-    // Filter items for this year (excluding this week and this month)
-    const thisYearTasks = [...userTasks, ...repairTasks].filter(task => {
-      if (task.status === 'completed') return false; // Already filtered for active tasks
-
-      const dueDate = getTaskDueDate(task);
-      if (!dueDate) return false;
-
-      const taskDueDate = new Date(dueDate);
-
-      // Must be in this year but not in this week or this month
-      return isDateInRange(taskDueDate, startOfYear, endOfYear) &&
-        !isDateInRange(taskDueDate, startOfWeek, endOfWeek) &&
-        !isDateInRange(taskDueDate, startOfMonth, endOfMonth);
-    });
-
-    console.log('Item counts:', {
-      total: [...userTasks, ...repairTasks].length,
-      thisWeek: Array.isArray(thisWeekTasks) ? thisWeekTasks.length : 0,
-      thisMonth: Array.isArray(thisMonthTasks) ? thisMonthTasks.length : 0,
-      thisYear: Array.isArray(thisYearTasks) ? thisYearTasks.length : 0
-    });
+    // Sort each list by date
+    const sortByDate = (a: any, b: any) => {
+      const dateA = new Date(getTaskDueDate(a) || '');
+      const dateB = new Date(getTaskDueDate(b) || '');
+      return dateA.getTime() - dateB.getTime();
+    };
 
     return {
-      thisWeekTasks: Array.isArray(thisWeekTasks) ? thisWeekTasks : [],
-      thisMonthTasks: Array.isArray(thisMonthTasks) ? thisMonthTasks : [],
-      thisYearTasks: Array.isArray(thisYearTasks) ? thisYearTasks : []
+      overdueTasks: overdueTasks.sort(sortByDate),
+      todayTasks: todayTasks.sort(sortByDate),
+      upcomingTasks: upcomingTasks.sort(sortByDate)
     };
-  }, [allTasks, repairs]);
+  }, [allTasks, repairs, currentHomeId]);
 
 
   const renderTaskList = (tasks: any[]) => {
@@ -375,11 +393,10 @@ export default function HomeScreen() {
     });
   };
 
-  const { thisWeekTasks, thisMonthTasks, thisYearTasks } = filterTasksByTimePeriod;
-  // Ensure all task arrays are always arrays
-  const safeThisWeekTasks = Array.isArray(thisWeekTasks) ? thisWeekTasks : [];
-  const safeThisMonthTasks = Array.isArray(thisMonthTasks) ? thisMonthTasks : [];
-  const safeThisYearTasks = Array.isArray(thisYearTasks) ? thisYearTasks : [];
+  const { overdueTasks, todayTasks, upcomingTasks } = filterTasksByUrgency;
+  const safeOverdueTasks = Array.isArray(overdueTasks) ? overdueTasks : [];
+  const safeTodayTasks = Array.isArray(todayTasks) ? todayTasks : [];
+  const safeUpcomingTasks = Array.isArray(upcomingTasks) ? upcomingTasks : [];
 
 
   const renderHeader = () => (
@@ -435,7 +452,7 @@ export default function HomeScreen() {
           onPress={() => router.push(routes.vendors.add as any)}
         >
           <Ionicons name="person-add" size={24} color={colors.text} />
-          <Text style={[styles.quickLinkText, { color: colors.text }]}>Add Contact</Text>
+          <Text style={[styles.quickLinkText, { color: colors.text }]}>Add Vendor</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -448,27 +465,18 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={[styles.quickLinkButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => router.push(routes.tabs.flo as any)}
+          onPress={() => setIsHomeModalVisible(true)}
         >
-          <Ionicons name="chatbubble" size={24} color={colors.text} />
-          <Text style={[styles.quickLinkText, { color: colors.text }]}>Ask Flo</Text>
+          <Ionicons name="swap-horizontal" size={24} color={colors.text} />
+          <Text style={[styles.quickLinkText, { color: colors.text }]}>Switch Home</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.quickLinkButton, { backgroundColor: colors.primaryLight }]}
-          onPress={() => {
-            // Check if user has homes, if not redirect to add home first
-            if (!Array.isArray(homes) || homes.length === 0) {
-              router.push(routes.home.add as any);
-            } else {
-              // Navigate to the first home's appliances page
-              const firstHome = homes[0];
-              router.push(routes.home.appliances(firstHome.id) as any);
-            }
-          }}
+          onPress={() => router.push(routes.tabs.flo as any)}
         >
-          <Ionicons name="construct" size={24} color={colors.text} />
-          <Text style={[styles.quickLinkText, { color: colors.text }]}>Add Appliance</Text>
+          <Ionicons name="chatbubble" size={24} color={colors.text} />
+          <Text style={[styles.quickLinkText, { color: colors.text }]}>Ask Flo</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -504,45 +512,72 @@ export default function HomeScreen() {
                   <Text style={[styles.countBtnText, { color: tasksToShow === 5 ? colors.background : colors.text }]}>5</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={() => router.push('/(dashboard)/tasks' as any)}>
+              <TouchableOpacity onPress={() => {
+                if (currentHomeId) {
+                  router.push(routes.home.tasks(currentHomeId) as any);
+                } else {
+                  router.push(routes.dashboard.tasks as any);
+                }
+              }}>
                 <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
               </TouchableOpacity>
             </View>
           </View>
-          <View style={styles.singleColumnContainer}>
-            <View style={styles.timeSection}>
-              <Text style={[styles.columnTitle, { color: colors.text }]}>This Week</Text>
-              {safeThisWeekTasks.length > 0 ? (
-                <View style={styles.taskItems}>
-                  {renderTaskList(safeThisWeekTasks)}
-                </View>
-              ) : (
-                <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks due this week</Text>
-              )}
+          {loading && !refreshing ? (
+            <View style={{ paddingVertical: 10 }}>
+              <TaskSkeleton count={3} />
             </View>
+          ) : (
+            <View style={styles.singleColumnContainer}>
+              {currentHomeId && (
+                <View style={[styles.currentHomeBanner, { backgroundColor: colors.primary + '10' }]}>
+                  <Ionicons name="home" size={16} color={colors.primary} />
+                  <Text style={[styles.currentHomeText, { color: colors.primary }]}>
+                    {homes.find(h => h.id === currentHomeId)?.name || 'Property'} mode
+                  </Text>
+                  <TouchableOpacity onPress={() => setCurrentHomeId(null)}>
+                    <Ionicons name="close-circle" size={16} color={colors.textTertiary} />
+                  </TouchableOpacity>
+                </View>
+              )}
 
-            <View style={styles.timeSection}>
-              <Text style={[styles.columnTitle, { color: colors.text }]}>This Month</Text>
-              {safeThisMonthTasks.length > 0 ? (
-                <View style={styles.taskItems}>
-                  {renderTaskList(safeThisMonthTasks)}
+              <View style={styles.timeSection}>
+                <View style={styles.columnTitleRow}>
+                  <Text style={[styles.columnTitle, { color: colors.text }]}>Overdue</Text>
+                  {safeOverdueTasks.length > 0 && <View style={[styles.urgencyDot, { backgroundColor: colors.error }]} />}
                 </View>
-              ) : (
-                <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks due this month</Text>
-              )}
-            </View>
+                {safeOverdueTasks.length > 0 ? (
+                  <View style={styles.taskItems}>
+                    {renderTaskList(safeOverdueTasks)}
+                  </View>
+                ) : (
+                  <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>Great job! Nothing overdue.</Text>
+                )}
+              </View>
 
-            <View style={styles.timeSection}>
-              <Text style={[styles.columnTitle, { color: colors.text }]}>This Year</Text>
-              {safeThisYearTasks.length > 0 ? (
-                <View style={styles.taskItems}>
-                  {renderTaskList(safeThisYearTasks)}
-                </View>
-              ) : (
-                <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No tasks due this year</Text>
-              )}
+              <View style={styles.timeSection}>
+                <Text style={[styles.columnTitle, { color: colors.text }]}>Today</Text>
+                {safeTodayTasks.length > 0 ? (
+                  <View style={styles.taskItems}>
+                    {renderTaskList(safeTodayTasks)}
+                  </View>
+                ) : (
+                  <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>Clear for today!</Text>
+                )}
+              </View>
+
+              <View style={styles.timeSection}>
+                <Text style={[styles.columnTitle, { color: colors.text }]}>Upcoming (Next 7 Days)</Text>
+                {safeUpcomingTasks.length > 0 ? (
+                  <View style={styles.taskItems}>
+                    {renderTaskList(safeUpcomingTasks)}
+                  </View>
+                ) : (
+                  <Text style={[styles.noTasksText, { color: colors.textSecondary }]}>No upcoming tasks this week.</Text>
+                )}
+              </View>
             </View>
-          </View>
+          )}
         </View>
       </ScrollView>
 
@@ -554,6 +589,56 @@ export default function HomeScreen() {
         onCancel={handleCancelCompletion}
         isLoading={!!completingTaskId}
       />
+
+      {/* Switch Home Modal */}
+      <Modal
+        visible={isHomeModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsHomeModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Property</Text>
+              <TouchableOpacity onPress={() => setIsHomeModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.homeSelectItem, !currentHomeId && { backgroundColor: colors.primary + '20' }]}
+              onPress={() => {
+                setCurrentHomeId(null);
+                setIsHomeModalVisible(false);
+              }}
+            >
+              <Ionicons name="apps" size={20} color={!currentHomeId ? colors.primary : colors.textSecondary} />
+              <Text style={[styles.homeSelectName, { color: !currentHomeId ? colors.primary : colors.text }]}>
+                All Properties
+              </Text>
+            </TouchableOpacity>
+
+            {homes.map(home => (
+              <TouchableOpacity
+                key={home.id}
+                style={[styles.homeSelectItem, currentHomeId === home.id && { backgroundColor: colors.primary + '20' }]}
+                onPress={() => {
+                  setCurrentHomeId(home.id);
+                  setIsHomeModalVisible(false);
+                }}
+              >
+                <Ionicons name="home" size={20} color={currentHomeId === home.id ? colors.primary : colors.textSecondary} />
+                <Text style={[styles.homeSelectName, { color: currentHomeId === home.id ? colors.primary : colors.text }]}>
+                  {home.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+
+            <View style={{ height: 20 }} />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -703,4 +788,64 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 8,
   },
-}); 
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: '70%',
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  homeSelectItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  homeSelectName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  currentHomeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 20,
+    gap: 8,
+  },
+  currentHomeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    flex: 1,
+  },
+  columnTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  urgencyDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+});

@@ -5,6 +5,7 @@ import {
   Alert,
   Animated,
   FlatList,
+  Modal,
   RefreshControl,
   StyleSheet,
   Text,
@@ -96,6 +97,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [currentTask, setCurrentTask] = useState<any>(null);
+  const [isHomeModalVisible, setIsHomeModalVisible] = useState(false);
 
 
   // Unified active tasks
@@ -110,11 +112,11 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
     ).map(t => ({ ...t, item_type: 'task' }));
 
     const activeRepairs = (repairs as any[]).filter(r =>
-      r.status !== 'complete' && r.status !== 'cancelled'
+      (r.is_active !== false) && r.status !== 'complete' && r.status !== 'cancelled'
     ).map(r => ({ ...r, item_type: 'repair', due_date: r.reminder_date }));
 
     const activeProjects = (projects as any[]).filter(p =>
-      p.status !== 'completed' && p.status !== 'on_hold'
+      (p.is_active !== false) && p.status !== 'completed' && p.status !== 'on_hold'
     ).map(p => ({ ...p, item_type: 'project', due_date: p.start_date }));
 
     return [...tasks, ...activeRepairs, ...activeProjects].sort((a, b) => {
@@ -434,6 +436,16 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
             )}
           </View>
         </View>
+
+        {homeId && (
+          <TouchableOpacity
+            style={[styles.switchHomeButton, { backgroundColor: colors.primaryLight }]}
+            onPress={() => setIsHomeModalVisible(true)}
+          >
+            <Ionicons name="swap-horizontal" size={20} color={colors.primary} />
+            <Text style={[styles.switchHomeText, { color: colors.primary }]}>Switch</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {loading && homeId ? (
@@ -480,6 +492,47 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
         onComplete={handleTaskCompletion}
         vendors={vendors}
       />
+
+      {/* Switch Home Modal */}
+      <Modal
+        visible={isHomeModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsHomeModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setIsHomeModalVisible(false)}
+        >
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <View style={styles.modalHeaderInner}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Property</Text>
+              <TouchableOpacity onPress={() => setIsHomeModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {homes.map(home => (
+              <TouchableOpacity
+                key={home.id}
+                style={[styles.homeSelectItem, homeId === home.id && { backgroundColor: colors.primary + '20' }]}
+                onPress={() => {
+                  setIsHomeModalVisible(false);
+                  router.replace(`/(tabs)/(home)/${home.id}/tasks` as any);
+                }}
+              >
+                <Ionicons name="home" size={20} color={homeId === home.id ? colors.primary : colors.textSecondary} />
+                <Text style={[styles.homeSelectName, { color: homeId === home.id ? colors.primary : colors.text }]}>
+                  {home.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+
+            <View style={{ height: 20 }} />
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -799,6 +852,51 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 12,
     paddingHorizontal: 4,
+  },
+  switchHomeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  switchHomeText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: '70%',
+  },
+  modalHeaderInner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  homeSelectItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  homeSelectName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
   },
   sectionTitle: {
     fontSize: 16,

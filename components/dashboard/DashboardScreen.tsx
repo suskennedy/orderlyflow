@@ -152,7 +152,8 @@ export default function DashboardScreen() {
 
     const filteredTasks = allTasks
       .filter(task => {
-        // Only show non-completed tasks
+        // Only show active, non-completed tasks
+        if (task.is_active === false) return false;
         if (task.status === 'completed') {
           console.log('Dashboard: Task filtered out (completed):', task.title, task.status);
           return false;
@@ -199,7 +200,8 @@ export default function DashboardScreen() {
 
     return allTasks
       .filter(task => {
-        // Only show non-completed tasks
+        // Only show active, non-completed tasks
+        if (task.is_active === false) return false;
         if (task.status === 'completed') return false;
 
         // If task has a due date, check if it's within this month but after this week
@@ -227,7 +229,8 @@ export default function DashboardScreen() {
 
     return allTasks
       .filter(task => {
-        // Only show non-completed tasks
+        // Only show active, non-completed tasks
+        if (task.is_active === false) return false;
         if (task.status === 'completed') return false;
 
         // If task has a due date, check if it's within this year but after this month
@@ -308,6 +311,7 @@ export default function DashboardScreen() {
     return allTasks
       .filter(task => {
         // Only show active, non-completed tasks
+        if (task.is_active === false) return false;
         if (task.status === 'completed') return false;
 
         // If task has a due date, check if it's within 30 days

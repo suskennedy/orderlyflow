@@ -11,7 +11,7 @@ export interface UploadResult {
   url: string;
   path: string;
   size: number;
-  type: 'image' | 'video';
+  type: 'image' | 'video' | 'document';
 }
 
 export interface UploadOptions {
@@ -20,8 +20,8 @@ export interface UploadOptions {
   maxWidth?: number;
   maxHeight?: number;
   quality?: number;
-  bucketName?: string; // defaults to 'repair-media'
-  targetFolder?: 'repairs' | 'projects';
+  bucketName?: string; // defaults to 'profiles'
+  targetFolder?: 'repairs' | 'projects' | 'appliances';
   userId?: string; // required to scope paths per user
 }
 
@@ -30,6 +30,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/mov', 'video/avi', 'video/quicktime'];
+const ALLOWED_DOCUMENT_TYPES = ['application/pdf'];
 
 /**
  * Validates file type and size
@@ -50,8 +51,12 @@ export const validateFile = async (uri: string): Promise<{ valid: boolean; error
     const extension = uri.split('.').pop()?.toLowerCase();
     const mimeType = getMimeTypeFromExtension(extension || '');
     
-    if (!ALLOWED_IMAGE_TYPES.includes(mimeType) && !ALLOWED_VIDEO_TYPES.includes(mimeType)) {
-      return { valid: false, error: 'File type not supported. Use images (JPG, PNG, GIF, WebP) or videos (MP4, MOV, AVI)' };
+    if (
+      !ALLOWED_IMAGE_TYPES.includes(mimeType) && 
+      !ALLOWED_VIDEO_TYPES.includes(mimeType) &&
+      !ALLOWED_DOCUMENT_TYPES.includes(mimeType)
+    ) {
+      return { valid: false, error: 'File type not supported. Use images, videos, or PDFs' };
     }
 
     return { valid: true };
@@ -73,6 +78,7 @@ const getMimeTypeFromExtension = (extension: string): string => {
     'mp4': 'video/mp4',
     'mov': 'video/quicktime',
     'avi': 'video/avi',
+    'pdf': 'application/pdf',
   };
   
   return mimeTypes[extension] || 'application/octet-stream';
@@ -81,10 +87,14 @@ const getMimeTypeFromExtension = (extension: string): string => {
 /**
  * Determines if file is an image or video
  */
-export const getFileType = (uri: string): 'image' | 'video' => {
+export const getFileType = (uri: string): 'image' | 'video' | 'document' => {
   const extension = uri.split('.').pop()?.toLowerCase() || '';
   const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-  return imageExtensions.includes(extension) ? 'image' : 'video';
+  const videoExtensions = ['mp4', 'mov', 'avi'];
+  
+  if (imageExtensions.includes(extension)) return 'image';
+  if (videoExtensions.includes(extension)) return 'video';
+  return 'document';
 };
 
 /**
@@ -104,7 +114,7 @@ const buildStoragePath = (
   fileName: string,
   options: Required<Pick<UploadOptions, 'targetFolder' | 'userId'>>
 ): string => {
-  const safeFolder = options.targetFolder === 'projects' ? 'projects' : 'repairs';
+  const safeFolder = options.targetFolder || 'general';
   const safeUser = options.userId || 'anon';
   return `${safeFolder}/${safeUser}/${fileName}`;
 };
@@ -153,7 +163,7 @@ export const uploadFileToSupabase = async (
       throw new Error('Missing userId for storage path');
     }
     if (!options.targetFolder) {
-      throw new Error('Missing targetFolder (repairs|projects)');
+      throw new Error('Missing targetFolder (repairs|projects|appliances)');
     }
 
     // Generate unique filename and full path under folder/user

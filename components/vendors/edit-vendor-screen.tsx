@@ -1,607 +1,364 @@
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import {
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import FormInput from '../../components/auth/FormInput';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useAuth } from '../../lib/hooks/useAuth';
-import { useRealTimeSubscription } from '../../lib/hooks/useRealTimeSubscription';
+import { PRIORITY_OPTIONS, transformVendorFormData, VENDOR_CATEGORIES, VendorFormData, vendorFormSchema } from '../../lib/schemas/vendors/vendorFormSchema';
 import { useVendorsStore } from '../../lib/stores/vendorsStore';
-
-interface Vendor {
-  id: string;
-  name: string;
-  category?: string | null;
-  contact_name?: string | null;
-  phone?: string | null;
-  email?: string | null;
-  website?: string | null;
-  address?: string | null;
-  notes?: string | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-  user_id?: string | null;
-}
-
-const VENDOR_CATEGORIES = [
-  'Organizer',
-  'Plumber',
-  'Electrician',
-  'HVAC',
-  'Landscaper',
-  'Painter',
-  'Carpenter',
-  'Roofing',
-  'Pest Control',
-  'Cleaning Service',
-  'Security',
-  'Other'
-];
+import { getVendorCategoryInfo } from '../../lib/utils/vendorIcons';
 
 export default function EditVendorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const vendors = useVendorsStore(state => state.vendors);
   const updateVendor = useVendorsStore(state => state.updateVendor);
   const fetchVendors = useVendorsStore(state => state.fetchVendors);
-  const setVendors = useVendorsStore(state => state.setVendors);
-  const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  
-  // Initial data fetch
-  const hasFetchedRef = useRef(false);
-  useEffect(() => {
-    if (user?.id && !hasFetchedRef.current) {
-      hasFetchedRef.current = true;
-      fetchVendors(user.id);
-    }
-    return () => {
-      hasFetchedRef.current = false;
-    };
-  }, [user?.id, fetchVendors]);
-  
-  // Real-time subscription for vendors
-  const handleVendorChange = useCallback((payload: any) => {
-    if (payload.new?.user_id === user?.id || payload.old?.user_id === user?.id) {
-      const eventType = payload.eventType;
-      const currentVendors = useVendorsStore.getState().vendors;
 
-      if (eventType === 'INSERT') {
-        setVendors([payload.new, ...currentVendors]);
-      } 
-      else if (eventType === 'UPDATE') {
-        setVendors(
-          currentVendors.map(vendor => 
-            vendor.id === payload.new.id ? payload.new : vendor
-          )
-        );
-      } 
-      else if (eventType === 'DELETE') {
-        setVendors(
-          currentVendors.filter(vendor => vendor.id !== payload.old.id)
-        );
-      }
-    }
-  }, [user?.id, setVendors]);
-  
-  useRealTimeSubscription(
-    { 
-      table: 'vendors',
-      filter: user?.id ? `user_id=eq.${user.id}` : undefined
-    },
-    handleVendorChange
-  );
-  const [vendor, setVendor] = useState<Vendor | null>(null);
   const [loading, setLoading] = useState(false);
-  
-  // Form state
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState('');
-  const [contactName, setContactName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [website, setWebsite] = useState('');
-  const [address, setAddress] = useState('');
-  const [notes, setNotes] = useState('');
-  
-  // Dropdown state
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [dropdownItems, setDropdownItems] = useState<string[]>([]);
-  const [dropdownTitle, setDropdownTitle] = useState('');
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showPriorityModal, setShowPriorityModal] = useState(false);
 
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors }
+  } = useForm<VendorFormData>({
+    resolver: zodResolver(vendorFormSchema) as any,
+  });
+
+  const selectedCategory = watch('category');
+  const selectedPriority = watch('priority');
+
+  // Load vendor data
   useEffect(() => {
     if (id && vendors.length > 0) {
       const foundVendor = vendors.find(v => v.id === id);
       if (foundVendor) {
-        setVendor(foundVendor);
-        // Populate form with existing data
-        setName(foundVendor.name || '');
-        setCategory(foundVendor.category || '');
-        setContactName(foundVendor.contact_name || '');
-        setPhone(foundVendor.phone || '');
-        setEmail(foundVendor.email || '');
-        setWebsite(foundVendor.website || '');
-        setAddress(foundVendor.address || '');
-        setNotes(foundVendor.notes || '');
+        reset({
+          name: foundVendor.name || '',
+          category: (foundVendor.category || 'Other') as any,
+          contact_name: foundVendor.contact_name || '',
+          phone: foundVendor.phone || '',
+          email: foundVendor.email || '',
+          website: foundVendor.website || '',
+          address: foundVendor.address || '',
+          priority: 'Primary', // Default if not in db
+          notes: foundVendor.notes || '',
+        });
       }
     }
-  }, [id, vendors]);
+  }, [id, vendors, reset]);
 
-  if (!vendor) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={[styles.backButton, { backgroundColor: colors.surface }]}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="chevron-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Vendor Not Found</Text>
-          <View style={styles.headerRight} />
-        </View>
-        <View style={styles.content}>
-          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
-            The vendor you&apos;re looking for doesn&apos;t exist.
-          </Text>
-        </View>
-      </View>
-    );
-  }
+  // Initial fetch
+  useEffect(() => {
+    if (user?.id) fetchVendors(user.id);
+  }, [user?.id, fetchVendors]);
 
-  const openDropdown = (type: string, items: string[], title: string) => {
-    setActiveDropdown(type);
-    setDropdownItems(items);
-    setDropdownTitle(title);
-  };
-
-  const closeDropdown = () => {
-    setActiveDropdown(null);
-  };
-
-  const handleDropdownSelect = (value: string) => {
-    switch (activeDropdown) {
-      case 'category':
-        setCategory(value);
-        break;
-    }
-    closeDropdown();
-  };
-
-  const handleUpdateVendor = async () => {
-    if (!name.trim()) {
-      Alert.alert('Error', 'Please enter a vendor name');
-      return;
-    }
-
-    if (!category) {
-      Alert.alert('Error', 'Please select a category');
-      return;
-    }
-
+  const onSubmit = async (data: VendorFormData) => {
     try {
       setLoading(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      const vendorUpdates = {
-        name: name.trim(),
-        category: category,
-        contact_name: contactName.trim() || null,
-        phone: phone.trim() || null,
-        email: email.trim() || null,
-        website: website.trim() || null,
-        address: address.trim() || null,
-        notes: notes.trim() || null
-      };
+      const transformedData = transformVendorFormData(data);
+      await updateVendor(id as string, transformedData as any);
 
-      await updateVendor(vendor.id, vendorUpdates);
-      
       Alert.alert('Success', 'Vendor updated successfully!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
     } catch (error) {
       console.error('Error updating vendor:', error);
-      Alert.alert('Error', 'Failed to update vendor. Please try again.');
+      Alert.alert('Error', 'Failed to update vendor.');
     } finally {
       setLoading(false);
     }
   };
 
-  const renderDropdownButton = (
-    selectedValue: string,
-    onPress: () => void,
-    placeholder: string
-  ) => (
-    <TouchableOpacity
-      style={[styles.dropdownButton, { 
-        backgroundColor: colors.background,
-        borderColor: colors.border 
-      }]}
-      onPress={onPress}
-    >
-      <Text style={[styles.dropdownText, { color: selectedValue ? colors.text : colors.textSecondary }]}>
-        {selectedValue || placeholder}
-      </Text>
-      <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
-    </TouchableOpacity>
-  );
-
-  const getSelectedValue = () => {
-    switch (activeDropdown) {
-      case 'category':
-        return category;
-      default:
-        return '';
-    }
-  };
-
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { 
-        backgroundColor: colors.background,
-        paddingTop: insets.top + 20 
-      }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      <LinearGradient
+        colors={[colors.primary + '20', 'transparent']}
+        style={[styles.header, { paddingTop: insets.top + 10 }]}
+      >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Vendor</Text>
-        <TouchableOpacity
-          style={[styles.saveButton, { 
-            backgroundColor: loading ? colors.textSecondary : colors.primary 
-          }]}
-          onPress={handleUpdateVendor}
-          disabled={loading}
-        >
-          <Ionicons name="checkmark" size={20} color={colors.background} />
-        </TouchableOpacity>
-      </View>
+        <View style={{ width: 44 }} />
+      </LinearGradient>
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Vendor Name */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Vendor Name *</Text>
-          <TextInput
-            style={[styles.textInput, { 
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border 
-            }]}
-            placeholder="Enter vendor name"
-            placeholderTextColor={colors.textSecondary}
-            value={name}
-            onChangeText={setName}
-            maxLength={255}
+        <View style={styles.formSection}>
+          <Controller
+            control={control}
+            name="name"
+            render={({ field: { onChange, value } }) => (
+              <FormInput
+                label="Vendor or Company Name *"
+                placeholder="e.g. Acme Plumbing"
+                value={value || ''}
+                onChangeText={onChange}
+                error={errors.name?.message}
+                icon="business-outline"
+              />
+            )}
           />
-        </View>
 
-        {/* Category */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Category *</Text>
-          {renderDropdownButton(
-            category,
-            () => openDropdown('category', VENDOR_CATEGORIES, 'Select category'),
-            'Select category'
-          )}
-        </View>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Category *</Text>
+          <TouchableOpacity
+            style={[styles.dropdownTrigger, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => setShowCategoryModal(true)}
+          >
+            <View style={styles.dropdownValue}>
+              <Ionicons
+                name={getVendorCategoryInfo(selectedCategory).icon as any}
+                size={20}
+                color={getVendorCategoryInfo(selectedCategory).color}
+                style={{ marginRight: 10 }}
+              />
+              <Text style={[styles.dropdownText, { color: colors.text }]}>{selectedCategory}</Text>
+            </View>
+            <Ionicons name="chevron-down" size={20} color={colors.textTertiary} />
+          </TouchableOpacity>
 
-        {/* Contact Name */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Contact Name</Text>
-          <TextInput
-            style={[styles.textInput, { 
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border 
-            }]}
-            placeholder="Enter contact person name"
-            placeholderTextColor={colors.textSecondary}
-            value={contactName}
-            onChangeText={setContactName}
-            maxLength={255}
+          <View style={{ marginTop: 20 }}>
+            <Controller
+              control={control}
+              name="contact_name"
+              render={({ field: { onChange, value } }) => (
+                <FormInput
+                  label="Contact Person"
+                  placeholder="e.g. John Doe"
+                  value={value || ''}
+                  onChangeText={onChange}
+                  icon="person-outline"
+                />
+              )}
+            />
+          </View>
+
+          <Controller
+            control={control}
+            name="phone"
+            render={({ field: { onChange, value } }) => (
+              <FormInput
+                label="Phone Number"
+                placeholder="e.g. +1 234 567 890"
+                value={value || ''}
+                onChangeText={onChange}
+                keyboardType="phone-pad"
+                icon="call-outline"
+              />
+            )}
           />
-        </View>
 
-        {/* Phone */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Phone Number</Text>
-          <TextInput
-            style={[styles.textInput, { 
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border 
-            }]}
-            placeholder="Enter phone number"
-            placeholderTextColor={colors.textSecondary}
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            maxLength={20}
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, value } }) => (
+              <FormInput
+                label="Email Address"
+                placeholder="e.g. contact@acme.com"
+                value={value || ''}
+                onChangeText={onChange}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                icon="mail-outline"
+              />
+            )}
           />
-        </View>
 
-        {/* Email */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Email</Text>
-          <TextInput
-            style={[styles.textInput, { 
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border 
-            }]}
-            placeholder="Enter email address"
-            placeholderTextColor={colors.textSecondary}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            maxLength={255}
+          <Controller
+            control={control}
+            name="website"
+            render={({ field: { onChange, value } }) => (
+              <FormInput
+                label="Website"
+                placeholder="e.g. https://acme.com"
+                value={value || ''}
+                onChangeText={onChange}
+                keyboardType="url"
+                autoCapitalize="none"
+                icon="globe-outline"
+              />
+            )}
           />
-        </View>
 
-        {/* Website */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Website</Text>
-          <TextInput
-            style={[styles.textInput, { 
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border 
-            }]}
-            placeholder="Enter website URL"
-            placeholderTextColor={colors.textSecondary}
-            value={website}
-            onChangeText={setWebsite}
-            keyboardType="url"
-            autoCapitalize="none"
-            maxLength={255}
+          <Controller
+            control={control}
+            name="address"
+            render={({ field: { onChange, value } }) => (
+              <FormInput
+                label="Address"
+                placeholder="Enter full address..."
+                value={value || ''}
+                onChangeText={onChange}
+                multiline
+                numberOfLines={2}
+                icon="location-outline"
+              />
+            )}
           />
+
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Priority</Text>
+          <TouchableOpacity
+            style={[styles.dropdownTrigger, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => setShowPriorityModal(true)}
+          >
+            <View style={styles.dropdownValue}>
+              <Ionicons name="star-outline" size={20} color={colors.primary} style={{ marginRight: 10 }} />
+              <Text style={[styles.dropdownText, { color: colors.text }]}>{selectedPriority}</Text>
+            </View>
+            <Ionicons name="chevron-down" size={20} color={colors.textTertiary} />
+          </TouchableOpacity>
+
+          <View style={{ marginTop: 20 }}>
+            <Controller
+              control={control}
+              name="notes"
+              render={({ field: { onChange, value } }) => (
+                <FormInput
+                  label="Notes"
+                  placeholder="Any extra info about this vendor..."
+                  value={value || ''}
+                  onChangeText={onChange}
+                  multiline
+                  numberOfLines={4}
+                  icon="document-text-outline"
+                />
+              )}
+            />
+          </View>
         </View>
 
-        {/* Address */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Address</Text>
-          <TextInput
-            style={[styles.textArea, { 
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border 
-            }]}
-            placeholder="Enter address"
-            placeholderTextColor={colors.textSecondary}
-            value={address}
-            onChangeText={setAddress}
-            multiline
-            numberOfLines={3}
-            maxLength={500}
-          />
-        </View>
-
-        {/* Notes */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Notes</Text>
-          <TextInput
-            style={[styles.textArea, { 
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border 
-            }]}
-            placeholder="Enter additional notes"
-            placeholderTextColor={colors.textSecondary}
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-            numberOfLines={4}
-            maxLength={1000}
-          />
-        </View>
-
-        {/* Update Vendor Button */}
         <TouchableOpacity
-          style={[styles.updateButton, { 
-            backgroundColor: loading ? colors.textSecondary : colors.primary 
-          }]}
-          onPress={handleUpdateVendor}
+          style={[styles.submitButton, { backgroundColor: colors.primary }]}
+          onPress={handleSubmit(onSubmit)}
           disabled={loading}
         >
-          <Ionicons name="save" size={24} color={colors.background} />
-          <Text style={[styles.updateButtonText, { color: colors.background }]}>
-            {loading ? 'Updating...' : 'Update Vendor'}
-          </Text>
+          <Text style={styles.submitButtonText}>{loading ? 'Saving...' : 'Save Changes'}</Text>
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Dropdown Modal */}
-      <Modal
-        visible={activeDropdown !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={closeDropdown}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={closeDropdown}
-        >
+      {/* Category Selection Modal */}
+      <Modal visible={showCategoryModal} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>{dropdownTitle}</Text>
-              <TouchableOpacity onPress={closeDropdown}>
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Category</Text>
+              <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              {dropdownItems.map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[styles.modalItem, { 
-                    backgroundColor: getSelectedValue() === item ? colors.primaryLight : 'transparent'
-                  }]}
-                  onPress={() => handleDropdownSelect(item)}
-                >
-                  <Text style={[styles.modalItemText, { 
-                    color: getSelectedValue() === item ? colors.primary : colors.text 
-                  }]}>
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <ScrollView style={styles.modalList}>
+              {VENDOR_CATEGORIES.map((cat) => {
+                const { icon, color } = getVendorCategoryInfo(cat);
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[styles.modalItem, selectedCategory === cat && { backgroundColor: color + '10' }]}
+                    onPress={() => {
+                      setValue('category', cat as any);
+                      setShowCategoryModal(false);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <Ionicons name={icon as any} size={20} color={color} style={{ marginRight: 15 }} />
+                    <Text style={[styles.modalItemText, { color: colors.text }, selectedCategory === cat && { fontWeight: 'bold', color: color }]}>
+                      {cat}
+                    </Text>
+                    {selectedCategory === cat && <Ionicons name="checkmark" size={20} color={color} />}
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
-    </View>
+
+      {/* Priority Modal */}
+      <Modal visible={showPriorityModal} animationType="fade" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface, maxHeight: '40%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Priority</Text>
+              <TouchableOpacity onPress={() => setShowPriorityModal(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ padding: 10 }}>
+              {PRIORITY_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt}
+                  style={styles.modalItem}
+                  onPress={() => {
+                    setValue('priority', opt as any);
+                    setShowPriorityModal(false);
+                  }}
+                >
+                  <Text style={[styles.modalItemText, { color: colors.text }, selectedPriority === opt && { fontWeight: 'bold', color: colors.primary }]}>
+                    {opt}
+                  </Text>
+                  {selectedPriority === opt && <Ionicons name="checkmark" size={20} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    flex: 1,
-    textAlign: 'center',
-  },
-  saveButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerRight: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-  },
-  textArea: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    textAlignVertical: 'top',
-    minHeight: 80,
-  },
-  dropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-  },
-  dropdownText: {
-    fontSize: 16,
-    flex: 1,
-  },
-  updateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginTop: 20,
-    gap: 8,
-  },
-  updateButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '80%',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  modalScroll: {
-    maxHeight: 300,
-  },
-  modalItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  modalItemText: {
-    fontSize: 16,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
+  container: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 20 },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', fontFamily: 'CormorantGaramond_700Bold' },
+  backButton: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+  scrollView: { flex: 1 },
+  scrollContent: { padding: 20 },
+  formSection: { gap: 0 },
+  label: { fontSize: 14, fontFamily: 'Jost_600SemiBold', marginBottom: 8 },
+  dropdownTrigger: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 12, borderWidth: 1 },
+  dropdownValue: { flexDirection: 'row', alignItems: 'center' },
+  dropdownText: { fontSize: 16, fontFamily: 'Jost_400Regular' },
+  submitButton: { padding: 18, borderRadius: 16, alignItems: 'center', marginTop: 30, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
+  submitButtonText: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: 30, borderTopRightRadius: 30, maxHeight: '80%', padding: 20 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingHorizontal: 5 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold' },
+  modalList: { flex: 1 },
+  modalItem: { flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 12, marginBottom: 5 },
+  modalItemText: { flex: 1, fontSize: 16, fontFamily: 'Jost_400Regular' }
 });

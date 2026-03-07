@@ -26,6 +26,7 @@ export interface Project {
   updated_at?: string;
   created_by?: string;
   family_account_id?: string;
+  is_active?: boolean;
 }
 
 interface ProjectsState {
