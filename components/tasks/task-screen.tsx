@@ -2,15 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  FlatList,
-  Modal,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Animated,
+    FlatList,
+    Modal,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
@@ -190,6 +190,14 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
     setExpandedTask(expandedTask === task.id ? null : task.id);
   }, [expandedTask]);
 
+  // Resolve actual DB id for repairs/projects (task-screen uses prefixed ids like repair_xxx, project_xxx)
+  const getTaskDbId = useCallback((task: any) => {
+    if ((task as any).original_id) return (task as any).original_id;
+    if (task.id?.startsWith('repair_')) return task.id.replace(/^repair_/, '');
+    if (task.id?.startsWith('project_')) return task.id.replace(/^project_/, '');
+    return task.id;
+  }, []);
+
   // Handle task completion toggle
   const handleTaskToggle = useCallback(async (taskId: string, isCompleted: boolean) => {
     if (isCompleted) {
@@ -208,9 +216,11 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
         if (task.item_type === 'task') {
           await completeHomeTask(taskId, currentHomeId || '', { status: 'pending', is_active: true });
         } else if (task.item_type === 'repair' && currentHomeId) {
-          await updateRepair(currentHomeId, taskId, { status: 'to_do' });
+          await updateRepair(currentHomeId, getTaskDbId(task), { status: 'to_do' });
+          if (user?.id) fetchRepairs(currentHomeId, user.id);
         } else if (task.item_type === 'project' && currentHomeId) {
-          await updateProject(currentHomeId, taskId, { status: 'in_progress' });
+          await updateProject(currentHomeId, getTaskDbId(task), { status: 'in_progress' });
+          if (user?.id) fetchProjects(currentHomeId, user.id);
         }
         setExpandedTask(null);
       } catch (error) {
@@ -219,7 +229,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
         setSavingTaskId(null);
       }
     }
-  }, [allTasks, completeHomeTask, updateRepair, updateProject, currentHomeId]);
+  }, [allTasks, completeHomeTask, updateRepair, updateProject, currentHomeId, getTaskDbId, user?.id, fetchRepairs, fetchProjects]);
 
   // Handle completion from modal
   const handleTaskCompletion = useCallback(async (completionData: any) => {
@@ -236,17 +246,21 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
         };
         await completeHomeTask(currentTask.id, currentHomeId || '', completionPayload);
       } else if (currentTask.item_type === 'repair' && currentHomeId) {
-        await updateRepair(currentHomeId, currentTask.id, {
+        const repairId = getTaskDbId(currentTask);
+        await updateRepair(currentHomeId, repairId, {
           status: 'complete',
           final_cost: completionData.final_cost,
           notes: completionData.notes ? `${currentTask.notes || ''}\n\nCompletion Notes: ${completionData.notes}` : currentTask.notes
         });
+        if (user?.id) fetchRepairs(currentHomeId, user.id);
       } else if (currentTask.item_type === 'project' && currentHomeId) {
-        await updateProject(currentHomeId, currentTask.id, {
+        const projectId = getTaskDbId(currentTask);
+        await updateProject(currentHomeId, projectId, {
           status: 'completed',
           final_cost: completionData.final_cost,
           notes: completionData.notes ? `${currentTask.notes || ''}\n\nCompletion Notes: ${completionData.notes}` : currentTask.notes
         });
+        if (user?.id) fetchProjects(currentHomeId, user.id);
       }
 
       // Close dropdown and clear current task
@@ -258,7 +272,7 @@ export default function TasksScreen({ homeId }: TasksScreenProps) {
     } finally {
       setSavingTaskId(null);
     }
-  }, [currentTask, completeHomeTask, updateRepair, updateProject, currentHomeId]);
+  }, [currentTask, completeHomeTask, updateRepair, updateProject, currentHomeId, getTaskDbId, user?.id, fetchRepairs, fetchProjects]);
 
   // Handle modal close
   const handleCompletionModalClose = useCallback(() => {

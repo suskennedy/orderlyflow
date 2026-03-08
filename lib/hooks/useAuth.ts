@@ -1,4 +1,5 @@
 import { Session, User } from '@supabase/supabase-js';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { UserProfile } from '../../types/database';
 import { signOut as serverSignOut } from '../auth/actions';
@@ -137,6 +138,7 @@ export function useAuth() {
   const signOut = async () => {
     try {
       await serverSignOut();
+      router.replace('/(auth)/signin');
       return { error: null };
     } catch (error) {
       console.error('Error signing out:', error);

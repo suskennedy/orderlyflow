@@ -43,7 +43,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
                     >
                         <Text
                             style={[styles.taskName, { color: colors.text }]}
-                            numberOfLines={1}
+                            numberOfLines={2}
                             ellipsizeMode="tail"
                         >
                             {task.name}

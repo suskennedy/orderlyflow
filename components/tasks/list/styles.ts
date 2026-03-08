@@ -32,6 +32,7 @@ export const styles = StyleSheet.create({
   },
   taskInfo: {
     flex: 1,
+    minWidth: 0,
     paddingLeft: 8,
   },
   typeBadge: {
@@ -52,6 +53,7 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 4,
     letterSpacing: -0.3,
+    minWidth: 0,
   },
   taskSubtitle: {
     fontSize: 13,
@@ -106,6 +108,7 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
+    minWidth: 0,
   },
   detailLabel: {
     fontSize: 12,
@@ -118,6 +121,7 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     flex: 1,
+    minWidth: 0,
   },
   notesContainer: {
     padding: 12,

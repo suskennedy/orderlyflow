@@ -7,7 +7,6 @@ export type RootStackParamList = {
   
   // Auth routes
   '(auth)/signin': undefined;
-  '(auth)/signup': undefined;
   '(auth)/forgot-password': undefined;
   '(auth)/reset-password': undefined;
   
@@ -58,7 +57,6 @@ export type RootStackParamList = {
 // Auth stack specific routes
 export type AuthStackParamList = {
   signin: undefined;
-  signup: undefined;
   'forgot-password': undefined;
   'reset-password': undefined;
 };

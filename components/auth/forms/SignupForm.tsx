@@ -147,12 +147,12 @@ export default function SignUpForm({ isOnboarding }: SignUpFormProps) {
     return !Object.values(fieldErrors).some(error => error);
   };
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated (skip when embedded in onboarding carousel)
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!isOnboarding && !authLoading && user) {
       navigate.toDashboard();
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, isOnboarding]);
 
   const handleSignUp = async () => {
     if (!validateForm()) return;

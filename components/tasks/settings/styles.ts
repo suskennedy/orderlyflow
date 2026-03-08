@@ -109,12 +109,14 @@ export const styles = StyleSheet.create({
   taskInfo: {
     marginRight: 16,
     flex: 1,
+    minWidth: 0,
   },
   taskName: {
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 4,
     flexShrink: 1,
+    minWidth: 0,
   },
   taskMetaContainer: {
     flexDirection: 'row',
@@ -559,12 +561,14 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 14,
     paddingHorizontal: 16,
+    minWidth: 0,
   },
   inputIcon: {
     marginRight: 14,
   },
   inputText: {
     flex: 1,
+    minWidth: 0,
     fontSize: 16,
     fontWeight: '500',
   },

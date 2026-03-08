@@ -76,7 +76,8 @@ const TaskListItem: React.FC<TaskListItemProps> = ({
                                     textDecorationLine: isCompleted ? 'line-through' : 'none',
                                 },
                             ]}
-                            numberOfLines={1}
+                            numberOfLines={2}
+                            ellipsizeMode="tail"
                         >
                             {item.title}
                         </Text>

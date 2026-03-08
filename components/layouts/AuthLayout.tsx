@@ -6,7 +6,6 @@ export default function AuthLayout() {
   return (
     <BaseStackLayout headerShown={false}>
       <Stack.Screen name="signin" />
-      <Stack.Screen name="signup" />
       <Stack.Screen name="forgot-password" />
     </BaseStackLayout>
   );

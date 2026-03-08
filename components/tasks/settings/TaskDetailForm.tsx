@@ -61,10 +61,14 @@ const TaskDetailForm: React.FC<TaskDetailFormProps> = ({
                         onPress={onOpenVendorModal}
                     >
                         <Ionicons name="business-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
-                        <Text style={[styles.inputText, { color: assignedVendor ? colors.text : colors.textTertiary }]}>
+                        <Text
+                            style={[styles.inputText, { color: assignedVendor ? colors.text : colors.textTertiary }]}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                        >
                             {assignedVendor ? assignedVendor.name : 'Select vendor...'}
                         </Text>
-                        <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+                        <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} style={{ marginLeft: 8 }} />
                     </TouchableOpacity>
                 </View>
 

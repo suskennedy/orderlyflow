@@ -1,9 +1,7 @@
-import { useNavigation } from "@react-navigation/native";
-import { StackNavigationProp } from "@react-navigation/stack";
+import { useRouter } from "expo-router";
 import React from "react";
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { AuthStackParamList,  } from "../types/types";
-import { useRouter } from "expo-router";
+import navigate from "../lib/navigation";
 
 // Define props types
 interface FeatureItemProps {
@@ -18,12 +16,12 @@ const FeatureItem: React.FC<FeatureItemProps> = ({ text }) => (
 );
 
 const FeaturesList: React.FC = () => {
-  const router = useRouter(); 
+  const router = useRouter();
   const handleGetStarted = (): void => {
-    router.push('/(auth)/signup');
+    navigate.toSignUp();
   };
 
-  const handleSignIn = (): void =>{
+  const handleSignIn = (): void => {
     router.push('/(auth)/signin');
   };
 

@@ -11,6 +11,8 @@ import {
     View,
 } from 'react-native';
 import PagerView from 'react-native-pager-view';
+import { useAuth } from '../../lib/hooks/useAuth';
+import navigate from '../../lib/navigation';
 import SignupForm from '../auth/forms/SignupForm';
 
 const { width, height } = Dimensions.get('window');
@@ -54,17 +56,30 @@ const ONBOARDING_STEPS = [
 export default function OnboardingFlow() {
     const [currentPage, setCurrentPage] = useState(0);
     const pagerRef = useRef<PagerView>(null);
+    const { user, loading } = useAuth();
+
+    if (loading) return null;
 
     const handlePageChange = (e: any) => {
         setCurrentPage(e.nativeEvent.position);
     };
 
     const handleSkip = () => {
-        pagerRef.current?.setPage(4);
+        if (user) {
+            navigate.toDashboard();
+        } else {
+            pagerRef.current?.setPage(4);
+        }
     };
 
     const handleNext = () => {
-        if (currentPage < 4) {
+        if (currentPage === 3) {
+            if (user) {
+                navigate.toDashboard();
+            } else {
+                pagerRef.current?.setPage(4);
+            }
+        } else if (currentPage < 4) {
             pagerRef.current?.setPage(currentPage + 1);
         }
     };

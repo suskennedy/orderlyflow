@@ -1,12 +1,10 @@
-
-import { useRouter } from "expo-router";
 import React from "react";
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import navigate from "../lib/navigation";
 
 const CallToAction: React.FC = () => {
-  const router = useRouter();   
   const handleCreateAccount = (): void => {
-    router.push("/(auth)/signup");
+    navigate.toSignUp();
   };
   
   return (
