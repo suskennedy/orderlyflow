@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { FONTS } from '../../../lib/typography';
 import { useToast } from '../../../lib/contexts/ToastContext';
 import { paintColorFormSchema, transformPaintColorFormData } from '../../../lib/schemas/home/paintColorFormSchema';
 import { usePaintsStore } from '../../../lib/stores/paintsStore';
@@ -188,7 +189,7 @@ export default function AddPaintColorScreen() {
             value={formData.paint_color_name}
             onChangeText={handlePaintNameChange}
             placeholder="e.g., White, Navy Blue, Sage Green"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             onFocus={() => handleFocus('paint_color_name')}
             onBlur={handleBlur}
             returnKeyType="next"
@@ -211,7 +212,7 @@ export default function AddPaintColorScreen() {
               if (errors.room) clearErrors('room');
             }}
             placeholder="e.g., Living Room, Kitchen, Bedroom"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             onFocus={() => handleFocus('room')}
             onBlur={handleBlur}
             returnKeyType="next"
@@ -234,7 +235,7 @@ export default function AddPaintColorScreen() {
               if (errors.color_code) clearErrors('color_code');
             }}
             placeholder="e.g., SW-7005"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             onFocus={() => handleFocus('color_code')}
             onBlur={handleBlur}
             returnKeyType="next"
@@ -257,7 +258,7 @@ export default function AddPaintColorScreen() {
               if (errors.finish) clearErrors('finish');
             }}
             placeholder="e.g., Matte, Eggshell, Semi-Gloss"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             onFocus={() => handleFocus('finish')}
             onBlur={handleBlur}
             returnKeyType="next"
@@ -280,7 +281,7 @@ export default function AddPaintColorScreen() {
               if (errors.trim_color) clearErrors('trim_color');
             }}
             placeholder="e.g., Pure White"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             onFocus={() => handleFocus('trim_color')}
             onBlur={handleBlur}
             returnKeyType="next"
@@ -317,7 +318,7 @@ export default function AddPaintColorScreen() {
               if (errors.notes) clearErrors('notes');
             }}
             placeholder="Any additional notes about this paint color..."
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             multiline
             numberOfLines={4}
             textAlignVertical="top"
@@ -358,22 +359,26 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   sectionTitle: {
+    fontFamily: FONTS.heading,
     fontSize: 20,
     fontWeight: '700',
     marginTop: 10,
     marginBottom: 5,
   },
   label: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
   },
   input: {
+    fontFamily: FONTS.body,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
   },
   textArea: {
+    fontFamily: FONTS.body,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
@@ -417,11 +422,13 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   saveButtonText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 8,
   },
   errorText: {
+    fontFamily: FONTS.body,
     fontSize: 14,
     marginTop: 4,
   },

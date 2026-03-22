@@ -124,7 +124,7 @@ export default function SignInForm() {
           icon="lock-closed-outline"
         />
         
-        <TouchableOpacity style={styles.forgotPassword}>
+        <TouchableOpacity style={styles.forgotPassword} onPress={() => navigate.toForgotPassword()}>
           <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>
             Forgot password?
           </Text>

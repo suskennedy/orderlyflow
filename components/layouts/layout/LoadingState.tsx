@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { FONTS } from '../../../lib/typography';
 
 interface LoadingStateProps {
   message?: string;
@@ -31,6 +32,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   message: {
+    fontFamily: FONTS.bodyMedium,
     marginTop: 16,
     fontSize: 16,
     fontWeight: '500',

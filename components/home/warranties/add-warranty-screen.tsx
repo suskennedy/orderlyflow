@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { FONTS } from '../../../lib/typography';
 import { useToast } from '../../../lib/contexts/ToastContext';
 import { WarrantyFormData, transformWarrantyFormData, warrantyFormSchema } from '../../../lib/schemas/home/warrantyFormSchema';
 import { useWarrantiesStore } from '../../../lib/stores/warrantiesStore';
@@ -116,7 +117,7 @@ export default function AddWarrantyScreen() {
               if (errors.item_name) clearErrors('item_name');
             }}
             placeholder="e.g., HVAC System, Roof, Appliances"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             onFocus={() => handleFocus('item_name')}
             onBlur={handleBlur}
             returnKeyType="next"
@@ -139,7 +140,7 @@ export default function AddWarrantyScreen() {
               if (errors.room) clearErrors('room');
             }}
             placeholder="e.g., Kitchen, Living Room, Exterior"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             onFocus={() => handleFocus('room')}
             onBlur={handleBlur}
             returnKeyType="next"
@@ -162,7 +163,7 @@ export default function AddWarrantyScreen() {
               if (errors.provider) clearErrors('provider');
             }}
             placeholder="e.g., Home Warranty Company, Manufacturer"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             onFocus={() => handleFocus('provider')}
             onBlur={handleBlur}
             returnKeyType="next"
@@ -221,7 +222,7 @@ export default function AddWarrantyScreen() {
               if (errors.notes) clearErrors('notes');
             }}
             placeholder="Any additional notes about this warranty..."
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             multiline
             numberOfLines={4}
             textAlignVertical="top"
@@ -262,22 +263,26 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   sectionTitle: {
+    fontFamily: FONTS.heading,
     fontSize: 20,
     fontWeight: '700',
     marginTop: 10,
     marginBottom: 5,
   },
   label: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
   },
   input: {
+    fontFamily: FONTS.body,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
   },
   textArea: {
+    fontFamily: FONTS.body,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
@@ -298,11 +303,13 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   saveButtonText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 8,
   },
   errorText: {
+    fontFamily: FONTS.body,
     fontSize: 12,
     marginTop: 4,
     fontWeight: '500',

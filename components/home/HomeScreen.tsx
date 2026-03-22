@@ -12,6 +12,7 @@ import {
   View
 } from 'react-native';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { FONTS } from '../../lib/typography';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useCalendar } from '../../lib/hooks/useCalendar';
 import { useRealTimeSubscription } from '../../lib/hooks/useRealTimeSubscription';
@@ -376,7 +377,7 @@ export default function HomeScreen() {
             <Ionicons
               name={task.status === 'completed' ? "checkmark-circle" : "ellipse-outline"}
               size={20}
-              color="#7fbbdd"
+              color={colors.primary}
             />
           </TouchableOpacity>
           <Text style={[
@@ -671,6 +672,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
+    fontFamily: FONTS.heading,
     fontSize: 20,
     fontWeight: 'bold',
     flex: 1,
@@ -689,6 +691,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   sectionTitle: {
+    fontFamily: FONTS.heading,
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 16,
@@ -708,6 +711,7 @@ const styles = StyleSheet.create({
     minHeight: 80,
   },
   quickLinkText: {
+    fontFamily: FONTS.bodySemiBold,
     marginTop: 8,
     fontSize: 14,
     fontWeight: '600',
@@ -723,11 +727,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   columnTitle: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
   },
   categoryHeading: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 14,
     fontWeight: '700',
     marginTop: 8,
@@ -744,10 +750,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   taskText: {
+    fontFamily: FONTS.body,
     marginLeft: 8,
     fontSize: 14,
   },
   noTasksText: {
+    fontFamily: FONTS.body,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 10,
@@ -764,6 +772,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   seeAllText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -778,6 +787,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   countBtnText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -807,6 +817,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitle: {
+    fontFamily: FONTS.heading,
     fontSize: 20,
     fontWeight: 'bold',
   },
@@ -818,6 +829,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   homeSelectName: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 12,
@@ -831,6 +843,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   currentHomeText: {
+    fontFamily: FONTS.bodyBold,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',

@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { FONTS } from '../../lib/typography';
 import { Filter } from '../../../types/database';
 
 interface FilterCardProps {
@@ -127,6 +128,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   name: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 4,

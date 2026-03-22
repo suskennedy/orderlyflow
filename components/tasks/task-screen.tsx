@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { FONTS } from '../../lib/typography';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useHomesStore } from '../../lib/stores/homesStore';
 import { useProjectsStore } from '../../lib/stores/projectsStore';
@@ -572,11 +573,13 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   headerTitle: {
+    fontFamily: FONTS.heading,
     fontSize: 24,
     fontWeight: '700',
     letterSpacing: -0.5,
   },
   headerSubtitle: {
+    fontFamily: FONTS.body,
     fontSize: 14,
     marginTop: 2,
     opacity: 0.8,
@@ -607,6 +610,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   loadingText: {
+    fontFamily: FONTS.bodyMedium,
     fontSize: 16,
     fontWeight: '500',
     textAlign: 'center',
@@ -619,6 +623,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionHeaderTitle: {
+    fontFamily: FONTS.heading,
     fontSize: 20,
     fontWeight: '700',
     letterSpacing: -0.5,
@@ -641,6 +646,7 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
   },
   actionButtonText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
@@ -683,6 +689,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   typeLabel: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -690,23 +697,28 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   taskTitle: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 16,
     fontWeight: '600',
   },
   taskDescription: {
+    fontFamily: FONTS.body,
     fontSize: 14,
     marginTop: 4,
     lineHeight: 20,
   },
   taskCategory: {
+    fontFamily: FONTS.body,
     fontSize: 14,
     marginBottom: 4,
   },
   completionDate: {
+    fontFamily: FONTS.body,
     fontSize: 12,
     fontStyle: 'italic',
   },
   recurrenceInfo: {
+    fontFamily: FONTS.body,
     fontSize: 12,
     fontStyle: 'italic',
   },
@@ -723,6 +735,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dateText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -764,6 +777,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyTitle: {
+    fontFamily: FONTS.heading,
     fontSize: 26,
     fontWeight: '800',
     marginBottom: 12,
@@ -771,6 +785,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   emptySubtitle: {
+    fontFamily: FONTS.body,
     fontSize: 16,
     lineHeight: 24,
     textAlign: 'center',
@@ -795,6 +810,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   addFirstButtonText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: -0.3,
@@ -808,6 +824,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   completedText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
@@ -817,6 +834,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   completedSectionTitle: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 12,
@@ -840,10 +858,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dropdownLabel: {
+    fontFamily: FONTS.bodyMedium,
     fontSize: 14,
     fontWeight: '500',
   },
   dropdownValue: {
+    fontFamily: FONTS.body,
     fontSize: 14,
     flex: 1.5,
     textAlign: 'right',
@@ -856,6 +876,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   closeButtonText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -876,6 +897,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   switchHomeText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -897,6 +919,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitle: {
+    fontFamily: FONTS.heading,
     fontSize: 20,
     fontWeight: 'bold',
   },

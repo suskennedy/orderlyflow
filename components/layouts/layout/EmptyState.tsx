@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { FONTS } from '../../../lib/typography';
 
 interface EmptyStateProps {
   title: string;
@@ -70,12 +71,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   title: {
+    fontFamily: FONTS.heading,
     fontSize: 20,
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 8,
   },
   message: {
+    fontFamily: FONTS.body,
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
@@ -87,6 +90,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   buttonText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 16,
     fontWeight: '600',
   },

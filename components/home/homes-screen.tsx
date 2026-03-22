@@ -4,6 +4,7 @@ import React from 'react';
 import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { FONTS } from '../../lib/typography';
 import { useToast } from '../../lib/contexts/ToastContext';
 import { Home, useHomesStore } from '../../lib/stores/homesStore';
 import ScreenHeader from '../layouts/layout/ScreenHeader';
@@ -135,12 +136,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   emptyText: {
+    fontFamily: FONTS.heading,
     fontSize: 28,
     fontWeight: '700',
     marginBottom: 12,
     textAlign: 'center',
   },
   emptySubtext: {
+    fontFamily: FONTS.body,
     fontSize: 16,
     textAlign: 'center',
     maxWidth: '85%',
@@ -161,6 +164,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   addButtonText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 8,

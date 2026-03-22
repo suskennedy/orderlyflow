@@ -1,3 +1,4 @@
+import * as Linking from 'expo-linking';
 import { supabase } from '../supabase';
 
 export async function signUp(email: string, password: string, fullName: string) {
@@ -154,8 +155,9 @@ export async function signInWithApple() {
 }
 
 export async function resetPassword(email: string) {
-  const { data, error } = await supabase.auth.resetPasswordForEmail(email);
-  
+  const redirectTo = Linking.createURL('/(auth)/reset-password');
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+
   if (error) throw error;
   return data;
 } 

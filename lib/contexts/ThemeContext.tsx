@@ -50,37 +50,37 @@ interface ThemeContextType {
 
 const lightColors: ThemeColors = {
   // Background colors
-  background: '#F8FAFC',
+  background: '#FAFCFD',       // Cloud White
   surface: '#FFFFFF',
-  surfaceVariant: '#F1F5F9',
+  surfaceVariant: '#EDF2F5',   // Mist — secondary surfaces, input backgrounds
   surfaceElevated: '#FFFFFF',
-  
+
   // Text colors
-  text: '#111827',
-  textSecondary: '#374151',
-  textTertiary: '#6B7280',
+  text: '#2B3240',             // Deep Navy
+  textSecondary: '#4E5D6C',    // Deep Navy lightened — subtext
+  textTertiary: '#8A97A3',     // Blue-gray muted — placeholders, hints
   textInverse: '#FFFFFF',
-  
+
   // Border colors
-  border: '#E5E7EB',
-  borderLight: '#F3F4F6',
-  
-  // Interactive colors - Updated to match the new color scheme
-  primary: '#7fbbdd', // Medium blue for primary elements
-  primaryLight: '#c4e9f2', // Light blue for backgrounds and highlights
-  secondary: '#f58b05', // Orange for category headers and accents
-  accent: '#ffc22f', // Yellow for additional accents
-  
+  border: '#D9E4EA',           // Cool blue-tinted border
+  borderLight: '#EDF2F5',      // Mist — hairline dividers
+
+  // Interactive colors
+  primary: '#5B8FA8',          // Harbor Blue — primary buttons, links, active states
+  primaryLight: '#A8C8D8',     // Harbor Blue tint — focus rings, highlights
+  secondary: '#8EA39D',        // Sea Green — secondary actions, Flo elements
+  accent: '#8EA39D',           // Sea Green accent
+
   // Status colors
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#DC2626',
-  info: '#3B82F6',
-  
+  success: '#8EA39D',          // Sea Green — brand-designated success
+  warning: '#E8C8A0',          // Warm Glow
+  error: '#D4544A',            // Alert Red
+  info: '#5B8FA8',             // Harbor Blue — informational states
+
   // Special colors
   shadow: '#000000',
-  overlay: 'rgba(0, 0, 0, 0.5)',
-  divider: '#E5E7EB',
+  overlay: 'rgba(43, 50, 64, 0.5)',  // Deep Navy overlay
+  divider: '#D9E4EA',
 };
 
 const darkColors: ThemeColors = {

@@ -1,6 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Picker } from '@react-native-picker/picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -14,26 +17,20 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { FONTS } from '../../../lib/typography';
+import { useToast } from '../../../lib/contexts/ToastContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
+import { APPLIANCE_TYPES, ApplianceFormData, applianceFormSchema, transformApplianceFormData } from '../../../lib/schemas/home/applianceFormSchema';
 import { useAppliancesStore } from '../../../lib/stores/appliancesStore';
 import DocumentUploader from '../../ui/DocumentUploader';
 
 const EMPTY_ARRAY: any[] = [];
-interface Appliance {
-  id: string;
-  type?: string | null;
-  brand?: string | null;
-  model?: string | null;
-  manual_url?: string | null;
-  warranty_url?: string | null;
-  notes?: string | null;
-  location?: string | null;
-}
 
 function EditApplianceScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { showToast } = useToast();
   const { user } = useAuth();
   const params = useLocalSearchParams();
   const homeId = params.homeId as string;
@@ -44,8 +41,32 @@ function EditApplianceScreen() {
   const setAppliances = useAppliancesStore(state => state.setAppliances);
 
   const lastHomeIdRef = useRef<string | null>(null);
+  const hasLoadedRef = useRef(false);
+  const [applianceFound, setApplianceFound] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  // Initial data fetch
+  const {
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setValue,
+    watch,
+    clearErrors,
+    reset,
+  } = useForm<ApplianceFormData>({
+    resolver: zodResolver(applianceFormSchema),
+    defaultValues: {
+      type: APPLIANCE_TYPES[0],
+      brand: '',
+      model: '',
+      location: '',
+      manual_url: '',
+      warranty_url: '',
+      notes: '',
+    },
+  });
+
+  const formData = watch();
+
   useEffect(() => {
     if (homeId && homeId !== lastHomeIdRef.current) {
       lastHomeIdRef.current = homeId;
@@ -53,20 +74,16 @@ function EditApplianceScreen() {
     }
   }, [homeId, fetchAppliances]);
 
-  // Real-time subscription
   const handleApplianceChange = useCallback((payload: any) => {
     if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
     const store = useAppliancesStore.getState();
-    const currentAppliances = store.appliancesByHome[homeId || ''] || [];
+    const current = store.appliancesByHome[homeId || ''] || [];
     if (payload.eventType === 'INSERT') {
-      const newAppliance = payload.new;
-      if (!currentAppliances.some(a => a.id === newAppliance.id)) {
-        setAppliances(homeId || '', [newAppliance, ...currentAppliances]);
-      }
+      if (!current.some((a: any) => a.id === payload.new.id)) setAppliances(homeId, [payload.new, ...current]);
     } else if (payload.eventType === 'UPDATE') {
-      setAppliances(homeId || '', currentAppliances.map(a => a.id === payload.new.id ? payload.new : a));
+      setAppliances(homeId, current.map((a: any) => a.id === payload.new.id ? payload.new : a));
     } else if (payload.eventType === 'DELETE') {
-      setAppliances(homeId || '', currentAppliances.filter(a => a.id !== payload.old.id));
+      setAppliances(homeId, current.filter((a: any) => a.id !== payload.old.id));
     }
   }, [homeId, setAppliances]);
 
@@ -75,84 +92,64 @@ function EditApplianceScreen() {
     handleApplianceChange
   );
 
-  const [appliance, setAppliance] = useState<Appliance | null>(null);
-  const [formData, setFormData] = useState({
-    type: '',
-    brand: '',
-    model: '',
-    location: '',
-    manual_url: '',
-    warranty_url: '',
-    notes: ''
-  });
-  const [isLoading, setIsLoading] = useState(false);
-
   useEffect(() => {
-    const foundAppliance = appliances.find((a: any) => a.id === applianceId);
-    if (foundAppliance) {
-      setAppliance(foundAppliance);
-      setFormData({
-        type: foundAppliance.type || '',
-        brand: foundAppliance.brand || '',
-        model: foundAppliance.model || '',
-        location: foundAppliance.location || '',
-        manual_url: foundAppliance.manual_url || '',
-        warranty_url: foundAppliance.warranty_url || '',
-        notes: foundAppliance.notes || ''
+    if (hasLoadedRef.current) return;
+    const found = appliances.find((a: any) => a.id === applianceId);
+    if (found) {
+      hasLoadedRef.current = true;
+      setApplianceFound(true);
+      reset({
+        type: (APPLIANCE_TYPES.includes(found.type as any) ? found.type : APPLIANCE_TYPES[0]) as any,
+        brand: found.brand || '',
+        model: found.model || '',
+        location: found.location || '',
+        manual_url: found.manual_url || '',
+        warranty_url: found.warranty_url || '',
+        notes: found.notes || '',
       });
     }
-  }, [appliances, applianceId]);
+  }, [appliances, applianceId, reset]);
 
-  const handleSave = async () => {
-    if (!appliance) return;
+  const handleFocus = (fieldName: string) => setFocusedField(fieldName);
+  const handleBlur = () => setFocusedField(null);
 
-    if (!formData.location.trim()) {
-      Alert.alert('Error', 'Location is required');
-      return;
-    }
+  const getInputStyle = (fieldName: string, hasError?: boolean) => {
+    const isFocused = focusedField === fieldName;
+    return [
+      styles.textInput,
+      {
+        backgroundColor: colors.surface,
+        color: colors.text,
+        borderColor: hasError ? colors.error : isFocused ? colors.primary : colors.border,
+        borderWidth: hasError || isFocused ? 2 : 1,
+      },
+    ];
+  };
 
-    setIsLoading(true);
+  const onSubmit = async (data: ApplianceFormData) => {
     try {
-      await updateAppliance(homeId || '', applianceId, {
-        type: formData.type || null,
-        brand: formData.brand || null,
-        model: formData.model || null,
-        location: formData.location || null,
-        manual_url: formData.manual_url || null,
-        warranty_url: formData.warranty_url || null,
-        notes: formData.notes || null
-      });
-
-      Alert.alert('Success', 'Appliance updated successfully!', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      const transformed = transformApplianceFormData(data);
+      await updateAppliance(homeId, applianceId, transformed);
+      showToast('Appliance updated successfully!', 'success');
+      router.back();
     } catch (error) {
       console.error('Error updating appliance:', error);
-      Alert.alert('Error', 'Failed to update appliance');
-    } finally {
-      setIsLoading(false);
+      showToast('Failed to update appliance', 'error');
     }
   };
 
   const handleCancel = () => {
-    Alert.alert(
-      'Discard Changes?',
-      'You have unsaved changes. Are you sure you want to discard them?',
-      [
-        { text: 'Keep Editing', style: 'cancel' },
-        { text: 'Discard Changes', style: 'destructive', onPress: () => router.back() }
-      ]
-    );
+    Alert.alert('Discard Changes?', 'You have unsaved changes. Are you sure you want to discard them?', [
+      { text: 'Keep Editing', style: 'cancel' },
+      { text: 'Discard Changes', style: 'destructive', onPress: () => router.back() },
+    ]);
   };
 
-  if (!appliance) {
+  if (!applianceFound) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Appliance</Text>
@@ -172,22 +169,18 @@ function EditApplianceScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={handleCancel}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Appliance</Text>
         <TouchableOpacity
           style={[styles.saveButton, { backgroundColor: colors.primary }]}
-          onPress={handleSave}
-          disabled={isLoading}
+          onPress={handleSubmit(onSubmit)}
+          disabled={isSubmitting}
         >
           <Text style={[styles.saveButtonText, { color: colors.background }]}>
-            {isLoading ? 'Saving...' : 'Save'}
+            {isSubmitting ? 'Saving...' : 'Save'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -198,113 +191,108 @@ function EditApplianceScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Basic Information */}
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+        <View style={styles.form}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Basic Information</Text>
 
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Appliance Type</Text>
-            <TextInput
-              style={[styles.textInput, {
-                backgroundColor: colors.background,
-                color: colors.text,
-                borderColor: colors.border
-              }]}
-              value={formData.type}
-              onChangeText={(text) => setFormData({ ...formData, type: text })}
-              placeholder="Enter appliance type"
-              placeholderTextColor={colors.textSecondary}
-            />
+          <Text style={[styles.label, { color: colors.text }]}>Appliance Type *</Text>
+          <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: errors.type ? colors.error : colors.border }]}>
+            <Picker
+              selectedValue={formData.type}
+              onValueChange={val => setValue('type', val)}
+              style={{ color: colors.text }}
+              dropdownIconColor={colors.text}
+            >
+              {APPLIANCE_TYPES.map(type => (
+                <Picker.Item key={type} label={type} value={type} />
+              ))}
+            </Picker>
+          </View>
+          {errors.type && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.type.message}</Text>}
+
+          <View style={styles.row}>
+            <View style={styles.halfWidth}>
+              <Text style={[styles.label, { color: colors.text }]}>Brand</Text>
+              <TextInput
+                style={getInputStyle('brand', !!errors.brand)}
+                value={formData.brand || ''}
+                onChangeText={text => { setValue('brand', text); if (errors.brand) clearErrors('brand'); }}
+                placeholder="e.g., Samsung, LG"
+                placeholderTextColor={colors.textTertiary}
+                onFocus={() => handleFocus('brand')}
+                onBlur={handleBlur}
+              />
+              {errors.brand && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.brand.message}</Text>}
+            </View>
+            <View style={styles.halfWidth}>
+              <Text style={[styles.label, { color: colors.text }]}>Model</Text>
+              <TextInput
+                style={getInputStyle('model', !!errors.model)}
+                value={formData.model || ''}
+                onChangeText={text => { setValue('model', text); if (errors.model) clearErrors('model'); }}
+                placeholder="e.g., WF45R6100AW"
+                placeholderTextColor={colors.textTertiary}
+                onFocus={() => handleFocus('model')}
+                onBlur={handleBlur}
+              />
+              {errors.model && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.model.message}</Text>}
+            </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Brand</Text>
-            <TextInput
-              style={[styles.textInput, {
-                backgroundColor: colors.background,
-                color: colors.text,
-                borderColor: colors.border
-              }]}
-              value={formData.brand}
-              onChangeText={(text) => setFormData({ ...formData, brand: text })}
-              placeholder="Enter brand name"
-              placeholderTextColor={colors.textSecondary}
-            />
-          </View>
+          <Text style={[styles.label, { color: colors.text }]}>Location *</Text>
+          <TextInput
+            style={getInputStyle('location', !!errors.location)}
+            value={formData.location || ''}
+            onChangeText={text => { setValue('location', text); if (errors.location) clearErrors('location'); }}
+            placeholder="e.g., Kitchen, Basement"
+            placeholderTextColor={colors.textTertiary}
+            onFocus={() => handleFocus('location')}
+            onBlur={handleBlur}
+          />
+          {errors.location && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.location.message}</Text>}
 
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Model</Text>
-            <TextInput
-              style={[styles.textInput, {
-                backgroundColor: colors.background,
-                color: colors.text,
-                borderColor: colors.border
-              }]}
-              value={formData.model}
-              onChangeText={(text) => setFormData({ ...formData, model: text })}
-              placeholder="Enter model number"
-              placeholderTextColor={colors.textSecondary}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Location *</Text>
-            <TextInput
-              style={[styles.textInput, {
-                backgroundColor: colors.background,
-                color: colors.text,
-                borderColor: colors.border
-              }]}
-              value={formData.location}
-              onChangeText={(text) => setFormData({ ...formData, location: text })}
-              placeholder="Enter location"
-              placeholderTextColor={colors.textSecondary}
-            />
-          </View>
-        </View>
-
-        {/* Manual & Documentation */}
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Manual & Documentation</Text>
 
           <DocumentUploader
             label="Manual (PDF)"
             currentFileUrl={formData.manual_url}
-            onUploadComplete={(result) => setFormData({ ...formData, manual_url: result.url })}
+            onUploadComplete={result => { setValue('manual_url', result.url); if (errors.manual_url) clearErrors('manual_url'); }}
             userId={user?.id}
             targetFolder="appliances"
           />
+          {errors.manual_url && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.manual_url.message}</Text>}
 
           <DocumentUploader
             label="Warranty (PDF)"
             currentFileUrl={formData.warranty_url}
-            onUploadComplete={(result) => setFormData({ ...formData, warranty_url: result.url })}
+            onUploadComplete={result => { setValue('warranty_url', result.url); if (errors.warranty_url) clearErrors('warranty_url'); }}
             userId={user?.id}
             targetFolder="appliances"
           />
-        </View>
+          {errors.warranty_url && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.warranty_url.message}</Text>}
 
-        {/* Notes */}
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Notes</Text>
 
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Additional Notes</Text>
-            <TextInput
-              style={[styles.textArea, {
-                backgroundColor: colors.background,
+          <TextInput
+            style={[
+              styles.textArea,
+              {
+                backgroundColor: colors.surface,
                 color: colors.text,
-                borderColor: colors.border
-              }]}
-              value={formData.notes}
-              onChangeText={(text) => setFormData({ ...formData, notes: text })}
-              placeholder="Enter any additional notes or information"
-              placeholderTextColor={colors.textSecondary}
-              multiline
-              numberOfLines={6}
-              textAlignVertical="top"
-            />
-          </View>
+                borderColor: errors.notes ? colors.error : focusedField === 'notes' ? colors.primary : colors.border,
+                borderWidth: errors.notes || focusedField === 'notes' ? 2 : 1,
+              },
+            ]}
+            value={formData.notes || ''}
+            onChangeText={text => { setValue('notes', text); if (errors.notes) clearErrors('notes'); }}
+            placeholder="Any additional notes about this appliance..."
+            placeholderTextColor={colors.textTertiary}
+            multiline
+            numberOfLines={6}
+            textAlignVertical="top"
+            onFocus={() => handleFocus('notes')}
+            onBlur={handleBlur}
+          />
+          {errors.notes && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.notes.message}</Text>}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -316,9 +304,7 @@ export default function EditApplianceScreenWrapper() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -328,81 +314,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.1)',
   },
-  backButton: {
-    padding: 8,
-    borderRadius: 8,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-  saveButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  headerRight: {
-    width: 60,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-  },
-  section: {
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  textArea: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    minHeight: 100,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
+  backButton: { padding: 8, borderRadius: 8 },
+  headerTitle: { fontFamily: FONTS.heading, fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
+  saveButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  saveButtonText: { fontFamily: FONTS.bodySemiBold, fontSize: 16, fontWeight: '600' },
+  headerRight: { width: 60 },
+  scrollView: { flex: 1 },
+  scrollContent: { padding: 20 },
+  form: { gap: 16 },
+  sectionTitle: { fontFamily: FONTS.heading, fontSize: 18, fontWeight: '700', marginTop: 8, marginBottom: 4 },
+  label: { fontFamily: FONTS.bodySemiBold, fontSize: 15, fontWeight: '600', marginBottom: 6 },
+  textInput: { fontFamily: FONTS.body, borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 16 },
+  textArea: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 16, minHeight: 100 },
+  row: { flexDirection: 'row', gap: 12 },
+  halfWidth: { flex: 1 },
+  fieldError: { fontFamily: FONTS.body, fontSize: 12, marginTop: 3, fontWeight: '500' },
+  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  errorText: { fontFamily: FONTS.body, fontSize: 16, textAlign: 'center' },
+  pickerContainer: { borderWidth: 1, borderRadius: 12, overflow: 'hidden' },
 });

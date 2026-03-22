@@ -5,6 +5,7 @@ import React, { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { FONTS } from '../../../lib/typography';
 import { useToast } from '../../../lib/contexts/ToastContext';
 import { FilterFormInput, filterFormSchema, transformFilterFormData } from '../../../lib/schemas/home/filterFormSchema';
 import { useFiltersStore } from '../../../lib/stores/filtersStore';
@@ -130,7 +131,7 @@ export default function AddFilterScreen() {
               if (errors.name) clearErrors('name');
             }}
             placeholder="e.g., Air Filter, Water Filter, HVAC Filter"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             onFocus={() => handleFocus('name')}
             onBlur={handleBlur}
             returnKeyType="next"
@@ -155,7 +156,7 @@ export default function AddFilterScreen() {
               if (errors.room) clearErrors('room');
             }}
             placeholder="e.g., Living Room, Kitchen, Basement"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             onFocus={() => handleFocus('room')}
             onBlur={handleBlur}
             returnKeyType="next"
@@ -182,7 +183,7 @@ export default function AddFilterScreen() {
                   if (errors.type) clearErrors('type');
                 }}
                 placeholder="e.g., HEPA, Carbon, Pleated"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.textTertiary}
                 onFocus={() => handleFocus('type')}
                 onBlur={handleBlur}
                 returnKeyType="next"
@@ -208,7 +209,7 @@ export default function AddFilterScreen() {
                   if (errors.brand) clearErrors('brand');
                 }}
                 placeholder="e.g., 3M, Honeywell, Filtrete"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.textTertiary}
                 onFocus={() => handleFocus('brand')}
                 onBlur={handleBlur}
                 returnKeyType="next"
@@ -237,7 +238,7 @@ export default function AddFilterScreen() {
                   if (errors.model) clearErrors('model');
                 }}
                 placeholder="e.g., FPR-10, MERV-13"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.textTertiary}
                 onFocus={() => handleFocus('model')}
                 onBlur={handleBlur}
                 returnKeyType="next"
@@ -263,7 +264,7 @@ export default function AddFilterScreen() {
                   if (errors.size) clearErrors('size');
                 }}
                 placeholder="e.g., 16x20x1, 14x14x1"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.textTertiary}
                 onFocus={() => handleFocus('size')}
                 onBlur={handleBlur}
                 returnKeyType="next"
@@ -309,7 +310,7 @@ export default function AddFilterScreen() {
               if (errors.replacement_frequency) clearErrors('replacement_frequency');
             }}
             placeholder="e.g., 3, 6, 12"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             keyboardType="numeric"
             onFocus={() => handleFocus('replacement_frequency')}
             onBlur={handleBlur}
@@ -335,7 +336,7 @@ export default function AddFilterScreen() {
               if (errors.notes) clearErrors('notes');
             }}
             placeholder="Any additional notes about this filter..."
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             multiline
             numberOfLines={4}
             textAlignVertical="top"
@@ -376,22 +377,26 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   sectionTitle: {
+    fontFamily: FONTS.heading,
     fontSize: 20,
     fontWeight: '700',
     marginTop: 10,
     marginBottom: 5,
   },
   label: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
   },
   input: {
+    fontFamily: FONTS.body,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
   },
   textArea: {
+    fontFamily: FONTS.body,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
@@ -419,11 +424,13 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   saveButtonText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 8,
   },
   errorText: {
+    fontFamily: FONTS.body,
     fontSize: 14,
     marginTop: 4,
     marginLeft: 4,

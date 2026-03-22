@@ -3,6 +3,7 @@ import { Alert, StyleSheet, Text } from 'react-native';
 import { resetPassword } from '../../../lib/auth/actions';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
+import { FONTS } from '../../../lib/typography';
 import navigate from '../../../lib/navigation';
 import Button from '../../ui/Button';
 import LoadingScreen from '../../ui/LoadingScreen';
@@ -126,11 +127,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   cardTitle: {
+    fontFamily: FONTS.heading,
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   cardSubtitle: {
+    fontFamily: FONTS.body,
     fontSize: 16,
     marginBottom: 24,
   },

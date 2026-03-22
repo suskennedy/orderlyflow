@@ -774,62 +774,96 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
         // --- Recurrence Logic ---
         if (task && task.is_recurring && task.recurrence_pattern) {
-          const nextDueDate = new Date(task.due_date || task.next_due || new Date());
+          // Parse date-only strings as LOCAL time to avoid UTC midnight timezone shift
+          const parseDateLocal = (dateStr: string): Date => {
+            const [year, month, day] = dateStr.split('-').map(Number);
+            return new Date(year, month - 1, day);
+          };
+
+          // Add months without overflowing (e.g. Jan 31 + 1 month → Feb 28, not Mar 3)
+          const addMonthsSafe = (date: Date, months: number): Date => {
+            const result = new Date(date);
+            const originalDay = result.getDate();
+            result.setMonth(result.getMonth() + months);
+            // If the day rolled over into the next month, clamp to last day of target month
+            if (result.getDate() !== originalDay) {
+              result.setDate(0);
+            }
+            return result;
+          };
+
+          const rawDate = task.due_date || task.next_due;
+          // Use local date parsing for date-only strings (YYYY-MM-DD), ISO for full timestamps
+          const baseDate = rawDate
+            ? (rawDate.length === 10 ? parseDateLocal(rawDate) : new Date(rawDate))
+            : new Date();
+
           const interval = task.recurrence_interval || 1;
-          const unit = task.recurrence_unit || 'days';
+          const unit = task.recurrence_unit || '';
           const pattern = task.recurrence_pattern.toLowerCase();
+
+          let nextDueDate: Date = new Date(baseDate);
 
           if (pattern === 'daily' || unit === 'days') {
             nextDueDate.setDate(nextDueDate.getDate() + interval);
+          } else if (pattern === 'bi-weekly') {
+            nextDueDate.setDate(nextDueDate.getDate() + 14);
           } else if (pattern === 'weekly' || unit === 'weeks') {
             nextDueDate.setDate(nextDueDate.getDate() + (interval * 7));
+          } else if (pattern === 'quarterly') {
+            nextDueDate = addMonthsSafe(nextDueDate, 3);
+          } else if (pattern === 'semi-annually') {
+            nextDueDate = addMonthsSafe(nextDueDate, 6);
           } else if (pattern === 'monthly' || unit === 'months') {
-            nextDueDate.setMonth(nextDueDate.getMonth() + interval);
-          } else if (pattern === 'yearly' || unit === 'years' || pattern === 'annually') {
-            nextDueDate.setFullYear(nextDueDate.getFullYear() + interval);
+            nextDueDate = addMonthsSafe(nextDueDate, interval);
+          } else if (pattern === 'annually' || pattern === 'yearly' || unit === 'years') {
+            nextDueDate = addMonthsSafe(nextDueDate, interval * 12);
           }
 
-          // Create next occurrence
-          const nextTaskData: HomeTaskInsert = {
-            home_id: task.home_id,
-            task_id: task.task_id,
-            title: task.title,
-            description: task.description,
-            category: task.category,
-            subcategory: task.subcategory,
-            priority: task.priority,
-            assigned_user_id: task.assigned_user_id,
-            assigned_vendor_id: task.assigned_vendor_id,
-            notes: task.notes,
-            instructions: task.instructions,
-            room_location: task.room_location,
-            equipment_required: task.equipment_required,
-            safety_notes: task.safety_notes,
-            estimated_duration_minutes: task.estimated_duration_minutes,
-            estimated_cost: task.estimated_cost,
-            is_active: true,
-            status: 'pending',
-            due_date: nextDueDate.toISOString().split('T')[0],
-            next_due: nextDueDate.toISOString(),
-            is_recurring: true,
-            recurrence_pattern: task.recurrence_pattern,
-            recurrence_interval: task.recurrence_interval,
-            recurrence_unit: task.recurrence_unit,
-            recurrence_end_date: task.recurrence_end_date,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-
-          // Check if we haven't reached the end date
+          // Check if we haven't reached the end date before building the new task
           let shouldCreateNext = true;
           if (task.recurrence_end_date) {
-            const endDate = new Date(task.recurrence_end_date);
+            const endDate = parseDateLocal(task.recurrence_end_date.slice(0, 10));
             if (nextDueDate > endDate) {
-                shouldCreateNext = false;
+              shouldCreateNext = false;
             }
           }
 
           if (shouldCreateNext) {
+            // Format next due as local YYYY-MM-DD (not UTC)
+            const pad = (n: number) => String(n).padStart(2, '0');
+            const nextDueDateStr = `${nextDueDate.getFullYear()}-${pad(nextDueDate.getMonth() + 1)}-${pad(nextDueDate.getDate())}`;
+
+            const nextTaskData: HomeTaskInsert = {
+              home_id: task.home_id,
+              task_id: task.task_id,
+              title: task.title,
+              description: task.description,
+              category: task.category,
+              subcategory: task.subcategory,
+              priority: task.priority,
+              assigned_user_id: task.assigned_user_id,
+              assigned_vendor_id: task.assigned_vendor_id,
+              notes: task.notes,
+              instructions: task.instructions,
+              room_location: task.room_location,
+              equipment_required: task.equipment_required,
+              safety_notes: task.safety_notes,
+              estimated_duration_minutes: task.estimated_duration_minutes,
+              estimated_cost: task.estimated_cost,
+              is_active: true,
+              status: 'pending',
+              due_date: nextDueDateStr,
+              next_due: nextDueDate.toISOString(),
+              is_recurring: true,
+              recurrence_pattern: task.recurrence_pattern,
+              recurrence_interval: task.recurrence_interval,
+              recurrence_unit: task.recurrence_unit,
+              recurrence_end_date: task.recurrence_end_date,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+
             await supabase.from('home_tasks').insert(nextTaskData);
           }
         }

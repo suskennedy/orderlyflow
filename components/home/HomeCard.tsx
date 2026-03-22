@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { FONTS } from '../../../lib/typography';
 import { routes } from '../../lib/navigation';
 
 interface Home {
@@ -111,11 +112,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   homeName: {
+    fontFamily: FONTS.heading,
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 4,
   },
   homeAddress: {
+    fontFamily: FONTS.body,
     fontSize: 14,
     lineHeight: 20,
   },

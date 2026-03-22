@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { FONTS } from '../../../lib/typography';
 import { INSTALLATION_TYPES, POOL_TYPES, PoolFormData, poolFormSchema, transformPoolFormData } from '../../../lib/schemas/home/poolFormSchema';
 import { usePoolsStore } from '../../../lib/stores/poolsStore';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
@@ -134,7 +135,7 @@ export default function AddPoolScreen() {
                             if (errors.notes) clearErrors('notes');
                         }}
                         placeholder="Any additional notes about this pool..."
-                        placeholderTextColor={colors.textSecondary}
+                        placeholderTextColor={colors.textTertiary}
                         multiline
                         numberOfLines={4}
                         textAlignVertical="top"
@@ -175,17 +176,20 @@ const styles = StyleSheet.create({
         gap: 20,
     },
     sectionTitle: {
+        fontFamily: FONTS.heading,
         fontSize: 20,
         fontWeight: '700',
         marginTop: 10,
         marginBottom: 5,
     },
     label: {
+        fontFamily: FONTS.bodySemiBold,
         fontSize: 16,
         fontWeight: '600',
         marginBottom: 8,
     },
     textArea: {
+        fontFamily: FONTS.body,
         borderRadius: 12,
         padding: 16,
         fontSize: 16,
@@ -206,11 +210,13 @@ const styles = StyleSheet.create({
         elevation: 6,
     },
     saveButtonText: {
+        fontFamily: FONTS.bodySemiBold,
         fontSize: 18,
         fontWeight: '600',
         marginLeft: 8,
     },
     errorText: {
+        fontFamily: FONTS.body,
         fontSize: 14,
         marginTop: 4,
         marginLeft: 4,

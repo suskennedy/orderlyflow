@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { FONTS } from '../../lib/typography';
 
 interface Material {
   id: string;
@@ -78,6 +79,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   name: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 18,
     fontWeight: 'bold',
   },

@@ -1,318 +1,248 @@
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Picker } from '@react-native-picker/picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { FONTS } from '../../../lib/typography';
+import { useToast } from '../../../lib/contexts/ToastContext';
 import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
-import { INSTALLATION_TYPES, POOL_TYPES } from '../../../lib/schemas/home/poolFormSchema';
+import { INSTALLATION_TYPES, POOL_TYPES, PoolFormData, poolFormSchema, transformPoolFormData } from '../../../lib/schemas/home/poolFormSchema';
 import { usePoolsStore } from '../../../lib/stores/poolsStore';
 
-
 const EMPTY_ARRAY: any[] = [];
-interface Pool {
-    id: string;
-    salt_water_vs_chlorine: string | null;
-    in_ground_vs_above_ground: string | null;
-    notes: string | null;
-}
 
 export default function EditPoolScreen() {
-    const insets = useSafeAreaInsets();
-    const { colors } = useTheme();
-    const { homeId } = useLocalSearchParams<{ homeId: string }>();
-    const pools = usePoolsStore(state => state.poolsByHome[homeId] || EMPTY_ARRAY);
-    const updatePool = usePoolsStore(state => state.updatePool);
-    const fetchPools = usePoolsStore(state => state.fetchPools);
-    const setPools = usePoolsStore(state => state.setPools);
+  const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const { showToast } = useToast();
+  const { homeId } = useLocalSearchParams<{ homeId: string }>();
+  const params = useLocalSearchParams();
+  const poolId = params.id as string;
 
-    const lastHomeIdRef = useRef<string | null>(null);
+  const pools = usePoolsStore(state => state.poolsByHome[homeId] || EMPTY_ARRAY);
+  const updatePool = usePoolsStore(state => state.updatePool);
+  const fetchPools = usePoolsStore(state => state.fetchPools);
+  const setPools = usePoolsStore(state => state.setPools);
 
-    // Initial data fetch
-    useEffect(() => {
-        if (homeId && homeId !== lastHomeIdRef.current) {
-            lastHomeIdRef.current = homeId;
-            fetchPools(homeId);
-        }
-    }, [homeId, fetchPools]);
+  const lastHomeIdRef = useRef<string | null>(null);
+  const hasLoadedRef = useRef(false);
+  const [poolFound, setPoolFound] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
-    // Real-time subscription
-    const handlePoolChange = useCallback((payload: any) => {
-        if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
-        const store = usePoolsStore.getState();
-        const currentPools = store.poolsByHome[homeId] || [];
-        if (payload.eventType === 'INSERT') {
-            const newPool = payload.new;
-            if (!currentPools.some(p => p.id === newPool.id)) {
-                setPools(homeId, [newPool, ...currentPools]);
-            }
-        } else if (payload.eventType === 'UPDATE') {
-            setPools(homeId, currentPools.map(p => p.id === payload.new.id ? payload.new : p));
-        } else if (payload.eventType === 'DELETE') {
-            setPools(homeId, currentPools.filter(p => p.id !== payload.old.id));
-        }
-    }, [homeId, setPools]);
+  const {
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setValue,
+    watch,
+    clearErrors,
+    reset,
+  } = useForm<PoolFormData>({
+    resolver: zodResolver(poolFormSchema),
+    defaultValues: {
+      salt_water_vs_chlorine: POOL_TYPES[0],
+      in_ground_vs_above_ground: INSTALLATION_TYPES[0],
+      notes: '',
+    },
+  });
 
-    useRealTimeSubscription(
-        { table: 'pools', filter: homeId ? `home_id=eq.${homeId}` : undefined },
-        handlePoolChange
-    );
-    const poolId = useLocalSearchParams<{ id: string }>();
+  const formData = watch();
 
-    const [pool, setPool] = useState<Pool | null>(null);
-    const [formData, setFormData] = useState({
-        salt_water_vs_chlorine: POOL_TYPES[0] as string,
-        in_ground_vs_above_ground: INSTALLATION_TYPES[0] as string,
-        notes: ''
-    });
-    const [isLoading, setIsLoading] = useState(false);
-
-    useEffect(() => {
-        const foundPool = pools.find((p: any) => p.id === poolId.id);
-        if (foundPool) {
-            setPool(foundPool);
-            setFormData({
-                salt_water_vs_chlorine: foundPool.salt_water_vs_chlorine || POOL_TYPES[0],
-                in_ground_vs_above_ground: foundPool.in_ground_vs_above_ground || INSTALLATION_TYPES[0],
-                notes: foundPool.notes || ''
-            });
-        }
-    }, [pools, poolId]);
-
-    const handleSave = async () => {
-        if (!pool) return;
-
-        setIsLoading(true);
-        try {
-            await updatePool(homeId, poolId.id, {
-                salt_water_vs_chlorine: formData.salt_water_vs_chlorine || null,
-                in_ground_vs_above_ground: formData.in_ground_vs_above_ground || null,
-                notes: formData.notes || null
-            } as any);
-
-            Alert.alert('Success', 'Pool updated successfully!', [
-                { text: 'OK', onPress: () => router.back() }
-            ]);
-        } catch (error) {
-            console.error('Error updating pool:', error);
-            Alert.alert('Error', 'Failed to update pool');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleCancel = () => {
-        Alert.alert(
-            'Discard Changes?',
-            'You have unsaved changes. Are you sure you want to discard them?',
-            [
-                { text: 'Keep Editing', style: 'cancel' },
-                { text: 'Discard Changes', style: 'destructive', onPress: () => router.back() }
-            ]
-        );
-    };
-
-    if (!pool) {
-        return (
-            <View style={[styles.container, { backgroundColor: colors.background }]}>
-                <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() => router.back()}
-                    >
-                        <Ionicons name="chevron-back" size={24} color={colors.text} />
-                    </TouchableOpacity>
-                    <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Pool</Text>
-                    <View style={styles.headerRight} />
-                </View>
-                <View style={styles.errorContainer}>
-                    <Text style={[styles.errorText, { color: colors.textSecondary }]}>
-                        Pool not found or has been deleted.
-                    </Text>
-                </View>
-            </View>
-        );
+  useEffect(() => {
+    if (homeId && homeId !== lastHomeIdRef.current) {
+      lastHomeIdRef.current = homeId;
+      fetchPools(homeId);
     }
+  }, [homeId, fetchPools]);
 
+  const handlePoolChange = useCallback((payload: any) => {
+    if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
+    const store = usePoolsStore.getState();
+    const current = store.poolsByHome[homeId] || [];
+    if (payload.eventType === 'INSERT') {
+      if (!current.some((p: any) => p.id === payload.new.id)) setPools(homeId, [payload.new, ...current]);
+    } else if (payload.eventType === 'UPDATE') {
+      setPools(homeId, current.map((p: any) => p.id === payload.new.id ? payload.new : p));
+    } else if (payload.eventType === 'DELETE') {
+      setPools(homeId, current.filter((p: any) => p.id !== payload.old.id));
+    }
+  }, [homeId, setPools]);
+
+  useRealTimeSubscription(
+    { table: 'pools', filter: homeId ? `home_id=eq.${homeId}` : undefined },
+    handlePoolChange
+  );
+
+  useEffect(() => {
+    if (hasLoadedRef.current) return;
+    const found = pools.find((p: any) => p.id === poolId);
+    if (found) {
+      hasLoadedRef.current = true;
+      setPoolFound(true);
+      reset({
+        salt_water_vs_chlorine: (POOL_TYPES.includes(found.salt_water_vs_chlorine as any) ? found.salt_water_vs_chlorine : POOL_TYPES[0]) as any,
+        in_ground_vs_above_ground: (INSTALLATION_TYPES.includes(found.in_ground_vs_above_ground as any) ? found.in_ground_vs_above_ground : INSTALLATION_TYPES[0]) as any,
+        notes: found.notes || '',
+      });
+    }
+  }, [pools, poolId, reset]);
+
+  const handleFocus = (fieldName: string) => setFocusedField(fieldName);
+  const handleBlur = () => setFocusedField(null);
+
+  const onSubmit = async (data: PoolFormData) => {
+    try {
+      const transformed = transformPoolFormData(data);
+      await updatePool(homeId, poolId, transformed as any);
+      showToast('Pool updated successfully!', 'success');
+      router.back();
+    } catch (error) {
+      console.error('Error updating pool:', error);
+      showToast('Failed to update pool', 'error');
+    }
+  };
+
+  const handleCancel = () => {
+    Alert.alert('Discard Changes?', 'You have unsaved changes. Are you sure you want to discard them?', [
+      { text: 'Keep Editing', style: 'cancel' },
+      { text: 'Discard Changes', style: 'destructive', onPress: () => router.back() },
+    ]);
+  };
+
+  if (!poolFound) {
     return (
-        <KeyboardAvoidingView
-            style={[styles.container, { backgroundColor: colors.background }]}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-            <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-                <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={handleCancel}
-                >
-                    <Ionicons name="chevron-back" size={24} color={colors.text} />
-                </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Pool</Text>
-                <TouchableOpacity
-                    style={[styles.saveButton, { backgroundColor: colors.primary }]}
-                    onPress={handleSave}
-                    disabled={isLoading}
-                >
-                    <Text style={[styles.saveButtonText, { color: colors.background }]}>
-                        {isLoading ? 'Saving...' : 'Save'}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-            >
-                <View style={[styles.section, { backgroundColor: colors.surface }]}>
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Pool Information</Text>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Water Type *</Text>
-                        <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                            <Picker
-                                selectedValue={formData.salt_water_vs_chlorine}
-                                onValueChange={(itemValue) => setFormData({ ...formData, salt_water_vs_chlorine: itemValue })}
-                                style={[{ color: colors.text }]}
-                                dropdownIconColor={colors.text}
-                            >
-                                {POOL_TYPES.map((typeOption) => (
-                                    <Picker.Item key={typeOption} label={typeOption.replace('_', ' ').toUpperCase()} value={typeOption} />
-                                ))}
-                            </Picker>
-                        </View>
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Installation Type *</Text>
-                        <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                            <Picker
-                                selectedValue={formData.in_ground_vs_above_ground}
-                                onValueChange={(itemValue) => setFormData({ ...formData, in_ground_vs_above_ground: itemValue })}
-                                style={[{ color: colors.text }]}
-                                dropdownIconColor={colors.text}
-                            >
-                                {INSTALLATION_TYPES.map((typeOption) => (
-                                    <Picker.Item key={typeOption} label={typeOption.replace('_', ' ').toUpperCase()} value={typeOption} />
-                                ))}
-                            </Picker>
-                        </View>
-                    </View>
-                </View>
-
-                <View style={[styles.section, { backgroundColor: colors.surface }]}>
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Notes</Text>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Additional Notes</Text>
-                        <TextInput
-                            style={[styles.textArea, {
-                                backgroundColor: colors.background,
-                                color: colors.text,
-                                borderColor: colors.border
-                            }]}
-                            value={formData.notes}
-                            onChangeText={(text) => setFormData({ ...formData, notes: text })}
-                            placeholder="Enter any additional notes or information"
-                            placeholderTextColor={colors.textSecondary}
-                            multiline
-                            numberOfLines={6}
-                            textAlignVertical="top"
-                        />
-                    </View>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Pool</Text>
+          <View style={styles.headerRight} />
+        </View>
+        <View style={styles.errorContainer}>
+          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
+            Pool not found or has been deleted.
+          </Text>
+        </View>
+      </View>
     );
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Pool</Text>
+        <TouchableOpacity
+          style={[styles.saveButton, { backgroundColor: colors.primary }]}
+          onPress={handleSubmit(onSubmit)}
+          disabled={isSubmitting}
+        >
+          <Text style={[styles.saveButtonText, { color: colors.background }]}>
+            {isSubmitting ? 'Saving...' : 'Save'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.form}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Pool Information</Text>
+
+          <Text style={[styles.label, { color: colors.text }]}>Water Type *</Text>
+          <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: errors.salt_water_vs_chlorine ? colors.error : colors.border }]}>
+            <Picker
+              selectedValue={formData.salt_water_vs_chlorine}
+              onValueChange={val => setValue('salt_water_vs_chlorine', val)}
+              style={{ color: colors.text }}
+              dropdownIconColor={colors.text}
+            >
+              {POOL_TYPES.map(t => (
+                <Picker.Item key={t} label={t.replace('_', ' ').toUpperCase()} value={t} />
+              ))}
+            </Picker>
+          </View>
+          {errors.salt_water_vs_chlorine && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.salt_water_vs_chlorine.message}</Text>}
+
+          <Text style={[styles.label, { color: colors.text }]}>Installation Type *</Text>
+          <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: errors.in_ground_vs_above_ground ? colors.error : colors.border }]}>
+            <Picker
+              selectedValue={formData.in_ground_vs_above_ground}
+              onValueChange={val => setValue('in_ground_vs_above_ground', val)}
+              style={{ color: colors.text }}
+              dropdownIconColor={colors.text}
+            >
+              {INSTALLATION_TYPES.map(t => (
+                <Picker.Item key={t} label={t.replace('_', ' ').toUpperCase()} value={t} />
+              ))}
+            </Picker>
+          </View>
+          {errors.in_ground_vs_above_ground && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.in_ground_vs_above_ground.message}</Text>}
+
+          <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
+          <TextInput
+            style={[
+              styles.textArea,
+              {
+                backgroundColor: colors.surface,
+                color: colors.text,
+                borderColor: errors.notes ? colors.error : focusedField === 'notes' ? colors.primary : colors.border,
+                borderWidth: errors.notes || focusedField === 'notes' ? 2 : 1,
+              },
+            ]}
+            value={formData.notes || ''}
+            onChangeText={text => { setValue('notes', text); if (errors.notes) clearErrors('notes'); }}
+            placeholder="Any additional notes about this pool..."
+            placeholderTextColor={colors.textTertiary}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            onFocus={() => handleFocus('notes')}
+            onBlur={handleBlur}
+          />
+          {errors.notes && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.notes.message}</Text>}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingBottom: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0,0,0,0.1)',
-    },
-    backButton: {
-        padding: 8,
-        borderRadius: 8,
-    },
-    headerTitle: {
-        fontSize: 22,
-        fontWeight: '700',
-        letterSpacing: -0.5,
-    },
-    saveButton: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 8,
-    },
-    saveButtonText: {
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    headerRight: {
-        width: 60,
-    },
-    scrollView: {
-        flex: 1,
-    },
-    scrollContent: {
-        padding: 20,
-    },
-    section: {
-        borderRadius: 12,
-        padding: 20,
-        marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 3,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.05)',
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        marginBottom: 16,
-    },
-    inputGroup: {
-        marginBottom: 16,
-    },
-    inputLabel: {
-        fontSize: 14,
-        fontWeight: '500',
-        marginBottom: 8,
-    },
-    textArea: {
-        borderWidth: 1,
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 12,
-        fontSize: 16,
-        minHeight: 100,
-    },
-    errorContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    errorText: {
-        fontSize: 16,
-        textAlign: 'center',
-    },
-    pickerContainer: {
-        borderWidth: 1,
-        borderRadius: 8,
-        overflow: 'hidden',
-    },
+  container: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  backButton: { padding: 8, borderRadius: 8 },
+  headerTitle: { fontFamily: FONTS.heading, fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
+  saveButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  saveButtonText: { fontFamily: FONTS.bodySemiBold, fontSize: 16, fontWeight: '600' },
+  headerRight: { width: 60 },
+  scrollView: { flex: 1 },
+  scrollContent: { padding: 20 },
+  form: { gap: 16 },
+  sectionTitle: { fontFamily: FONTS.heading, fontSize: 18, fontWeight: '700', marginTop: 8, marginBottom: 4 },
+  label: { fontFamily: FONTS.bodySemiBold, fontSize: 15, fontWeight: '600', marginBottom: 6 },
+  textArea: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 16, minHeight: 100 },
+  fieldError: { fontFamily: FONTS.body, fontSize: 12, marginTop: 3, fontWeight: '500' },
+  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  errorText: { fontFamily: FONTS.body, fontSize: 16, textAlign: 'center' },
+  pickerContainer: { borderWidth: 1, borderRadius: 12, overflow: 'hidden' },
 });

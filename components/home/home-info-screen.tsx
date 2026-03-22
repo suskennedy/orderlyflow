@@ -1,98 +1,69 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import React from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { FONTS } from '../../lib/typography';
 import { useHomesStore } from '../../lib/stores/homesStore';
-import ScreenHeader from '../layouts/layout/ScreenHeader';
 
 export default function HomeInfoScreen() {
   const { homeId } = useLocalSearchParams<{ homeId: string }>();
   const getHomeById = useHomesStore(state => state.getHomeById);
-  const updateHome = useHomesStore(state => state.updateHome);
   const home = getHomeById(homeId);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const [loading, setLoading] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState(home);
 
-  if (!formData) {
+  if (!home) {
     return <ActivityIndicator style={{ flex: 1 }} />;
   }
 
-  const handleUpdate = async () => {
-    setLoading(true);
-    try {
-      await updateHome(homeId, formData);
-      setIsEditing(false);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update home info.');
-    } finally {
-      setLoading(false);
-    }
+  const handleEdit = () => {
+    router.push(`/(tabs)/(home)/${homeId}/edit` as any);
   };
 
-  const InfoRow = ({ label, value, field, keyboardType = 'default' }: {
-    label: string;
-    value: string | number | null;
-    field: string;
-    keyboardType?: 'default' | 'numeric';
-  }) => (
+  const InfoRow = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
     <View style={styles.infoRow}>
       <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
-      {isEditing ? (
-        <TextInput
-          style={[styles.input, { color: colors.text, borderBottomColor: colors.border }]}
-          value={String((formData as any)[field] || '')}
-          onChangeText={text => setFormData({ ...formData, [field]: text })}
-          keyboardType={keyboardType}
-        />
-      ) : (
-        <Text style={[styles.value, { color: colors.text }]}>{value}</Text>
-      )}
+      <Text style={[styles.value, { color: value != null && value !== '' ? colors.text : colors.textTertiary }]}>
+        {value != null && value !== '' ? String(value) : 'Not set'}
+      </Text>
     </View>
   );
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScreenHeader
-        title="Home Info"
-        showBackButton
-      />
-      <TouchableOpacity
-        style={[styles.editButton, { backgroundColor: colors.primary }]}
-        onPress={() => setIsEditing(!isEditing)}
-      >
-        <Ionicons name={isEditing ? "close" : "create-outline"} size={24} color={colors.textInverse} />
-      </TouchableOpacity>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 12, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.background }]} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Home Info</Text>
+        <TouchableOpacity
+          style={[styles.editButton, { backgroundColor: colors.primary }]}
+          onPress={handleEdit}
+        >
+          <Ionicons name="create-outline" size={16} color={colors.textInverse} />
+          <Text style={[styles.editButtonText, { color: colors.textInverse }]}>Edit</Text>
+        </TouchableOpacity>
+      </View>
       <ScrollView
-        contentContainerStyle={[styles.scrollContainer, { paddingBottom: insets.bottom + 100 }]}
-        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[styles.scrollContainer, { paddingBottom: insets.bottom + 40 }]}
       >
-        <InfoRow label="Address" value={home?.address || null} field="address" />
-        <InfoRow label="Square Footage" value={home?.square_footage || null} field="square_footage" keyboardType="numeric" />
-        <InfoRow label="Bedrooms" value={home?.bedrooms || null} field="bedrooms" keyboardType="numeric" />
-        <InfoRow label="Bathrooms" value={home?.bathrooms || null} field="bathrooms" keyboardType="numeric" />
-        <InfoRow label="Sewer Type" value={home?.sewer_vs_septic ? home.sewer_vs_septic.charAt(0).toUpperCase() + home.sewer_vs_septic.slice(1) : null} field="sewer_vs_septic" />
-        <InfoRow label="Water Source" value={home?.water_source === 'city' ? 'City Water' : home?.water_source === 'well' ? 'Well Water' : null} field="water_source" />
-        <InfoRow label="Water Heater Location" value={home?.water_heater_location || null} field="water_heater_location" />
-
-        {isEditing && (
-          <TouchableOpacity
-            style={[styles.saveButton, { backgroundColor: colors.primary }]}
-            onPress={handleUpdate}
-            disabled={loading}
-          >
-            {loading ? <ActivityIndicator color={colors.textInverse} /> : <Text style={styles.saveButtonText}>Save Changes</Text>}
-          </TouchableOpacity>
-        )}
+        <InfoRow label="Address" value={home.address} />
+        <InfoRow label="Square Footage" value={home.square_footage ? `${home.square_footage} sq ft` : null} />
+        <InfoRow label="Bedrooms" value={home.bedrooms} />
+        <InfoRow label="Bathrooms" value={home.bathrooms} />
+        <InfoRow
+          label="Sewer Type"
+          value={home.sewer_vs_septic ? home.sewer_vs_septic.charAt(0).toUpperCase() + home.sewer_vs_septic.slice(1) : null}
+        />
+        <InfoRow
+          label="Water Source"
+          value={home.water_source === 'city' ? 'City Water' : home.water_source === 'well' ? 'Well Water' : null}
+        />
+        <InfoRow label="Water Heater Location" value={home.water_heater_location} />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -100,42 +71,56 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontFamily: FONTS.heading,
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  editButtonText: {
+    fontFamily: FONTS.bodySemiBold,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   scrollContainer: {
     padding: 20,
   },
   infoRow: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   label: {
-    fontSize: 14,
-    marginBottom: 8,
+    fontFamily: FONTS.bodySemiBold,
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   value: {
-    fontSize: 18,
+    fontFamily: FONTS.body,
+    fontSize: 17,
   },
-  input: {
-    fontSize: 18,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-  },
-  saveButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 25,
-    paddingVertical: 12,
-    marginTop: 20,
-  },
-  saveButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  editButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    borderRadius: 25,
-    padding: 10,
-    zIndex: 1,
-  },
-}); 
+});

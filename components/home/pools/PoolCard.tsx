@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { FONTS } from '../../lib/typography';
 import { usePoolsStore } from '../../../lib/stores/poolsStore';
 
 interface Pool {
@@ -123,11 +124,13 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     title: {
+        fontFamily: FONTS.bodySemiBold,
         fontSize: 18,
         fontWeight: '700',
         marginBottom: 4,
     },
     subtitle: {
+        fontFamily: FONTS.body,
         fontSize: 14,
         fontWeight: '500',
     },

@@ -4,6 +4,7 @@ import React from 'react';
 import { ActivityIndicator, Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
+import { FONTS } from '../../lib/typography';
 import { useHomesStore } from '../../lib/stores/homesStore';
 import { getHomeImageUrl } from '../../lib/utils/imageUtils';
 
@@ -104,11 +105,6 @@ export default function HomeDetailScreen() {
     router.push(`/(tabs)/(home)/${homeId}/edit` as any);
   };
 
-  const handleAddUsers = () => {
-    // Navigate to family management screen
-    router.push('/(tabs)/(settings)/family-management' as any);
-  };
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslateY }] }]}>
@@ -139,13 +135,6 @@ export default function HomeDetailScreen() {
             >
               <Ionicons name="create-outline" size={20} color={colors.textInverse} />
               <Text style={[styles.actionButtonText, { color: colors.textInverse }]}>Edit Home</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.secondary }]}
-              onPress={handleAddUsers}
-            >
-              <Ionicons name="person-add-outline" size={20} color={colors.textInverse} />
-              <Text style={[styles.actionButtonText, { color: colors.textInverse }]}>Add Users</Text>
             </TouchableOpacity>
           </View>
 
@@ -236,6 +225,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   topHeaderText: {
+    fontFamily: FONTS.heading,
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -256,6 +246,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionButtonText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -264,6 +255,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionTitle: {
+    fontFamily: FONTS.heading,
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 12,
@@ -283,6 +275,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   infoText: {
+    fontFamily: FONTS.body,
     marginLeft: 8,
     fontSize: 14,
     flex: 1,
@@ -308,11 +301,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuItemText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
   menuItemDescription: {
+    fontFamily: FONTS.body,
     fontSize: 14,
   },
 }); 

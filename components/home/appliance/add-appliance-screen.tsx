@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { FONTS } from '../../../lib/typography';
 import { useToast } from '../../../lib/contexts/ToastContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { APPLIANCE_TYPES, ApplianceFormData, applianceFormSchema, transformApplianceFormData } from '../../../lib/schemas/home/applianceFormSchema';
@@ -137,7 +138,7 @@ export default function AddApplianceScreen() {
 
           <View style={styles.row}>
             <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Brand *</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Brand</Text>
               <TextInput
                 ref={brandRef}
                 style={[
@@ -150,7 +151,7 @@ export default function AddApplianceScreen() {
                   if (errors.brand) clearErrors('brand');
                 }}
                 placeholder="e.g., Samsung, LG, Whirlpool"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.textTertiary}
                 onFocus={() => handleFocus('brand')}
                 onBlur={handleBlur}
                 returnKeyType="next"
@@ -163,7 +164,7 @@ export default function AddApplianceScreen() {
               )}
             </View>
             <View style={styles.halfWidth}>
-              <Text style={[styles.label, { color: colors.text }]}>Model *</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Model</Text>
               <TextInput
                 ref={modelRef}
                 style={[
@@ -176,7 +177,7 @@ export default function AddApplianceScreen() {
                   if (errors.model) clearErrors('model');
                 }}
                 placeholder="e.g., WF45R6100AW"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.textTertiary}
                 onFocus={() => handleFocus('model')}
                 onBlur={handleBlur}
                 returnKeyType="next"
@@ -203,7 +204,7 @@ export default function AddApplianceScreen() {
               if (errors.location) clearErrors('location');
             }}
             placeholder="e.g., Kitchen, Living Room, Basement"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             onFocus={() => handleFocus('location')}
             onBlur={handleBlur}
             returnKeyType="next"
@@ -258,7 +259,7 @@ export default function AddApplianceScreen() {
               if (errors.notes) clearErrors('notes');
             }}
             placeholder="Any additional notes about this appliance..."
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             multiline
             numberOfLines={4}
             textAlignVertical="top"
@@ -299,22 +300,26 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   sectionTitle: {
+    fontFamily: FONTS.heading,
     fontSize: 20,
     fontWeight: '700',
     marginTop: 10,
     marginBottom: 5,
   },
   label: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
   },
   input: {
+    fontFamily: FONTS.body,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
   },
   textArea: {
+    fontFamily: FONTS.body,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
@@ -342,11 +347,13 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   saveButtonText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 8,
   },
   errorText: {
+    fontFamily: FONTS.body,
     fontSize: 14,
     marginTop: 4,
     marginLeft: 4,

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orderly Flow — Brand Sheet</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #FAFCFD; font-family: 'Jost', sans-serif; padding: 60px 48px; }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 64px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid #EDF2F5;
+  }
+  .brand-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 56px;
+    font-weight: 300;
+    color: #2B3240;
+    line-height: 1;
+  }
+  .brand-name span { color: #5B8FA8; }
+  .brand-tagline {
+    font-size: 13px;
+    color: #9AABB5;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 12px;
+    font-weight: 400;
+  }
+  .brand-version {
+    font-size: 11px;
+    color: #B0C0CC;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-align: right;
+    margin-top: 8px;
+  }
+
+  /* SECTION LABELS */
+  .section-label {
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: #9AABB5;
+    font-weight: 500;
+    margin-bottom: 24px;
+    margin-top: 56px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #EDF2F5;
+  }
+
+  /* COLORS */
+  .palette-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .palette-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-width: 560px; }
+  .color-card { border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(43,50,64,0.07); }
+  .color-swatch { height: 140px; width: 100%; }
+  .color-info { background: white; padding: 18px; }
+  .color-name { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 500; color: #2B3240; margin-bottom: 4px; }
+  .color-hex { font-size: 12px; color: #5B8FA8; letter-spacing: 0.12em; font-weight: 500; margin-bottom: 6px; font-family: monospace; }
+  .color-use { font-size: 11px; color: #9AABB5; line-height: 1.6; font-weight: 300; }
+
+  /* TYPOGRAPHY */
+  .font-section { margin-bottom: 40px; }
+  .font-card {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 4px 20px rgba(43,50,64,0.07);
+    margin-bottom: 20px;
+  }
+  .font-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #EDF2F5;
+  }
+  .font-label {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #5B8FA8;
+    font-weight: 500;
+  }
+  .font-name-tag {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #B0C0CC;
+    background: #EDF2F5;
+    padding: 6px 14px;
+    border-radius: 50px;
+  }
+  .font-display-serif {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 52px;
+    font-weight: 300;
+    color: #2B3240;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+  .font-display-serif em { font-style: italic; color: #5B8FA8; }
+  .font-weights-serif {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .weight-item { }
+  .weight-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #B0C0CC; margin-bottom: 4px; }
+  .weight-300-serif { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 22px; color: #2B3240; }
+  .weight-400-serif { font-family: 'Cormorant Garamond', serif; font-weight: 400; font-size: 22px; color: #2B3240; }
+  .weight-500-serif { font-family: 'Cormorant Garamond', serif; font-weight: 500; font-size: 22px; color: #2B3240; }
+  .weight-600-serif { font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: 22px; color: #2B3240; }
+  .weight-italic-serif { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-style: italic; font-size: 22px; color: #5B8FA8; }
+  .font-use-note { font-size: 12px; color: #9AABB5; line-height: 1.7; font-weight: 300; }
+
+  .font-display-sans {
+    font-family: 'Jost', sans-serif;
+    font-size: 42px;
+    font-weight: 300;
+    color: #2B3240;
+    line-height: 1.1;
+    margin-bottom: 16px;
+    letter-spacing: 0.02em;
+  }
+  .weight-300-sans { font-family: 'Jost', sans-serif; font-weight: 300; font-size: 20px; color: #2B3240; }
+  .weight-400-sans { font-family: 'Jost', sans-serif; font-weight: 400; font-size: 20px; color: #2B3240; }
+  .weight-500-sans { font-family: 'Jost', sans-serif; font-weight: 500; font-size: 20px; color: #2B3240; }
+  .weight-600-sans { font-family: 'Jost', sans-serif; font-weight: 600; font-size: 20px; color: #2B3240; }
+
+  .type-scale {
+    background: #F5F0E8;
+    border-radius: 16px;
+    padding: 32px 40px;
+    margin-top: 20px;
+  }
+  .scale-item {
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(176,192,204,0.2);
+  }
+  .scale-item:last-child { border-bottom: none; }
+  .scale-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #AE9D8C; min-width: 120px; font-weight: 500; }
+  .scale-h1 { font-family: 'Cormorant Garamond', serif; font-size: 52px; font-weight: 300; color: #2B3240; line-height: 1; }
+  .scale-h2 { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 300; color: #2B3240; }
+  .scale-h3 { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 500; color: #2B3240; }
+  .scale-body { font-family: 'Jost', sans-serif; font-size: 16px; font-weight: 300; color: #6B7E8F; line-height: 1.8; }
+  .scale-small { font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 300; color: #9AABB5; }
+  .scale-label-text { font-family: 'Jost', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: #5B8FA8; }
+  .scale-button { font-family: 'Jost', sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: white; background: #5B8FA8; padding: 10px 24px; border-radius: 50px; display: inline-block; }
+
+  /* FOOTER */
+  .footer {
+    margin-top: 64px;
+    padding-top: 32px;
+    border-top: 1px solid #EDF2F5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .footer-brand { font-family: 'Cormorant Garamond', serif; font-size: 20px; color: #5B8FA8; }
+  .footer-note { font-size: 11px; color: #9AABB5; letter-spacing: 0.08em; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <div class="brand-name">Orderly <span>Flow</span></div>
+    <div class="brand-tagline">Home Management, Finally Simplified</div>
+  </div>
+  <div class="brand-version">Brand Guidelines — 2026</div>
+</div>
+
+<!-- COLORS -->
+<div class="section-label">Color Palette</div>
+
+<div style="margin-bottom:8px; font-size:11px; color:#B0C0CC; letter-spacing:0.1em; text-transform:uppercase;">Core — Every Screen</div>
+<div class="palette-grid-3" style="margin-bottom:20px;">
+  <div class="color-card">
+    <div class="color-swatch" style="background:#FAFCFD; border:1px solid #EDF2F5;"></div>
+    <div class="color-info">
+      <div class="color-name">Cloud White</div>
+      <div class="color-hex">#FAFCFD</div>
+      <div class="color-use">All backgrounds</div>
+    </div>
+  </div>
+  <div class="color-card">
+    <div class="color-swatch" style="background:#2B3240;"></div>
+    <div class="color-info">
+      <div class="color-name">Deep Navy</div>
+      <div class="color-hex">#2B3240</div>
+      <div class="color-use">Headlines, body text, navigation</div>
+    </div>
+  </div>
+  <div class="color-card">
+    <div class="color-swatch" style="background:#EDF2F5;"></div>
+    <div class="color-info">
+      <div class="color-name">Mist</div>
+      <div class="color-hex">#EDF2F5</div>
+      <div class="color-use">Cards, inputs, secondary backgrounds</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-bottom:8px; font-size:11px; color:#B0C0CC; letter-spacing:0.1em; text-transform:uppercase;">Brand — Buttons & Flo</div>
+<div class="palette-grid-2" style="margin-bottom:20px;">
+  <div class="color-card">
+    <div class="color-swatch" style="background:#5B8FA8;"></div>
+    <div class="color-info">
+      <div class="color-name">Harbor Blue</div>
+      <div class="color-hex">#5B8FA8</div>
+      <div class="color-use">Primary buttons, links, active states</div>
+    </div>
+  </div>
+  <div class="color-card">
+    <div class="color-swatch" style="background:#8EA39D;"></div>
+    <div class="color-info">
+      <div class="color-name">Sea Green</div>
+      <div class="color-hex">#8EA39D</div>
+      <div class="color-use">Flo elements, success states</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-bottom:8px; font-size:11px; color:#B0C0CC; letter-spacing:0.1em; text-transform:uppercase;">Status — Alerts Only</div>
+<div class="palette-grid-2">
+  <div class="color-card">
+    <div class="color-swatch" style="background:#E8C8A0;"></div>
+    <div class="color-info">
+      <div class="color-name">Warm Glow</div>
+      <div class="color-hex">#E8C8A0</div>
+      <div class="color-use">Upcoming reminders, warnings</div>
+    </div>
+  </div>
+  <div class="color-card">
+    <div class="color-swatch" style="background:#D4544A;"></div>
+    <div class="color-info">
+      <div class="color-name">Alert Red</div>
+      <div class="color-hex">#D4544A</div>
+      <div class="color-use">Overdue reminders, errors</div>
+    </div>
+  </div>
+</div>
+
+<!-- TYPOGRAPHY -->
+<div class="section-label">Typography</div>
+
+<!-- Serif -->
+<div class="font-card">
+  <div class="font-meta">
+    <div class="font-label">Display / Headlines</div>
+    <div class="font-name-tag">Cormorant Garamond</div>
+  </div>
+  <div class="font-display-serif">Your home, <em>finally</em><br>under control.</div>
+  <div class="font-weights-serif">
+    <div class="weight-item">
+      <div class="weight-label">Light 300</div>
+      <div class="weight-300-serif">Orderly Flow</div>
+    </div>
+    <div class="weight-item">
+      <div class="weight-label">Regular 400</div>
+      <div class="weight-400-serif">Orderly Flow</div>
+    </div>
+    <div class="weight-item">
+      <div class="weight-label">Medium 500</div>
+      <div class="weight-500-serif">Orderly Flow</div>
+    </div>
+    <div class="weight-item">
+      <div class="weight-label">Italic</div>
+      <div class="weight-italic-serif">Orderly Flow</div>
+    </div>
+  </div>
+  <div class="font-use-note">Used for: Page headlines, section titles, Flo quotes, brand name. Pairs elegance with warmth. Italic weight in Harbor Blue for emphasis.</div>
+</div>
+
+<!-- Sans -->
+<div class="font-card">
+  <div class="font-meta">
+    <div class="font-label">Body / UI</div>
+    <div class="font-name-tag">Jost</div>
+  </div>
+  <div class="font-display-sans">Home management,<br>simplified.</div>
+  <div class="font-weights-serif">
+    <div class="weight-item">
+      <div class="weight-label">Light 300</div>
+      <div class="weight-300-sans">Body text, descriptions</div>
+    </div>
+    <div class="weight-item">
+      <div class="weight-label">Regular 400</div>
+      <div class="weight-400-sans">Navigation, labels</div>
+    </div>
+    <div class="weight-item">
+      <div class="weight-label">Medium 500</div>
+      <div class="weight-500-sans">Buttons, CTAs</div>
+    </div>
+    <div class="weight-item">
+      <div class="weight-label">Semi 600</div>
+      <div class="weight-600-sans">Emphasis, tags</div>
+    </div>
+  </div>
+  <div class="font-use-note">Used for: All body copy, UI labels, buttons, navigation, form fields, and any text under 20px. Clean, modern, highly readable on screens.</div>
+</div>
+
+<!-- Type Scale -->
+<div class="type-scale">
+  <div style="font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:#AE9D8C; font-weight:500; margin-bottom:20px;">Type Scale</div>
+  <div class="scale-item">
+    <div class="scale-label">H1 / Hero</div>
+    <div class="scale-h1">Your Home</div>
+  </div>
+  <div class="scale-item">
+    <div class="scale-label">H2 / Section</div>
+    <div class="scale-h2">Meet Flo</div>
+  </div>
+  <div class="scale-item">
+    <div class="scale-label">H3 / Card Title</div>
+    <div class="scale-h3">Home Details</div>
+  </div>
+  <div class="scale-item">
+    <div class="scale-label">Body</div>
+    <div class="scale-body">Everything about your home in one calm, organized place.</div>
+  </div>
+  <div class="scale-item">
+    <div class="scale-label">Eyebrow Label</div>
+    <div class="scale-label-text">Coming Soon</div>
+  </div>
+  <div class="scale-item">
+    <div class="scale-label">Button</div>
+    <div class="scale-button">Save My Spot</div>
+  </div>
+  <div class="scale-item">
+    <div class="scale-label">Small / Caption</div>
+    <div class="scale-small">No spam, ever. Unsubscribe anytime.</div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="footer-brand">Orderly Flow</div>
+  <div class="footer-note">© 2026 Orderly Flow — Brand Guidelines</div>
+</div>
+
+</body>
+</html>

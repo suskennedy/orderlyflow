@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { FONTS } from '../../lib/typography';
 
 interface PaintColor {
   id: string;
@@ -87,6 +88,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   name: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 18,
     fontWeight: 'bold',
   },

@@ -6,6 +6,7 @@ export const routes = {
   auth: {
     signin: '/(auth)/signin',
     forgotPassword: '/(auth)/forgot-password',
+    resetPassword: '/(auth)/reset-password',
     onboarding: '/onboarding',
   },
   
@@ -118,6 +119,7 @@ export const navigate = {
   toSignIn: () => router.push(routes.auth.signin as any),
   toSignUp: () => router.replace(routes.auth.onboarding as any),
   toForgotPassword: () => router.push(routes.auth.forgotPassword as any),
+  toResetPassword: () => router.replace(routes.auth.resetPassword as any),
   
   // Main tab routes
   toDashboard: () => router.replace(routes.tabs.dashboard as any),

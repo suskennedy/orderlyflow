@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { FONTS } from '../../lib/typography';
 
 interface ApplianceCardProps {
   appliance: any;
@@ -156,6 +157,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   name: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 4,

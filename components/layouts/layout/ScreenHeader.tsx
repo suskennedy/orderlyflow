@@ -4,6 +4,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { FONTS } from '../../../lib/typography';
 
 interface ScreenHeaderProps {
   title: string;
@@ -146,12 +147,14 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   title: {
+    fontFamily: FONTS.heading,
     fontSize: 22,
     fontWeight: '700',
     textAlign: 'center',
     letterSpacing: -0.5,
   },
   subtitle: {
+    fontFamily: FONTS.body,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 4,

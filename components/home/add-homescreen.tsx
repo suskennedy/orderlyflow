@@ -192,7 +192,7 @@ export default function AddHomeScreen() {
               if (errors.name) clearErrors('name');
             }}
             placeholder="e.g., Lake House, Main Residence"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             onFocus={() => handleFocus('name')}
             onBlur={handleBlur}
             returnKeyType="next"
@@ -253,7 +253,7 @@ export default function AddHomeScreen() {
                   if (errors.bedrooms) clearErrors('bedrooms');
                 }}
                 placeholder="3"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="numeric"
                 onFocus={() => handleFocus('bedrooms')}
                 onBlur={handleBlur}
@@ -280,7 +280,7 @@ export default function AddHomeScreen() {
                   if (errors.bathrooms) clearErrors('bathrooms');
                 }}
                 placeholder="2.5"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="numeric"
                 onFocus={() => handleFocus('bathrooms')}
                 onBlur={handleBlur}
@@ -310,7 +310,7 @@ export default function AddHomeScreen() {
                   if (errors.square_footage) clearErrors('square_footage');
                 }}
                 placeholder="2500"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="numeric"
                 onFocus={() => handleFocus('square_footage')}
                 onBlur={handleBlur}
@@ -397,7 +397,7 @@ export default function AddHomeScreen() {
               if (errors.water_heater_location) clearErrors('water_heater_location');
             }}
             placeholder="e.g., Basement utility closet, Garage"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textTertiary}
             onFocus={() => handleFocus('water_heater_location')}
             onBlur={handleBlur}
             returnKeyType="done"
@@ -433,22 +433,26 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   sectionTitle: {
+    fontFamily: FONTS.heading,
     fontSize: 20,
     fontWeight: '700',
     marginTop: 10,
     marginBottom: 5,
   },
   label: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
   },
   input: {
+    fontFamily: FONTS.body,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
   },
   textArea: {
+    fontFamily: FONTS.body,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
@@ -476,6 +480,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   saveButtonText: {
+    fontFamily: FONTS.bodySemiBold,
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 8,
@@ -516,6 +521,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   errorText: {
+    fontFamily: FONTS.body,
     fontSize: 12,
     marginTop: 4,
     fontWeight: '500',
