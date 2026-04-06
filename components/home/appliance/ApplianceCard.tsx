@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { FONTS } from '../../lib/typography';
+import { FONTS } from '../../../lib/typography';
 
 interface ApplianceCardProps {
   appliance: any;

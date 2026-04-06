@@ -728,25 +728,26 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
         {/* Category Cards with Inline Task Sections */}
         {dynamicCategories.map((category) => {
           const templateTasksForCat = getCombinedTasksForCategory(category);
-          const totalItems = templateTasksForCat.length +
-            (category === 'Repairs' ? repairs.length : 0) +
-            (category === 'Projects' ? projects.length : 0);
+          const extraItems = category === 'Repairs' ? repairs.length : category === 'Projects' ? projects.length : 0;
+          const totalItems = templateTasksForCat.length + extraItems;
+          const activeTemplateCount = templateTasksForCat.filter(t => t.isActiveForHome).length;
+          const activeExtraCount = category === 'Repairs'
+            ? repairs.filter((r: any) => r.is_active !== false).length
+            : category === 'Projects'
+              ? projects.filter((p: any) => p.is_active !== false).length
+              : 0;
+          const totalActive = activeTemplateCount + activeExtraCount;
 
-          let onAddCallback = () => router.push(homeId ? `/(tabs)/(home)/${homeId}/tasks/add?category=${category}` : '/(tabs)/(tasks)' as any);
           let addLabel = `Add ${category.slice(0, -1) || 'Task'}`;
-
-          if (category === 'Repairs') {
-            onAddCallback = () => router.push(`/(tabs)/(tasks)/add-repair?homeId=${homeId}` as any);
-            addLabel = "Add Repair";
-          } else if (category === 'Projects') {
-            onAddCallback = () => router.push(`/(tabs)/(tasks)/add-project?homeId=${homeId}` as any);
-            addLabel = "Add Project";
-          }
+          if (category === 'Repairs') addLabel = 'Add Repair';
+          else if (category === 'Projects') addLabel = 'Add Project';
 
           return (
             <CategorySection
               key={category}
-              category={`${category} (${category === 'Repairs' ? repairs.length : projects.length})`}
+              category={category}
+              taskCount={totalItems}
+              activeCount={totalActive}
               isExpanded={expandedCategory === category}
               onToggle={() => toggleCategory(category)}
               onAdd={() => {
@@ -759,7 +760,7 @@ export default function TaskSettingsScreen({ homeId }: TaskSettingsScreenProps) 
                   router.push(targetHomeId ? `/(tabs)/(home)/${targetHomeId}/tasks/add?category=${category}` : '/(tabs)/(tasks)' as any);
                 }
               }}
-              addLabel={category === 'Repairs' ? 'Add Repair' : (category === 'Projects' ? 'Add Project' : addLabel)}
+              addLabel={addLabel}
               colors={colors}
             >
               {templateTasksForCat.map((task, index) => (

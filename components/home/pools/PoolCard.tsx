@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { FONTS } from '../../lib/typography';
+import { FONTS } from '../../../lib/typography';
 import { usePoolsStore } from '../../../lib/stores/poolsStore';
 
 interface Pool {

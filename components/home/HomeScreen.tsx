@@ -152,19 +152,18 @@ export default function HomeScreen() {
 
   // Initial dashboard data fetch
   const hasInitializedRef = useRef(false);
+  // Separate guard: fetch homes at most once when user has no homes yet.
+  // Without this, fetchHomes() → set({ homes: [] }) → new [] ref → onRefresh recreates
+  // → effect re-fires → fetchHomes() again → infinite loop.
+  const hasFetchedEmptyRef = useRef(false);
   useEffect(() => {
-    if (user?.id && !hasInitializedRef.current) {
-      if (homesArray.length > 0) {
-        hasInitializedRef.current = true;
-        console.log('HomeScreen: Initializing dashboard data...');
-        onRefresh();
-      } else if (!homesLoading) {
-        // If not loading and no homes, still mark as initialized to avoid infinite loops
-        // but try to fetch once just in case
-        console.log('HomeScreen: No homes found, fetching homes...');
-        fetchHomes();
-        // We don't set hasInitializedRef yet because we want to run onRefresh once homes come in
-      }
+    if (!user?.id) return;
+    if (homesArray.length > 0 && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      onRefresh();
+    } else if (homesArray.length === 0 && !homesLoading && !hasFetchedEmptyRef.current) {
+      hasFetchedEmptyRef.current = true;
+      fetchHomes();
     }
   }, [user?.id, homesArray.length, homesLoading, onRefresh, fetchHomes]);
 

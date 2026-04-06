@@ -13,6 +13,7 @@ import { useHomesStore } from '../../lib/stores/homesStore';
 import AddressAutocomplete from '../forms/AddressAutocomplete';
 import PhotoManager from '../forms/PhotoManager';
 import ScreenHeader from '../layouts/layout/ScreenHeader';
+import { FONTS } from '../../lib/typography';
 
 export default function AddHomeScreen() {
   const createHome = useHomesStore(state => state.createHome);
