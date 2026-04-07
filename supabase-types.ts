@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -388,6 +388,7 @@ export type Database = {
           is_recurring_task: boolean | null
           last_completed: string | null
           last_modified_by: string | null
+          last_reminder_sent: string | null
           next_due: string | null
           notes: string | null
           priority: string | null
@@ -437,6 +438,7 @@ export type Database = {
           is_recurring_task?: boolean | null
           last_completed?: string | null
           last_modified_by?: string | null
+          last_reminder_sent?: string | null
           next_due?: string | null
           notes?: string | null
           priority?: string | null
@@ -486,6 +488,7 @@ export type Database = {
           is_recurring_task?: boolean | null
           last_completed?: string | null
           last_modified_by?: string | null
+          last_reminder_sent?: string | null
           next_due?: string | null
           notes?: string | null
           priority?: string | null
@@ -808,6 +811,7 @@ export type Database = {
           home_id: string
           id: string
           in_ground_vs_above_ground: string | null
+          name: string
           notes: string | null
           salt_water_vs_chlorine: string | null
           updated_at: string | null
@@ -817,6 +821,7 @@ export type Database = {
           home_id: string
           id?: string
           in_ground_vs_above_ground?: string | null
+          name?: string
           notes?: string | null
           salt_water_vs_chlorine?: string | null
           updated_at?: string | null
@@ -826,6 +831,7 @@ export type Database = {
           home_id?: string
           id?: string
           in_ground_vs_above_ground?: string | null
+          name?: string
           notes?: string | null
           salt_water_vs_chlorine?: string | null
           updated_at?: string | null

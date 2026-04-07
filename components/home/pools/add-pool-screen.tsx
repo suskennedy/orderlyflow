@@ -7,9 +7,9 @@ import { useForm } from 'react-hook-form';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { FONTS } from '../../../lib/typography';
 import { INSTALLATION_TYPES, POOL_TYPES, PoolFormData, poolFormSchema, transformPoolFormData } from '../../../lib/schemas/home/poolFormSchema';
 import { usePoolsStore } from '../../../lib/stores/poolsStore';
+import { FONTS } from '../../../lib/typography';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 
 export default function AddPoolScreen() {
@@ -30,6 +30,7 @@ export default function AddPoolScreen() {
     } = useForm<PoolFormData>({
         resolver: zodResolver(poolFormSchema),
         defaultValues: {
+            name: 'Pool',
             salt_water_vs_chlorine: POOL_TYPES[0],
             in_ground_vs_above_ground: INSTALLATION_TYPES[0],
             notes: '',
@@ -83,6 +84,31 @@ export default function AddPoolScreen() {
             >
                 <View style={styles.form}>
                     <Text style={[styles.sectionTitle, { color: colors.text }]}>Pool Details</Text>
+
+                    <Text style={[styles.label, { color: colors.text }]}>Pool name *</Text>
+                    <TextInput
+                        style={[
+                            styles.textInput,
+                            {
+                                backgroundColor: colors.surface,
+                                color: colors.text,
+                                borderColor: errors.name ? colors.error : focusedField === 'name' ? colors.primary : colors.border,
+                                borderWidth: errors.name || focusedField === 'name' ? 2 : 1,
+                            },
+                        ]}
+                        value={formData.name || ''}
+                        onChangeText={(text) => {
+                            setValue('name', text);
+                            if (errors.name) clearErrors('name');
+                        }}
+                        placeholder="e.g., Main pool, Spa"
+                        placeholderTextColor={colors.textTertiary}
+                        onFocus={() => handleFocus('name')}
+                        onBlur={handleBlur}
+                    />
+                    {errors.name && (
+                        <Text style={[styles.errorText, { color: colors.error }]}>{errors.name.message}</Text>
+                    )}
 
                     <Text style={[styles.label, { color: colors.text }]}>Water Type *</Text>
                     <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -187,6 +213,13 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         marginBottom: 8,
+    },
+    textInput: {
+        fontFamily: FONTS.body,
+        borderRadius: 12,
+        padding: 16,
+        fontSize: 16,
+        borderWidth: 1,
     },
     textArea: {
         fontFamily: FONTS.body,

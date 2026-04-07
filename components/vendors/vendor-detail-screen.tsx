@@ -4,13 +4,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Linking,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Linking,
+    ScrollView,
+    Share,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
@@ -24,11 +24,8 @@ interface Vendor {
   id: string;
   name: string;
   category?: string | null;
-  contact_name?: string | null;
   phone?: string | null;
   email?: string | null;
-  website?: string | null;
-  address?: string | null;
   notes?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
@@ -84,7 +81,7 @@ export default function VendorDetailScreen() {
     if (!vendor) return;
     try {
       await Share.share({
-        message: `Vendor: ${vendor.name}\n${vendor.phone ? `Phone: ${vendor.phone}\n` : ''}${vendor.email ? `Email: ${vendor.email}\n` : ''}${vendor.category ? `Category: ${vendor.category}` : ''}`,
+        message: `Vendor: ${vendor.name}\n${vendor.phone ? `Phone: ${vendor.phone}\n` : ''}${vendor.email ? `Email: ${vendor.email}\n` : ''}${vendor.category ? `Category: ${vendor.category}\n` : ''}${vendor.notes ? `Notes: ${vendor.notes}` : ''}`,
       });
     } catch (error) {
       console.error(error);
@@ -183,40 +180,27 @@ export default function VendorDetailScreen() {
                 <Text style={[styles.actionText, { color: colors.text }]}>Email</Text>
               </TouchableOpacity>
             )}
-            {vendor.website && (
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: colors.surface }]}
-                onPress={() => Linking.openURL(vendor.website!)}
-              >
-                <View style={[styles.actionIcon, { backgroundColor: '#8B5CF620' }]}>
-                  <Ionicons name="globe" size={20} color="#8B5CF6" />
-                </View>
-                <Text style={[styles.actionText, { color: colors.text }]}>Web</Text>
-              </TouchableOpacity>
-            )}
           </View>
 
-          {/* Info Sections */}
+          {/* Contact */}
           <View style={[styles.infoSection, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.sectionTitleRefined, { color: colors.textTertiary }]}>CONTACT DETAILS</Text>
+            <Text style={[styles.sectionTitleRefined, { color: colors.textTertiary }]}>CONTACT</Text>
 
             <View style={styles.infoRowRefined}>
-              <Ionicons name="person-outline" size={20} color={colors.textTertiary} />
+              <Ionicons name="call-outline" size={20} color={colors.textTertiary} />
               <View style={styles.infoValueWrapper}>
-                <Text style={[styles.infoLabelSmall, { color: colors.textTertiary }]}>Primary Contact</Text>
-                <Text style={[styles.infoValueLarge, { color: colors.text }]}>{vendor.contact_name || 'Not specified'}</Text>
+                <Text style={[styles.infoLabelSmall, { color: colors.textTertiary }]}>Phone</Text>
+                <Text style={[styles.infoValueLarge, { color: colors.text }]}>{vendor.phone || 'Not specified'}</Text>
               </View>
             </View>
 
-            {vendor.address && (
-              <View style={[styles.infoRowRefined, { marginTop: 15 }]}>
-                <Ionicons name="location-outline" size={20} color={colors.textTertiary} />
-                <View style={styles.infoValueWrapper}>
-                  <Text style={[styles.infoLabelSmall, { color: colors.textTertiary }]}>Address</Text>
-                  <Text style={[styles.infoValueLarge, { color: colors.text }]}>{vendor.address}</Text>
-                </View>
+            <View style={[styles.infoRowRefined, { marginTop: 15 }]}>
+              <Ionicons name="mail-outline" size={20} color={colors.textTertiary} />
+              <View style={styles.infoValueWrapper}>
+                <Text style={[styles.infoLabelSmall, { color: colors.textTertiary }]}>Email</Text>
+                <Text style={[styles.infoValueLarge, { color: colors.text }]}>{vendor.email || 'Not specified'}</Text>
               </View>
-            )}
+            </View>
           </View>
 
           {/* Notes Section */}

@@ -2,19 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Animated,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../../../lib/contexts/ThemeContext';
 import { useRealTimeSubscription } from '../../../../../lib/hooks/useRealTimeSubscription';
 import { useAppliancesStore } from '../../../../../lib/stores/appliancesStore';
+import { downloadPdfFromUrl, openPdfInBrowser } from '../../../../../lib/utils/documentDownload';
 
 const EMPTY_ARRAY: any[] = [];
 interface Appliance {
@@ -74,6 +75,7 @@ function ApplianceDetailScreen() {
   );
 
   const [appliance, setAppliance] = useState<Appliance | null>(null);
+  const [busyDoc, setBusyDoc] = useState<'manual' | 'warranty' | null>(null);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(50));
 
@@ -96,42 +98,20 @@ function ApplianceDetailScreen() {
     ]).start();
   }, [appliances, applianceId, fadeAnim, slideAnim]);
 
-  const handleManual = () => {
-    if (!appliance?.manual_url) {
-      Alert.alert('No Manual', 'This appliance does not have a manual PDF.');
-      return;
+  const handleDownloadDoc = async (url: string | null | undefined, kind: 'manual' | 'warranty') => {
+    if (!url) return;
+    try {
+      setBusyDoc(kind);
+      await downloadPdfFromUrl(url, kind === 'manual' ? 'appliance-manual.pdf' : 'appliance-warranty.pdf');
+    } catch (e) {
+      Alert.alert('Download failed', e instanceof Error ? e.message : 'Could not download the file.');
+    } finally {
+      setBusyDoc(null);
     }
-
-    Alert.alert(
-      'Open Manual',
-      `Open the manual for ${appliance.type || 'this appliance'}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Open',
-          onPress: () => Linking.openURL(appliance.manual_url!)
-        }
-      ]
-    );
   };
 
-  const handleWarranty = () => {
-    if (!appliance?.warranty_url) {
-      Alert.alert('No Warranty', 'This appliance does not have a warranty PDF.');
-      return;
-    }
-
-    Alert.alert(
-      'Open Warranty',
-      `Open the warranty for ${appliance.type || 'this appliance'}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Open',
-          onPress: () => Linking.openURL(appliance.warranty_url!)
-        }
-      ]
-    );
+  const goEditDocuments = () => {
+    router.push(`/(tabs)/(home)/${homeId}/appliances/${applianceId}/edit` as any);
   };
 
   const handleDelete = () => {
@@ -148,7 +128,6 @@ function ApplianceDetailScreen() {
           onPress: async () => {
             try {
               await deleteAppliance(homeId || '', applianceId);
-              Alert.alert('Success', 'Appliance deleted successfully!');
               router.back();
             } catch (error) {
               console.error('Error deleting appliance:', error);
@@ -313,6 +292,97 @@ function ApplianceDetailScreen() {
           </View>
         </Animated.View>
 
+        {/* Documents: download, open, replace */}
+        {(appliance.manual_url || appliance.warranty_url) && (
+          <Animated.View
+            style={[
+              styles.section,
+              {
+                backgroundColor: colors.surface,
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
+            <View style={styles.sectionHeader}>
+              <Ionicons name="folder-open-outline" size={24} color={colors.primary} />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Manual & warranty</Text>
+            </View>
+
+            {appliance.manual_url ? (
+              <View style={[styles.docBlock, { borderColor: colors.border }]}>
+                <Text style={[styles.docBlockTitle, { color: colors.text }]}>Manual (PDF)</Text>
+                <View style={styles.docActions}>
+                  <TouchableOpacity
+                    style={[styles.docChip, { backgroundColor: colors.primaryLight }]}
+                    onPress={() => handleDownloadDoc(appliance.manual_url, 'manual')}
+                    disabled={busyDoc === 'manual'}
+                  >
+                    {busyDoc === 'manual' ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <>
+                        <Ionicons name="download-outline" size={18} color={colors.primary} />
+                        <Text style={[styles.docChipText, { color: colors.primary }]}>Download</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.docChip, { backgroundColor: colors.primaryLight }]}
+                    onPress={() => openPdfInBrowser(appliance.manual_url!)}
+                  >
+                    <Ionicons name="open-outline" size={18} color={colors.primary} />
+                    <Text style={[styles.docChipText, { color: colors.primary }]}>Open</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.docChip, { backgroundColor: colors.primaryLight }]}
+                    onPress={goEditDocuments}
+                  >
+                    <Ionicons name="swap-horizontal" size={18} color={colors.primary} />
+                    <Text style={[styles.docChipText, { color: colors.primary }]}>Replace</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+
+            {appliance.warranty_url ? (
+              <View style={[styles.docBlock, { borderColor: colors.border }]}>
+                <Text style={[styles.docBlockTitle, { color: colors.text }]}>Warranty (PDF)</Text>
+                <View style={styles.docActions}>
+                  <TouchableOpacity
+                    style={[styles.docChip, { backgroundColor: colors.primaryLight }]}
+                    onPress={() => handleDownloadDoc(appliance.warranty_url, 'warranty')}
+                    disabled={busyDoc === 'warranty'}
+                  >
+                    {busyDoc === 'warranty' ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <>
+                        <Ionicons name="download-outline" size={18} color={colors.primary} />
+                        <Text style={[styles.docChipText, { color: colors.primary }]}>Download</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.docChip, { backgroundColor: colors.primaryLight }]}
+                    onPress={() => openPdfInBrowser(appliance.warranty_url!)}
+                  >
+                    <Ionicons name="open-outline" size={18} color={colors.primary} />
+                    <Text style={[styles.docChipText, { color: colors.primary }]}>Open</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.docChip, { backgroundColor: colors.primaryLight }]}
+                    onPress={goEditDocuments}
+                  >
+                    <Ionicons name="swap-horizontal" size={18} color={colors.primary} />
+                    <Text style={[styles.docChipText, { color: colors.primary }]}>Replace</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+          </Animated.View>
+        )}
+
         {/* Notes Section */}
         {appliance.notes && (
           <Animated.View
@@ -335,7 +405,7 @@ function ApplianceDetailScreen() {
           </Animated.View>
         )}
 
-        {/* Bottom Action Buttons */}
+        {/* Delete */}
         <Animated.View
           style={[
             styles.bottomActions,
@@ -346,32 +416,12 @@ function ApplianceDetailScreen() {
             }
           ]}
         >
-          {appliance.manual_url && (
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.primary }]}
-              onPress={handleManual}
-            >
-              <Ionicons name="document-text" size={20} color={colors.background} />
-              <Text style={[styles.actionButtonText, { color: colors.background }]}>Manual</Text>
-            </TouchableOpacity>
-          )}
-
-          {appliance.warranty_url && (
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.primary }]}
-              onPress={handleWarranty}
-            >
-              <Ionicons name="shield-checkmark" size={20} color={colors.background} />
-              <Text style={[styles.actionButtonText, { color: colors.background }]}>Warranty</Text>
-            </TouchableOpacity>
-          )}
-
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
+            style={[styles.actionButton, { backgroundColor: '#EF4444', flex: 0, minWidth: 140 }]}
             onPress={handleDelete}
           >
             <Ionicons name="trash" size={20} color={colors.background} />
-            <Text style={[styles.actionButtonText, { color: colors.background }]}>Delete</Text>
+            <Text style={[styles.actionButtonText, { color: colors.background }]}>Delete appliance</Text>
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>
@@ -535,7 +585,7 @@ const styles = StyleSheet.create({
   },
   bottomActions: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     paddingVertical: 20,
     paddingHorizontal: 16,
     marginTop: 16,
@@ -553,6 +603,34 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     minHeight: 70,
     gap: 6,
+  },
+  docBlock: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  docBlockTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 10,
+  },
+  docActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  docChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  docChipText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   actionButtonText: {
     fontSize: 12,

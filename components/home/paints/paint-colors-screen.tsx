@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
 import { usePaintsStore } from '../../../lib/stores/paintsStore';
+import { matchesHomeScopedRow } from '../../../lib/utils/realtimeHomeScoped';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 import PaintColorCard from './PaintColorCard';
 
@@ -31,9 +32,10 @@ export default function PaintColorsScreen() {
 
   // Real-time subscription
   const handlePaintChange = useCallback((payload: any) => {
-    if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
     const store = usePaintsStore.getState();
     const currentPaints = store.paintsByHome[homeId] || [];
+    const ids = currentPaints.map((p) => p.id);
+    if (!matchesHomeScopedRow(homeId, payload, ids)) return;
     if (payload.eventType === 'INSERT') {
       const newPaint = payload.new;
       if (!currentPaints.some(p => p.id === newPaint.id)) {
@@ -41,7 +43,7 @@ export default function PaintColorsScreen() {
       }
     } else if (payload.eventType === 'UPDATE') {
       setPaints(homeId, currentPaints.map(p => p.id === payload.new.id ? payload.new : p));
-    } else if (payload.eventType === 'DELETE') {
+    } else if (payload.eventType === 'DELETE' && payload.old?.id) {
       setPaints(homeId, currentPaints.filter(p => p.id !== payload.old.id));
     }
   }, [homeId, setPaints]);
@@ -63,6 +65,7 @@ export default function PaintColorsScreen() {
       ) : (
         <FlatList
           data={paints}
+          extraData={paints.length}
           renderItem={({ item }) => <PaintColorCard paint={item} />}
           keyExtractor={item => item.id}
           contentContainerStyle={[styles.list, { paddingBottom: 100 }]}

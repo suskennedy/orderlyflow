@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
 import { useWarrantiesStore } from '../../../lib/stores/warrantiesStore';
+import { matchesHomeScopedRow } from '../../../lib/utils/realtimeHomeScoped';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 import WarrantyCard from './WarrantyCard';
 
@@ -31,9 +32,10 @@ export default function WarrantiesScreen() {
   
   // Real-time subscription
   const handleWarrantyChange = useCallback((payload: any) => {
-    if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
     const store = useWarrantiesStore.getState();
     const currentWarranties = store.warrantiesByHome[homeId] || [];
+    const ids = currentWarranties.map((w) => w.id);
+    if (!matchesHomeScopedRow(homeId, payload, ids)) return;
     if (payload.eventType === 'INSERT') {
       const newWarranty = payload.new;
       if (!currentWarranties.some(w => w.id === newWarranty.id)) {
@@ -41,7 +43,7 @@ export default function WarrantiesScreen() {
       }
     } else if (payload.eventType === 'UPDATE') {
       setWarranties(homeId, currentWarranties.map(w => w.id === payload.new.id ? payload.new : w));
-    } else if (payload.eventType === 'DELETE') {
+    } else if (payload.eventType === 'DELETE' && payload.old?.id) {
       setWarranties(homeId, currentWarranties.filter(w => w.id !== payload.old.id));
     }
   }, [homeId, setWarranties]);

@@ -97,36 +97,50 @@ export const useAppliancesStore = create<AppliancesState>((set, get) => ({
   },
 
   updateAppliance: async (homeId, id, updates) => {
+    const prev = get().appliancesByHome[homeId] || [];
+    const optimistic = prev.map((a) => (a.id === id ? { ...a, ...updates } : a));
+    set((state) => ({
+      appliancesByHome: {
+        ...state.appliancesByHome,
+        [homeId]: optimistic,
+      },
+    }));
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('appliances')
         .update(updates as any)
         .eq('id', id)
         .select()
         .single();
-        
+
       if (error) throw error;
-      
-      // Real-time subscription will handle the state update
-      console.log('Appliance updated');
+      if (data) {
+        const list = get().appliancesByHome[homeId] || [];
+        get().setAppliances(
+          homeId,
+          list.map((a) => (a.id === id ? (data as Appliance) : a))
+        );
+      }
     } catch (error) {
+      get().setAppliances(homeId, prev);
       console.error('Error updating appliance:', error);
       throw error;
     }
   },
 
   deleteAppliance: async (homeId, id) => {
+    const prev = get().appliancesByHome[homeId] || [];
+    set((state) => ({
+      appliancesByHome: {
+        ...state.appliancesByHome,
+        [homeId]: prev.filter((a) => a.id !== id),
+      },
+    }));
     try {
-      const { error } = await supabase
-        .from('appliances')
-        .delete()
-        .eq('id', id);
-        
+      const { error } = await supabase.from('appliances').delete().eq('id', id);
       if (error) throw error;
-      
-      // Real-time subscription will handle the state update
-      console.log('Appliance deleted:', id);
     } catch (error) {
+      get().setAppliances(homeId, prev);
       console.error('Error deleting appliance:', error);
       throw error;
     }

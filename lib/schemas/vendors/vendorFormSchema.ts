@@ -30,28 +30,25 @@ export const VENDOR_CATEGORIES = [
   'Other',
 ] as const;
 
-export const PRIORITY_OPTIONS = ['Primary', 'Secondary'] as const;
-
 export const vendorFormSchema = z.object({
   name: z.string().min(1, 'Vendor name is required').max(255, 'Vendor name is too long'),
-  category: z.enum(VENDOR_CATEGORIES, { message: 'Please select a valid category' }),
-  contact_name: z.string().max(255, 'Contact name is too long').optional(),
-  phone: z.string().max(20, 'Phone number is too long').optional(),
-  email: z.string().email('Invalid email format').optional(),
-  website: z.string().url('Invalid URL format').optional(),
-  address: z.string().max(500, 'Address is too long').optional(),
-  priority: z.enum(PRIORITY_OPTIONS).default('Primary'),
+  /** Optional — helps group vendors (plumber, electrician, etc.) */
+  category: z.union([z.enum(VENDOR_CATEGORIES), z.null()]).optional(),
+  phone: z.string().min(1, 'Phone is required').max(40, 'Phone number is too long'),
+  email: z.union([z.string().email('Invalid email format'), z.literal('')]).optional(),
   notes: z.string().max(1000, 'Notes are too long').optional(),
 });
 
 export type VendorFormData = z.infer<typeof vendorFormSchema>;
 
+/** Payload for Supabase — legacy columns cleared so we only store the simplified schema */
 export const transformVendorFormData = (data: VendorFormData) => ({
-  ...data,
-  contact_name: data.contact_name || null,
-  phone: data.phone || null,
-  email: data.email || null,
-  website: data.website || null,
-  address: data.address || null,
-  notes: data.notes || null,
+  name: data.name.trim(),
+  category: data.category ?? null,
+  phone: data.phone.trim(),
+  email: data.email?.trim() || null,
+  notes: data.notes?.trim() || null,
+  contact_name: null,
+  website: null,
+  address: null,
 });

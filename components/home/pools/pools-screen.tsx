@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
 import { usePoolsStore } from '../../../lib/stores/poolsStore';
+import { matchesHomeScopedRow } from '../../../lib/utils/realtimeHomeScoped';
 import ScreenHeader from '../../layouts/layout/ScreenHeader';
 import PoolCard from './PoolCard';
 
@@ -31,9 +32,10 @@ export default function PoolsScreen() {
 
     // Real-time subscription
     const handlePoolChange = useCallback((payload: any) => {
-        if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
         const store = usePoolsStore.getState();
         const currentPools = store.poolsByHome[homeId] || [];
+        const ids = currentPools.map((p) => p.id);
+        if (!matchesHomeScopedRow(homeId, payload, ids)) return;
         if (payload.eventType === 'INSERT') {
             const newPool = payload.new;
             if (!currentPools.some(p => p.id === newPool.id)) {
@@ -41,7 +43,7 @@ export default function PoolsScreen() {
             }
         } else if (payload.eventType === 'UPDATE') {
             setPools(homeId, currentPools.map(p => p.id === payload.new.id ? payload.new : p));
-        } else if (payload.eventType === 'DELETE') {
+        } else if (payload.eventType === 'DELETE' && payload.old?.id) {
             setPools(homeId, currentPools.filter(p => p.id !== payload.old.id));
         }
     }, [homeId, setPools]);
@@ -63,6 +65,7 @@ export default function PoolsScreen() {
             ) : (
                 <FlatList
                     data={pools}
+                    extraData={pools.length}
                     renderItem={({ item }) => <PoolCard pool={item} />}
                     keyExtractor={item => item.id}
                     contentContainerStyle={[styles.list, { paddingBottom: 100 }]}

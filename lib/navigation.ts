@@ -53,6 +53,9 @@ export const routes = {
     warranties: (homeId: string) => `/(tabs)/(home)/${homeId}/warranties`,
     addWarranty: (homeId: string) => `/(tabs)/(home)/${homeId}/warranties/add`,
     editWarranty: (homeId: string, warrantyId: string) => `/(tabs)/(home)/${homeId}/warranties/${warrantyId}/edit`,
+    pools: (homeId: string) => `/(tabs)/(home)/${homeId}/pools`,
+    addPool: (homeId: string) => `/(tabs)/(home)/${homeId}/pools/add`,
+    editPool: (homeId: string, poolId: string) => `/(tabs)/(home)/${homeId}/pools/${poolId}/edit`,
     // Task routes within home
     tasks: (homeId: string) => `/(tabs)/(home)/${homeId}/tasks`,
     addTask: (homeId: string) => `/(tabs)/(home)/${homeId}/tasks/add`,

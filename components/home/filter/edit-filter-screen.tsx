@@ -4,23 +4,24 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { FONTS } from '../../../lib/typography';
 import { useToast } from '../../../lib/contexts/ToastContext';
 import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
 import { FilterFormInput, filterFormSchema, transformFilterFormData } from '../../../lib/schemas/home/filterFormSchema';
 import { useFiltersStore } from '../../../lib/stores/filtersStore';
+import { FONTS } from '../../../lib/typography';
+import { matchesHomeScopedRow } from '../../../lib/utils/realtimeHomeScoped';
 import DatePicker from '../../DatePicker';
 
 const EMPTY_ARRAY: any[] = [];
@@ -35,6 +36,7 @@ function EditFilterScreen() {
 
   const filters = useFiltersStore(state => state.filtersByHome[homeId] || EMPTY_ARRAY);
   const updateFilter = useFiltersStore(state => state.updateFilter);
+  const deleteFilter = useFiltersStore(state => state.deleteFilter);
   const fetchFilters = useFiltersStore(state => state.fetchFilters);
   const setFilters = useFiltersStore(state => state.setFilters);
 
@@ -75,16 +77,17 @@ function EditFilterScreen() {
   }, [homeId, fetchFilters]);
 
   const handleFilterChange = useCallback((payload: any) => {
-    if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
     const store = useFiltersStore.getState();
     const current = store.filtersByHome[homeId] || [];
+    const ids = current.map((f: { id: string }) => f.id);
+    if (!matchesHomeScopedRow(homeId, payload, ids)) return;
     if (payload.eventType === 'INSERT') {
       const normalized = { ...payload.new, room: payload.new.room ?? payload.new.location ?? null };
       if (!current.some((f: any) => f.id === normalized.id)) setFilters(homeId, [normalized, ...current]);
     } else if (payload.eventType === 'UPDATE') {
       const normalized = { ...payload.new, room: payload.new.room ?? payload.new.location ?? null };
       setFilters(homeId, current.map((f: any) => f.id === normalized.id ? normalized : f));
-    } else if (payload.eventType === 'DELETE') {
+    } else if (payload.eventType === 'DELETE' && payload.old?.id) {
       setFilters(homeId, current.filter((f: any) => f.id !== payload.old.id));
     }
   }, [homeId, setFilters]);
@@ -113,9 +116,6 @@ function EditFilterScreen() {
       });
     }
   }, [filters, filterId, reset]);
-
-  const handleFocus = (fieldName: string) => setFocusedField(fieldName);
-  const handleBlur = () => setFocusedField(null);
 
   const getInputStyle = (fieldName: string, hasError?: boolean) => {
     const isFocused = focusedField === fieldName;
@@ -149,6 +149,29 @@ function EditFilterScreen() {
     ]);
   };
 
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete filter',
+      'Are you sure you want to delete this filter? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteFilter(homeId, filterId);
+              showToast('Filter deleted', 'success');
+              router.back();
+            } catch {
+              showToast('Failed to delete filter', 'error');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (!filterFound) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -159,8 +182,8 @@ function EditFilterScreen() {
           <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Filter</Text>
           <View style={styles.headerRight} />
         </View>
-        <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
+        <View style={styles.notFoundContainer}>
+          <Text style={[styles.notFoundText, { color: colors.textSecondary }]}>
             Filter not found or has been deleted.
           </Text>
         </View>
@@ -177,16 +200,23 @@ function EditFilterScreen() {
         <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Filter</Text>
-        <TouchableOpacity
-          style={[styles.saveButton, { backgroundColor: colors.primary }]}
-          onPress={handleSubmit(onSubmit)}
-          disabled={isSubmitting}
-        >
-          <Text style={[styles.saveButtonText, { color: colors.background }]}>
-            {isSubmitting ? 'Saving...' : 'Save'}
-          </Text>
-        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text, flex: 1 }]} numberOfLines={1}>
+          Edit Filter
+        </Text>
+        <View style={styles.headerRightGroup}>
+          <TouchableOpacity style={styles.deleteHeaderButton} onPress={handleDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="trash-outline" size={22} color={colors.error} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.saveHeaderButton, { backgroundColor: colors.primary }]}
+            onPress={handleSubmit(onSubmit)}
+            disabled={isSubmitting}
+          >
+            <Text style={[styles.saveHeaderButtonText, { color: colors.background }]}>
+              {isSubmitting ? 'Saving...' : 'Save'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -198,29 +228,33 @@ function EditFilterScreen() {
         <View style={styles.form}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Basic Information</Text>
 
-          <Text style={[styles.label, { color: colors.text }]}>Filter Name *</Text>
-          <TextInput
-            style={getInputStyle('name', !!errors.name)}
-            value={formData.name || ''}
-            onChangeText={text => { setValue('name', text); if (errors.name) clearErrors('name'); }}
-            placeholder="e.g., Air Filter, HVAC Filter"
-            placeholderTextColor={colors.textTertiary}
-            onFocus={() => handleFocus('name')}
-            onBlur={handleBlur}
-          />
-          {errors.name && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.name.message}</Text>}
+          <View style={styles.fieldGroup}>
+            <Text style={[styles.label, { color: colors.text }]}>Filter Name *</Text>
+            <TextInput
+              style={getInputStyle('name', !!errors.name)}
+              value={formData.name || ''}
+              onChangeText={text => { setValue('name', text); if (errors.name) clearErrors('name'); }}
+              placeholder="e.g., Air Filter, HVAC Filter"
+              placeholderTextColor={colors.textTertiary}
+              onFocus={() => setFocusedField('name')}
+              onBlur={() => setFocusedField(null)}
+            />
+            {errors.name && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.name.message}</Text>}
+          </View>
 
-          <Text style={[styles.label, { color: colors.text }]}>Room *</Text>
-          <TextInput
-            style={getInputStyle('room', !!errors.room)}
-            value={formData.room || ''}
-            onChangeText={text => { setValue('room', text); if (errors.room) clearErrors('room'); }}
-            placeholder="e.g., Living Room, Basement"
-            placeholderTextColor={colors.textTertiary}
-            onFocus={() => handleFocus('room')}
-            onBlur={handleBlur}
-          />
-          {errors.room && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.room.message}</Text>}
+          <View style={styles.fieldGroup}>
+            <Text style={[styles.label, { color: colors.text }]}>Room *</Text>
+            <TextInput
+              style={getInputStyle('room', !!errors.room)}
+              value={formData.room || ''}
+              onChangeText={text => { setValue('room', text); if (errors.room) clearErrors('room'); }}
+              placeholder="e.g., Living Room, Basement"
+              placeholderTextColor={colors.textTertiary}
+              onFocus={() => setFocusedField('room')}
+              onBlur={() => setFocusedField(null)}
+            />
+            {errors.room && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.room.message}</Text>}
+          </View>
 
           <View style={styles.row}>
             <View style={styles.halfWidth}>
@@ -231,8 +265,8 @@ function EditFilterScreen() {
                 onChangeText={text => { setValue('type', text); if (errors.type) clearErrors('type'); }}
                 placeholder="e.g., HEPA, Carbon"
                 placeholderTextColor={colors.textTertiary}
-                onFocus={() => handleFocus('type')}
-                onBlur={handleBlur}
+                onFocus={() => setFocusedField('type')}
+                onBlur={() => setFocusedField(null)}
               />
               {errors.type && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.type.message}</Text>}
             </View>
@@ -244,8 +278,8 @@ function EditFilterScreen() {
                 onChangeText={text => { setValue('brand', text); if (errors.brand) clearErrors('brand'); }}
                 placeholder="e.g., 3M, Filtrete"
                 placeholderTextColor={colors.textTertiary}
-                onFocus={() => handleFocus('brand')}
-                onBlur={handleBlur}
+                onFocus={() => setFocusedField('brand')}
+                onBlur={() => setFocusedField(null)}
               />
               {errors.brand && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.brand.message}</Text>}
             </View>
@@ -260,8 +294,8 @@ function EditFilterScreen() {
                 onChangeText={text => { setValue('model', text); if (errors.model) clearErrors('model'); }}
                 placeholder="e.g., MERV-13"
                 placeholderTextColor={colors.textTertiary}
-                onFocus={() => handleFocus('model')}
-                onBlur={handleBlur}
+                onFocus={() => setFocusedField('model')}
+                onBlur={() => setFocusedField(null)}
               />
               {errors.model && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.model.message}</Text>}
             </View>
@@ -273,8 +307,8 @@ function EditFilterScreen() {
                 onChangeText={text => { setValue('size', text); if (errors.size) clearErrors('size'); }}
                 placeholder="e.g., 16x20x1"
                 placeholderTextColor={colors.textTertiary}
-                onFocus={() => handleFocus('size')}
-                onBlur={handleBlur}
+                onFocus={() => setFocusedField('size')}
+                onBlur={() => setFocusedField(null)}
               />
               {errors.size && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.size.message}</Text>}
             </View>
@@ -282,54 +316,57 @@ function EditFilterScreen() {
 
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Maintenance Information</Text>
 
-          <Text style={[styles.label, { color: colors.text }]}>Replacement Frequency (months) *</Text>
-          <TextInput
-            style={getInputStyle('replacement_frequency', !!errors.replacement_frequency)}
-            value={formData.replacement_frequency || ''}
-            onChangeText={text => { setValue('replacement_frequency', text); if (errors.replacement_frequency) clearErrors('replacement_frequency'); }}
-            placeholder="e.g., 3, 6, 12"
-            placeholderTextColor={colors.textTertiary}
-            keyboardType="numeric"
-            onFocus={() => handleFocus('replacement_frequency')}
-            onBlur={handleBlur}
-          />
-          {errors.replacement_frequency && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.replacement_frequency.message}</Text>}
+          <View style={styles.fieldGroup}>
+            <Text style={[styles.label, { color: colors.text }]}>Replacement Frequency (months) *</Text>
+            <TextInput
+              style={getInputStyle('replacement_frequency', !!errors.replacement_frequency)}
+              value={formData.replacement_frequency || ''}
+              onChangeText={text => { setValue('replacement_frequency', text); if (errors.replacement_frequency) clearErrors('replacement_frequency'); }}
+              placeholder="e.g., 3, 6, 12"
+              placeholderTextColor={colors.textTertiary}
+              keyboardType="numeric"
+              onFocus={() => setFocusedField('replacement_frequency')}
+              onBlur={() => setFocusedField(null)}
+            />
+            {errors.replacement_frequency && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.replacement_frequency.message}</Text>}
+          </View>
 
-          <DatePicker
-            label="Last Replaced"
-            value={formData.last_replaced || null}
-            placeholder="Select last replacement date"
-            onChange={dateString => {
-              setValue('last_replaced', dateString || '');
-              if (errors.last_replaced) clearErrors('last_replaced');
-            }}
-            helperText="When was this filter last replaced?"
-            isOptional={true}
-          />
-          {errors.last_replaced && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.last_replaced.message}</Text>}
+          <View style={styles.fieldGroup}>
+            <DatePicker
+              label="Last Replaced"
+              value={formData.last_replaced || null}
+              placeholder="Select last replacement date"
+              onChange={dateString => { setValue('last_replaced', dateString || ''); if (errors.last_replaced) clearErrors('last_replaced'); }}
+              helperText="When was this filter last replaced?"
+              isOptional={true}
+            />
+            {errors.last_replaced && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.last_replaced.message}</Text>}
+          </View>
 
-          <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
-          <TextInput
-            style={[
-              styles.textArea,
-              {
-                backgroundColor: colors.surface,
-                color: colors.text,
-                borderColor: errors.notes ? colors.error : focusedField === 'notes' ? colors.primary : colors.border,
-                borderWidth: errors.notes || focusedField === 'notes' ? 2 : 1,
-              },
-            ]}
-            value={formData.notes || ''}
-            onChangeText={text => { setValue('notes', text); if (errors.notes) clearErrors('notes'); }}
-            placeholder="Any additional notes about this filter..."
-            placeholderTextColor={colors.textTertiary}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-            onFocus={() => handleFocus('notes')}
-            onBlur={handleBlur}
-          />
-          {errors.notes && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.notes.message}</Text>}
+          <View style={styles.fieldGroup}>
+            <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
+            <TextInput
+              style={[
+                styles.textArea,
+                {
+                  backgroundColor: colors.surface,
+                  color: colors.text,
+                  borderColor: errors.notes ? colors.error : focusedField === 'notes' ? colors.primary : colors.border,
+                  borderWidth: errors.notes || focusedField === 'notes' ? 2 : 1,
+                },
+              ]}
+              value={formData.notes || ''}
+              onChangeText={text => { setValue('notes', text); if (errors.notes) clearErrors('notes'); }}
+              placeholder="Any additional notes about this filter..."
+              placeholderTextColor={colors.textTertiary}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              onFocus={() => setFocusedField('notes')}
+              onBlur={() => setFocusedField(null)}
+            />
+            {errors.notes && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.notes.message}</Text>}
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -353,19 +390,22 @@ const styles = StyleSheet.create({
   },
   backButton: { padding: 8, borderRadius: 8 },
   headerTitle: { fontFamily: FONTS.heading, fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
-  saveButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  saveButtonText: { fontFamily: FONTS.bodySemiBold, fontSize: 16, fontWeight: '600' },
+  headerRightGroup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  deleteHeaderButton: { padding: 6, borderRadius: 8 },
+  saveHeaderButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+  saveHeaderButtonText: { fontFamily: FONTS.bodySemiBold, fontSize: 16, fontWeight: '600' },
   headerRight: { width: 60 },
   scrollView: { flex: 1 },
   scrollContent: { padding: 20 },
   form: { gap: 16 },
-  sectionTitle: { fontFamily: FONTS.heading, fontSize: 18, fontWeight: '700', marginTop: 8, marginBottom: 4 },
-  label: { fontFamily: FONTS.bodySemiBold, fontSize: 15, fontWeight: '600', marginBottom: 6 },
+  fieldGroup: { gap: 6 },
+  sectionTitle: { fontFamily: FONTS.heading, fontSize: 18, fontWeight: '700', marginTop: 8, marginBottom: 2 },
+  label: { fontFamily: FONTS.bodySemiBold, fontSize: 15, fontWeight: '600' },
   textInput: { fontFamily: FONTS.body, borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 16 },
   textArea: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 16, minHeight: 100 },
   row: { flexDirection: 'row', gap: 12 },
-  halfWidth: { flex: 1 },
-  fieldError: { fontFamily: FONTS.body, fontSize: 12, marginTop: 3, fontWeight: '500' },
-  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  errorText: { fontFamily: FONTS.body, fontSize: 16, textAlign: 'center' },
+  halfWidth: { flex: 1, gap: 6 },
+  fieldError: { fontFamily: FONTS.body, fontSize: 12, fontWeight: '500' },
+  notFoundContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  notFoundText: { fontFamily: FONTS.body, fontSize: 16, textAlign: 'center' },
 });

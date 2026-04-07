@@ -6,35 +6,33 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Dimensions,
-  Modal,
-  Platform,
-  RefreshControl,
-  SectionList,
-  SectionListData,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    Dimensions,
+    Modal,
+    Platform,
+    RefreshControl,
+    SectionList,
+    SectionListData,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useRealTimeSubscription } from '../../lib/hooks/useRealTimeSubscription';
 import { useVendorsStore } from '../../lib/stores/vendorsStore';
+import { matchesUserScopedRow } from '../../lib/utils/realtimeUserScoped';
 import { getVendorCategoryInfo } from '../../lib/utils/vendorIcons';
 
 interface Vendor {
   id: string;
   name: string;
   category?: string | null;
-  contact_name?: string | null;
   phone?: string | null;
   email?: string | null;
-  website?: string | null;
-  address?: string | null;
   notes?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
@@ -74,25 +72,25 @@ export default function VendorsScreen() {
 
   // Real-time subscription for vendors
   const handleVendorChange = useCallback((payload: any) => {
-    if (payload.new?.user_id === user?.id || payload.old?.user_id === user?.id) {
-      const eventType = payload.eventType;
-      const currentVendors = useVendorsStore.getState().vendors;
+    if (!user?.id) return;
+    const currentVendors = useVendorsStore.getState().vendors;
+    const ids = currentVendors.map((v) => v.id);
+    if (!matchesUserScopedRow(user.id, payload, ids)) return;
 
-      if (eventType === 'INSERT') {
-        setVendors([payload.new, ...currentVendors].sort((a, b) => a.name.localeCompare(b.name)));
+    const eventType = payload.eventType;
+    if (eventType === 'INSERT') {
+      const row = payload.new;
+      if (!currentVendors.some((v) => v.id === row.id)) {
+        setVendors([row, ...currentVendors].sort((a, b) => a.name.localeCompare(b.name)));
       }
-      else if (eventType === 'UPDATE') {
-        setVendors(
-          currentVendors.map(vendor =>
-            vendor.id === payload.new.id ? payload.new : vendor
-          ).sort((a, b) => a.name.localeCompare(b.name))
-        );
-      }
-      else if (eventType === 'DELETE') {
-        setVendors(
-          currentVendors.filter(vendor => vendor.id !== payload.old.id)
-        );
-      }
+    } else if (eventType === 'UPDATE') {
+      setVendors(
+        currentVendors
+          .map((vendor) => (vendor.id === payload.new.id ? payload.new : vendor))
+          .sort((a, b) => a.name.localeCompare(b.name))
+      );
+    } else if (eventType === 'DELETE' && payload.old?.id) {
+      setVendors(currentVendors.filter((vendor) => vendor.id !== payload.old.id));
     }
   }, [user?.id, setVendors]);
 
@@ -111,8 +109,11 @@ export default function VendorsScreen() {
       if (searchByCategory) {
         return vendor.category?.toLowerCase().includes(query);
       }
-      return vendor.name.toLowerCase().includes(query) ||
-        vendor.contact_name?.toLowerCase().includes(query);
+      return (
+        vendor.name.toLowerCase().includes(query) ||
+        vendor.phone?.toLowerCase().includes(query) ||
+        vendor.email?.toLowerCase().includes(query)
+      );
     });
 
     const groups: { [key: string]: Vendor[] } = {};
@@ -308,6 +309,7 @@ export default function VendorsScreen() {
         <SectionList
           ref={sectionListRef}
           sections={sections}
+          extraData={vendors.length}
           renderItem={renderVendorItem}
           renderSectionHeader={renderSectionHeader}
           keyExtractor={(item) => item.id}

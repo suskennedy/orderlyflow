@@ -24,74 +24,13 @@ export async function signUp(email: string, password: string, fullName: string) 
     
   if (error) throw error;
   
-  // Create user profile if signup successful
+  // Profile creation is handled automatically by the on_auth_user_created
+  // database trigger (SECURITY DEFINER), which avoids RLS timing issues.
   if (data.user) {
     console.log('User created successfully, ID:', data.user.id);
-    
-    // Add a small delay to ensure user is fully created in auth system
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    try {
-      await createUserProfile(data.user.id, {
-        full_name: fullName,
-        display_name: userName,
-        notification_email: true,
-        notification_push: false,
-        notification_sms: false,
-        theme: 'system',
-        calendar_sync_google: false,
-        calendar_sync_apple: false,
-      });
-
-      // Family account will be created manually by user from settings
-      console.log('User profile created. Family account can be created from settings.');
-    } catch (profileError) {
-      console.error('Error creating profile:', profileError);
-      // Don't throw here, let the signup complete even if profile creation fails
-    }
   }
   
   return data;
-}
-
-// Helper function to create a user profile
-async function createUserProfile(userId: string, profileData: any) {
-  try {
-    console.log('Creating user profile for user:', userId);
-    
-    // First check if user profile already exists
-    const { data: existingProfile } = await supabase
-      .from('user_profiles')
-      .select('id')
-      .eq('id', userId)
-      .single();
-    
-    if (existingProfile) {
-      console.log('User profile already exists for user:', userId);
-      return;
-    }
-    
-    // Use insert instead of upsert to avoid foreign key issues
-    const { error } = await supabase
-      .from('user_profiles')
-      .insert({
-        id: userId,
-        ...profileData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-      
-    if (error) {
-      console.error('Error creating user profile:', error.message);
-      console.error('Error details:', error);
-      throw error;
-    } else {
-      console.log('User profile created successfully for user:', userId);
-    }
-  } catch (error) {
-    console.error('Error in createUserProfile:', error);
-    throw error;
-  }
 }
 
 // Helper function to create a family account for new user

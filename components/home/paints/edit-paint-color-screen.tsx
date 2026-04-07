@@ -4,23 +4,23 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { FONTS } from '../../../lib/typography';
 import { useToast } from '../../../lib/contexts/ToastContext';
 import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
 import { PaintColorFormData, paintColorFormSchema, transformPaintColorFormData } from '../../../lib/schemas/home/paintColorFormSchema';
 import { usePaintsStore } from '../../../lib/stores/paintsStore';
+import { FONTS } from '../../../lib/typography';
 
 const EMPTY_ARRAY: any[] = [];
 
@@ -34,6 +34,7 @@ export default function EditPaintColorScreen() {
 
   const paints = usePaintsStore(state => state.paintsByHome[homeId] || EMPTY_ARRAY);
   const updatePaint = usePaintsStore(state => state.updatePaint);
+  const deletePaint = usePaintsStore(state => state.deletePaint);
   const fetchPaints = usePaintsStore(state => state.fetchPaints);
   const setPaints = usePaintsStore(state => state.setPaints);
 
@@ -142,6 +143,29 @@ export default function EditPaintColorScreen() {
     ]);
   };
 
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete paint color',
+      'Are you sure you want to delete this paint color? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deletePaint(homeId, paintId);
+              showToast('Paint color deleted', 'success');
+              router.back();
+            } catch {
+              showToast('Failed to delete paint color', 'error');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (!paintFound) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -170,16 +194,23 @@ export default function EditPaintColorScreen() {
         <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Paint Color</Text>
-        <TouchableOpacity
-          style={[styles.saveButton, { backgroundColor: colors.primary }]}
-          onPress={handleSubmit(onSubmit)}
-          disabled={isSubmitting}
-        >
-          <Text style={[styles.saveButtonText, { color: colors.background }]}>
-            {isSubmitting ? 'Saving...' : 'Save'}
-          </Text>
-        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text, flex: 1 }]} numberOfLines={1}>
+          Edit Paint Color
+        </Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.iconHeaderButton} onPress={handleDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="trash-outline" size={22} color={colors.error} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.saveButton, { backgroundColor: colors.primary }]}
+            onPress={handleSubmit(onSubmit)}
+            disabled={isSubmitting}
+          >
+            <Text style={[styles.saveButtonText, { color: colors.background }]}>
+              {isSubmitting ? 'Saving...' : 'Save'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -306,7 +337,9 @@ const styles = StyleSheet.create({
   },
   backButton: { padding: 8, borderRadius: 8 },
   headerTitle: { fontFamily: FONTS.heading, fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
-  saveButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconHeaderButton: { padding: 6, borderRadius: 8 },
+  saveButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
   saveButtonText: { fontFamily: FONTS.bodySemiBold, fontSize: 16, fontWeight: '600' },
   headerRight: { width: 60 },
   scrollView: { flex: 1 },

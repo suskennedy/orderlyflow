@@ -107,16 +107,18 @@ export const useMaterialsStore = create<MaterialsState>((set, get) => ({
   },
 
   deleteMaterial: async (homeId, id) => {
+    const prev = get().materialsByHome[homeId] || [];
+    set((state) => ({
+      materialsByHome: {
+        ...state.materialsByHome,
+        [homeId]: prev.filter((m) => m.id !== id),
+      },
+    }));
     try {
-      const { error } = await (supabase as any)
-        .from('materials')
-        .delete()
-        .eq('id', id);
-        
+      const { error } = await (supabase as any).from('materials').delete().eq('id', id);
       if (error) throw error;
-      
-      console.log('Material deleted:', id);
     } catch (error) {
+      get().setMaterials(homeId, prev);
       console.error('Error deleting material:', error);
       throw error;
     }

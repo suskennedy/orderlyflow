@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
 import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
 import { useFiltersStore } from '../../../lib/stores/filtersStore';
+import { matchesHomeScopedRow } from '../../../lib/utils/realtimeHomeScoped';
 
 
 
@@ -51,9 +52,10 @@ function FilterDetailScreen() {
   
   // Real-time subscription
   const handleFilterChange = useCallback((payload: any) => {
-    if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
     const store = useFiltersStore.getState();
     const currentFilters = store.filtersByHome[homeId] || [];
+    const ids = currentFilters.map((f) => f.id);
+    if (!matchesHomeScopedRow(homeId, payload, ids)) return;
     if (payload.eventType === 'INSERT') {
       const newFilter = payload.new;
       const normalizedFilter = { ...newFilter, room: newFilter.room ?? newFilter.location ?? null };
@@ -64,7 +66,7 @@ function FilterDetailScreen() {
       const updatedFilter = payload.new;
       const normalizedFilter = { ...updatedFilter, room: updatedFilter.room ?? updatedFilter.location ?? null };
       setFilters(homeId, currentFilters.map(f => f.id === normalizedFilter.id ? normalizedFilter : f));
-    } else if (payload.eventType === 'DELETE') {
+    } else if (payload.eventType === 'DELETE' && payload.old?.id) {
       setFilters(homeId, currentFilters.filter(f => f.id !== payload.old.id));
     }
   }, [homeId, setFilters]);
@@ -144,13 +146,17 @@ function FilterDetailScreen() {
         >
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Filter Details</Text>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={handleEdit}
-        >
-          <Ionicons name="create-outline" size={24} color={colors.primary} />
-        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text, flex: 1 }]} numberOfLines={1}>
+          Filter Details
+        </Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.editButton} onPress={handleEdit} accessibilityLabel="Edit filter">
+            <Ionicons name="create-outline" size={24} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.editButton} onPress={handleDelete} accessibilityLabel="Delete filter">
+            <Ionicons name="trash-outline" size={24} color={colors.error} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -303,6 +309,11 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     width: 60,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   scrollView: {
     flex: 1,

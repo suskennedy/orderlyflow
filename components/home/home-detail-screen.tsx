@@ -4,8 +4,8 @@ import React from 'react';
 import { ActivityIndicator, Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/contexts/ThemeContext';
-import { FONTS } from '../../lib/typography';
 import { useHomesStore } from '../../lib/stores/homesStore';
+import { FONTS } from '../../lib/typography';
 import { getHomeImageUrl } from '../../lib/utils/imageUtils';
 
 const HEADER_HEIGHT = 250;
@@ -70,6 +70,12 @@ export default function HomeDetailScreen() {
       icon: 'funnel-outline',
       route: `/(home)/${homeId}/filters`,
       description: 'Manage air and water filters'
+    },
+    {
+      title: 'Pools',
+      icon: 'water-outline',
+      route: `/(home)/${homeId}/pools`,
+      description: 'Add and manage pools and spa details'
     },
   ];
 

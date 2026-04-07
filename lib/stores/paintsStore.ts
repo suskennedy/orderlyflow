@@ -72,19 +72,21 @@ export const usePaintsStore = create<PaintsState>((set, get) => ({
   },
 
   createPaint: async (homeId, paintData) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not logged in');
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not logged in');
-      
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('paint_colors')
         .insert([{ ...paintData, home_id: homeId }] as any)
         .select()
         .single();
-        
+
       if (error) throw error;
-      
-      console.log('Paint created');
+      if (data) {
+        const list = get().paintsByHome[homeId] || [];
+        get().setPaints(homeId, [data as PaintColor, ...list.filter((p) => p.id !== data.id)]);
+      }
     } catch (error) {
       console.error('Error creating paint:', error);
       throw error;
@@ -93,16 +95,18 @@ export const usePaintsStore = create<PaintsState>((set, get) => ({
 
   updatePaint: async (homeId, id, updates) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('paint_colors')
         .update(updates as any)
         .eq('id', id)
         .select()
         .single();
-        
+
       if (error) throw error;
-      
-      console.log('Paint updated');
+      if (data) {
+        const list = get().paintsByHome[homeId] || [];
+        get().setPaints(homeId, list.map((p) => (p.id === id ? (data as PaintColor) : p)));
+      }
     } catch (error) {
       console.error('Error updating paint:', error);
       throw error;
@@ -110,16 +114,18 @@ export const usePaintsStore = create<PaintsState>((set, get) => ({
   },
 
   deletePaint: async (homeId, id) => {
+    const prev = get().paintsByHome[homeId] || [];
+    set((state) => ({
+      paintsByHome: {
+        ...state.paintsByHome,
+        [homeId]: prev.filter((p) => p.id !== id),
+      },
+    }));
     try {
-      const { error } = await supabase
-        .from('paint_colors')
-        .delete()
-        .eq('id', id);
-        
+      const { error } = await supabase.from('paint_colors').delete().eq('id', id);
       if (error) throw error;
-      
-      console.log('Paint deleted:', id);
     } catch (error) {
+      get().setPaints(homeId, prev);
       console.error('Error deleting paint:', error);
       throw error;
     }

@@ -55,11 +55,6 @@ export default function TaskDetailsDropdown({
                   {assignedVendor.category}
                 </Text>
               )}
-              {assignedVendor.contact_name && (
-                <Text style={[styles.vendorDetailContact, { color: colors.textSecondary }]}>
-                  Contact: {assignedVendor.contact_name}
-                </Text>
-              )}
               {assignedVendor.phone && (
                 <Text style={[styles.vendorDetailContact, { color: colors.textSecondary }]}>
                   Phone: {assignedVendor.phone}

@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useWarrantiesStore } from '../../../lib/stores/warrantiesStore';
 import { FONTS } from '../../../lib/typography';
 
 interface Warranty {
@@ -24,20 +25,46 @@ export default function WarrantyCard({ warranty }: WarrantyCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const params = useLocalSearchParams();
   const homeId = params.homeId as string;
+  const deleteWarranty = useWarrantiesStore((s) => s.deleteWarranty);
 
   const handleEdit = () => {
     router.push(`/(tabs)/(home)/${homeId}/warranties/${warranty.id}/edit` as any);
   };
 
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete warranty',
+      `Remove “${warranty.item_name}” from this home?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteWarranty(homeId, warranty.id);
+            } catch {
+              Alert.alert('Error', 'Could not delete this warranty.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={[styles.card, { backgroundColor: colors.surface }]}>
-      <TouchableOpacity style={styles.header} onPress={() => setIsExpanded(!isExpanded)}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.name, { color: colors.text }]}>{warranty.item_name}</Text>
-          <Text style={[styles.endDate, { color: colors.textSecondary }]}>
-            Expires: {warranty.warranty_end_date || 'Not specified'}
-          </Text>
-        </View>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.headerMain} onPress={() => setIsExpanded(!isExpanded)} activeOpacity={0.7}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+              {warranty.item_name}
+            </Text>
+            <Text style={[styles.endDate, { color: colors.textSecondary }]}>
+              Expires: {warranty.warranty_end_date || 'Not specified'}
+            </Text>
+          </View>
+        </TouchableOpacity>
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={[styles.editButton, { backgroundColor: colors.primary + '15' }]}
@@ -45,9 +72,14 @@ export default function WarrantyCard({ warranty }: WarrantyCardProps) {
           >
             <Ionicons name="create-outline" size={16} color={colors.primary} />
           </TouchableOpacity>
-          <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={24} color={colors.textSecondary} />
+          <TouchableOpacity onPress={handleDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Delete warranty">
+            <Ionicons name="trash-outline" size={20} color={colors.error} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
       {isExpanded && (
         <View style={styles.details}>
           <Text style={[styles.detailText, { color: colors.text }]}>
@@ -77,6 +109,11 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  headerMain: {
+    flex: 1,
+    minWidth: 0,
   },
   name: {
     fontFamily: FONTS.bodySemiBold,

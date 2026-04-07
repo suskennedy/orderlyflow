@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
+import { useMaterialsStore } from '../../../lib/stores/materialsStore';
 import { FONTS } from '../../../lib/typography';
 
 interface Material {
@@ -22,9 +23,32 @@ export default function MaterialCard({ material }: MaterialCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const params = useLocalSearchParams();
   const homeId = params.homeId as string;
+  const deleteMaterial = useMaterialsStore(state => state.deleteMaterial);
 
   const handleEdit = () => {
     router.push(`/(tabs)/(home)/${homeId}/materials/${material.id}/edit` as any);
+  };
+
+  const handleDelete = () => {
+    const label = material.brand ? `${material.brand} ${material.type || ''}`.trim() : material.type || 'this material';
+    Alert.alert(
+      'Delete material',
+      `Remove ${label} from this home?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteMaterial(homeId, material.id);
+            } catch {
+              Alert.alert('Error', 'Could not delete this material.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -62,6 +86,22 @@ export default function MaterialCard({ material }: MaterialCardProps) {
           <Text style={[styles.detailText, { color: colors.text }]}>
             Notes: {material.notes || 'No notes'}
           </Text>
+          <View style={[styles.actions, { borderTopColor: colors.border }]}>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.primary + '15' }]}
+              onPress={handleEdit}
+            >
+              <Ionicons name="create-outline" size={18} color={colors.primary} />
+              <Text style={[styles.actionText, { color: colors.primary }]}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: '#FF3B3010' }]}
+              onPress={handleDelete}
+            >
+              <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+              <Text style={[styles.actionText, { color: '#FF3B30' }]}>Delete</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </View>
@@ -106,5 +146,25 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     marginRight: 8,
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  actionText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 }); 

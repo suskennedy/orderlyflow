@@ -17,6 +17,7 @@ interface DocumentUploaderProps {
     onUploadComplete: (result: UploadResult) => void;
     onUploadStart?: () => void;
     onUploadError?: (error: string) => void;
+    onRemove?: () => void | Promise<void>;
     currentFileUrl?: string;
     disabled?: boolean;
     userId?: string;
@@ -28,6 +29,7 @@ export default function DocumentUploader({
     onUploadComplete,
     onUploadStart,
     onUploadError,
+    onRemove,
     currentFileUrl,
     disabled = false,
     userId,
@@ -107,6 +109,24 @@ export default function DocumentUploader({
                             <Text style={[styles.replaceButtonText, { color: colors.primary }]}>Replace</Text>
                         )}
                     </TouchableOpacity>
+                    {onRemove && (
+                        <TouchableOpacity
+                            style={[styles.replaceButton, { backgroundColor: colors.error + '18' }]}
+                            onPress={() => {
+                                Alert.alert(
+                                    'Remove file',
+                                    'Remove this document from the appliance? You can upload a new one later.',
+                                    [
+                                        { text: 'Cancel', style: 'cancel' },
+                                        { text: 'Remove', style: 'destructive', onPress: onRemove },
+                                    ]
+                                );
+                            }}
+                            disabled={uploading || disabled}
+                        >
+                            <Text style={[styles.replaceButtonText, { color: colors.error }]}>Remove</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             ) : (
                 <TouchableOpacity
@@ -156,12 +176,14 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     filePreview: {
-        height: 56,
+        minHeight: 56,
         borderRadius: 12,
         borderWidth: 1,
         paddingHorizontal: 12,
+        paddingVertical: 8,
         flexDirection: 'row',
         alignItems: 'center',
+        flexWrap: 'wrap',
         gap: 12,
     },
     fileName: {

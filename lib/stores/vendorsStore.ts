@@ -69,33 +69,31 @@ export const useVendorsStore = create<VendorsState>((set, get) => ({
 
   addVendor: async (userId, vendor) => {
     try {
-      console.log('Adding vendor to database:', vendor);
-      
       const { data, error } = await supabase
         .from('vendors')
         .insert([{
           name: vendor.name,
           category: vendor.category,
-          contact_name: vendor.contact_name,
           phone: vendor.phone,
           email: vendor.email,
-          website: vendor.website,
-          address: vendor.address,
           notes: vendor.notes,
+          contact_name: vendor.contact_name ?? null,
+          website: vendor.website ?? null,
+          address: vendor.address ?? null,
           user_id: userId,
         }])
         .select()
         .single();
-        
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
+
+      if (error) throw error;
+
+      if (data) {
+        const list = get().vendors;
+        const next = [data as VendorItem, ...list.filter((v) => v.id !== data.id)].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
+        set({ vendors: next });
       }
-      
-      console.log('Vendor added to database:', data);
-      
-      // Real-time subscription will handle the state update
-      console.log('Vendor created');
     } catch (error) {
       console.error('Error adding vendor:', error);
       throw error;
@@ -104,15 +102,22 @@ export const useVendorsStore = create<VendorsState>((set, get) => ({
 
   updateVendor: async (vendorId, updates) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('vendors')
         .update(updates)
-        .eq('id', vendorId);
-        
+        .eq('id', vendorId)
+        .select()
+        .single();
+
       if (error) throw error;
-      
-      // Real-time subscription will handle the state update
-      console.log('Vendor updated');
+      if (data) {
+        const list = get().vendors;
+        set({
+          vendors: list
+            .map((v) => (v.id === vendorId ? (data as VendorItem) : v))
+            .sort((a, b) => a.name.localeCompare(b.name)),
+        });
+      }
     } catch (error) {
       console.error('Error updating vendor:', error);
       throw error;
@@ -120,17 +125,13 @@ export const useVendorsStore = create<VendorsState>((set, get) => ({
   },
 
   deleteVendor: async (vendorId) => {
+    const prev = get().vendors;
+    set({ vendors: prev.filter((v) => v.id !== vendorId) });
     try {
-      const { error } = await supabase
-        .from('vendors')
-        .delete()
-        .eq('id', vendorId);
-        
+      const { error } = await supabase.from('vendors').delete().eq('id', vendorId);
       if (error) throw error;
-      
-      // Real-time subscription will handle the state update
-      console.log('Vendor deleted:', vendorId);
     } catch (error) {
+      set({ vendors: prev });
       console.error('Error deleting vendor:', error);
       throw error;
     }

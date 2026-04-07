@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { supabase } from '../supabase';
 import { Database } from '../../supabase-types';
+import { supabase } from '../supabase';
 
 export type Pool = Database['public']['Tables']['pools']['Row'];
 
@@ -61,18 +61,21 @@ export const usePoolsStore = create<PoolsState>((set, get) => ({
   },
 
   createPool: async (homeId, poolData) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not logged in');
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not logged in');
-      
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('pools')
         .insert([{ ...poolData, home_id: homeId }])
         .select()
         .single();
-        
+
       if (error) throw error;
-      
+      if (data) {
+        const list = get().poolsByHome[homeId] || [];
+        get().setPools(homeId, [data, ...list.filter(p => p.id !== data.id)]);
+      }
     } catch (error) {
       console.error('Error creating pool:', error);
       throw error;
@@ -81,15 +84,18 @@ export const usePoolsStore = create<PoolsState>((set, get) => ({
 
   updatePool: async (homeId, id, updates) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('pools')
         .update(updates)
         .eq('id', id)
         .select()
         .single();
-        
+
       if (error) throw error;
-      
+      if (data) {
+        const list = get().poolsByHome[homeId] || [];
+        get().setPools(homeId, list.map(p => (p.id === id ? data : p)));
+      }
     } catch (error) {
       console.error('Error updating pool:', error);
       throw error;
@@ -97,15 +103,24 @@ export const usePoolsStore = create<PoolsState>((set, get) => ({
   },
 
   deletePool: async (homeId, id) => {
+    const prev = get().poolsByHome[homeId] || [];
+    set((state) => ({
+      poolsByHome: {
+        ...state.poolsByHome,
+        [homeId]: prev.filter((p) => p.id !== id),
+      },
+    }));
+
     try {
-      const { error } = await supabase
-        .from('pools')
-        .delete()
-        .eq('id', id);
-        
+      const { error } = await supabase.from('pools').delete().eq('id', id);
       if (error) throw error;
-      
     } catch (error) {
+      set((state) => ({
+        poolsByHome: {
+          ...state.poolsByHome,
+          [homeId]: prev,
+        },
+      }));
       console.error('Error deleting pool:', error);
       throw error;
     }

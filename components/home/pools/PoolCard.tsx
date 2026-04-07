@@ -3,11 +3,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { FONTS } from '../../../lib/typography';
 import { usePoolsStore } from '../../../lib/stores/poolsStore';
+import { FONTS } from '../../../lib/typography';
 
 interface Pool {
     id: string;
+    name?: string;
     salt_water_vs_chlorine: string | null;
     in_ground_vs_above_ground: string | null;
     notes: string | null;
@@ -47,28 +48,44 @@ export default function PoolCard({ pool }: PoolCardProps) {
     };
 
     const handleEdit = () => {
-        router.push(`/(tabs)/(home)/${homeId}/pools/${pool.id}`);
+        router.push(`/(tabs)/(home)/${homeId}/pools/${pool.id}/edit` as any);
     };
+
+    const displayName = pool.name?.trim() || 'Pool';
 
     return (
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <TouchableOpacity
-                style={styles.header}
-                onPress={() => setExpanded(!expanded)}
-                activeOpacity={0.7}
-            >
-                <View style={styles.headerContent}>
-                    <Text style={[styles.title, { color: colors.text }]}>Pool</Text>
-                    <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                        {pool.in_ground_vs_above_ground?.replace('_', ' ').toUpperCase()} • {pool.salt_water_vs_chlorine?.replace('_', ' ').toUpperCase()}
-                    </Text>
-                </View>
-                <Ionicons
-                    name={expanded ? 'chevron-up' : 'chevron-down'}
-                    size={24}
-                    color={colors.textSecondary}
-                />
-            </TouchableOpacity>
+            <View style={styles.header}>
+                <TouchableOpacity
+                    style={styles.headerMain}
+                    onPress={() => setExpanded(!expanded)}
+                    activeOpacity={0.7}
+                >
+                    <View style={styles.headerContent}>
+                        <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+                            {displayName}
+                        </Text>
+                        <Text style={[styles.subtitle, { color: colors.textSecondary }]} numberOfLines={1}>
+                            {pool.in_ground_vs_above_ground?.replace('_', ' ').toUpperCase()} • {pool.salt_water_vs_chlorine?.replace('_', ' ').toUpperCase()}
+                        </Text>
+                    </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={handleDelete}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    style={styles.headerIconBtn}
+                    accessibilityLabel="Delete pool"
+                >
+                    <Ionicons name="trash-outline" size={22} color={colors.error} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setExpanded(!expanded)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons
+                        name={expanded ? 'chevron-up' : 'chevron-down'}
+                        size={24}
+                        color={colors.textSecondary}
+                    />
+                </TouchableOpacity>
+            </View>
 
             {expanded && (
                 <View style={[styles.details, { borderTopColor: colors.border }]}>
@@ -118,7 +135,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         padding: 16,
-        justifyContent: 'space-between',
+        gap: 8,
+    },
+    headerMain: {
+        flex: 1,
+        minWidth: 0,
+    },
+    headerIconBtn: {
+        padding: 4,
     },
     headerContent: {
         flex: 1,

@@ -16,11 +16,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { FONTS } from '../../../lib/typography';
 import { useToast } from '../../../lib/contexts/ToastContext';
 import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
 import { WarrantyFormData, transformWarrantyFormData, warrantyFormSchema } from '../../../lib/schemas/home/warrantyFormSchema';
 import { useWarrantiesStore } from '../../../lib/stores/warrantiesStore';
+import { FONTS } from '../../../lib/typography';
+import { matchesHomeScopedRow } from '../../../lib/utils/realtimeHomeScoped';
 import DatePicker from '../../DatePicker';
 
 const EMPTY_ARRAY: any[] = [];
@@ -35,6 +36,7 @@ export default function EditWarrantyScreen() {
 
   const warranties = useWarrantiesStore(state => state.warrantiesByHome[homeId] || EMPTY_ARRAY);
   const updateWarranty = useWarrantiesStore(state => state.updateWarranty);
+  const deleteWarranty = useWarrantiesStore(state => state.deleteWarranty);
   const fetchWarranties = useWarrantiesStore(state => state.fetchWarranties);
   const setWarranties = useWarrantiesStore(state => state.setWarranties);
 
@@ -72,14 +74,15 @@ export default function EditWarrantyScreen() {
   }, [homeId, fetchWarranties]);
 
   const handleWarrantyChange = useCallback((payload: any) => {
-    if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
     const store = useWarrantiesStore.getState();
     const current = store.warrantiesByHome[homeId] || [];
+    const ids = current.map((w: { id: string }) => w.id);
+    if (!matchesHomeScopedRow(homeId, payload, ids)) return;
     if (payload.eventType === 'INSERT') {
       if (!current.some((w: any) => w.id === payload.new.id)) setWarranties(homeId, [payload.new, ...current]);
     } else if (payload.eventType === 'UPDATE') {
       setWarranties(homeId, current.map((w: any) => w.id === payload.new.id ? payload.new : w));
-    } else if (payload.eventType === 'DELETE') {
+    } else if (payload.eventType === 'DELETE' && payload.old?.id) {
       setWarranties(homeId, current.filter((w: any) => w.id !== payload.old.id));
     }
   }, [homeId, setWarranties]);
@@ -141,6 +144,29 @@ export default function EditWarrantyScreen() {
     ]);
   };
 
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete warranty',
+      'Are you sure you want to delete this warranty? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteWarranty(homeId, warrantyId);
+              showToast('Warranty deleted', 'success');
+              router.back();
+            } catch {
+              showToast('Failed to delete warranty', 'error');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (!warrantyFound) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -169,16 +195,23 @@ export default function EditWarrantyScreen() {
         <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Warranty</Text>
-        <TouchableOpacity
-          style={[styles.saveButton, { backgroundColor: colors.primary }]}
-          onPress={handleSubmit(onSubmit)}
-          disabled={isSubmitting}
-        >
-          <Text style={[styles.saveButtonText, { color: colors.background }]}>
-            {isSubmitting ? 'Saving...' : 'Save'}
-          </Text>
-        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text, flex: 1 }]} numberOfLines={1}>
+          Edit Warranty
+        </Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.iconHeaderButton} onPress={handleDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="trash-outline" size={22} color={colors.error} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.saveButton, { backgroundColor: colors.primary }]}
+            onPress={handleSubmit(onSubmit)}
+            disabled={isSubmitting}
+          >
+            <Text style={[styles.saveButtonText, { color: colors.background }]}>
+              {isSubmitting ? 'Saving...' : 'Save'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -295,7 +328,9 @@ const styles = StyleSheet.create({
   },
   backButton: { padding: 8, borderRadius: 8 },
   headerTitle: { fontFamily: FONTS.heading, fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
-  saveButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconHeaderButton: { padding: 6, borderRadius: 8 },
+  saveButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
   saveButtonText: { fontFamily: FONTS.bodySemiBold, fontSize: 16, fontWeight: '600' },
   headerRight: { width: 60 },
   scrollView: { flex: 1 },

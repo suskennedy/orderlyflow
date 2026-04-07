@@ -7,11 +7,12 @@ import { useForm } from 'react-hook-form';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { FONTS } from '../../../lib/typography';
 import { useToast } from '../../../lib/contexts/ToastContext';
 import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
 import { INSTALLATION_TYPES, POOL_TYPES, PoolFormData, poolFormSchema, transformPoolFormData } from '../../../lib/schemas/home/poolFormSchema';
 import { usePoolsStore } from '../../../lib/stores/poolsStore';
+import { FONTS } from '../../../lib/typography';
+import { matchesHomeScopedRow } from '../../../lib/utils/realtimeHomeScoped';
 
 const EMPTY_ARRAY: any[] = [];
 
@@ -25,6 +26,7 @@ export default function EditPoolScreen() {
 
   const pools = usePoolsStore(state => state.poolsByHome[homeId] || EMPTY_ARRAY);
   const updatePool = usePoolsStore(state => state.updatePool);
+  const deletePool = usePoolsStore(state => state.deletePool);
   const fetchPools = usePoolsStore(state => state.fetchPools);
   const setPools = usePoolsStore(state => state.setPools);
 
@@ -43,6 +45,7 @@ export default function EditPoolScreen() {
   } = useForm<PoolFormData>({
     resolver: zodResolver(poolFormSchema),
     defaultValues: {
+      name: 'Pool',
       salt_water_vs_chlorine: POOL_TYPES[0],
       in_ground_vs_above_ground: INSTALLATION_TYPES[0],
       notes: '',
@@ -59,14 +62,15 @@ export default function EditPoolScreen() {
   }, [homeId, fetchPools]);
 
   const handlePoolChange = useCallback((payload: any) => {
-    if (payload.new?.home_id !== homeId && payload.old?.home_id !== homeId) return;
     const store = usePoolsStore.getState();
     const current = store.poolsByHome[homeId] || [];
+    const ids = current.map((p: { id: string }) => p.id);
+    if (!matchesHomeScopedRow(homeId, payload, ids)) return;
     if (payload.eventType === 'INSERT') {
       if (!current.some((p: any) => p.id === payload.new.id)) setPools(homeId, [payload.new, ...current]);
     } else if (payload.eventType === 'UPDATE') {
       setPools(homeId, current.map((p: any) => p.id === payload.new.id ? payload.new : p));
-    } else if (payload.eventType === 'DELETE') {
+    } else if (payload.eventType === 'DELETE' && payload.old?.id) {
       setPools(homeId, current.filter((p: any) => p.id !== payload.old.id));
     }
   }, [homeId, setPools]);
@@ -83,6 +87,7 @@ export default function EditPoolScreen() {
       hasLoadedRef.current = true;
       setPoolFound(true);
       reset({
+        name: (found as { name?: string }).name?.trim() || 'Pool',
         salt_water_vs_chlorine: (POOL_TYPES.includes(found.salt_water_vs_chlorine as any) ? found.salt_water_vs_chlorine : POOL_TYPES[0]) as any,
         in_ground_vs_above_ground: (INSTALLATION_TYPES.includes(found.in_ground_vs_above_ground as any) ? found.in_ground_vs_above_ground : INSTALLATION_TYPES[0]) as any,
         notes: found.notes || '',
@@ -110,6 +115,29 @@ export default function EditPoolScreen() {
       { text: 'Keep Editing', style: 'cancel' },
       { text: 'Discard Changes', style: 'destructive', onPress: () => router.back() },
     ]);
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Pool',
+      'Are you sure you want to delete this pool? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deletePool(homeId, poolId);
+              showToast('Pool deleted', 'success');
+              router.back();
+            } catch {
+              showToast('Failed to delete pool', 'error');
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (!poolFound) {
@@ -140,16 +168,23 @@ export default function EditPoolScreen() {
         <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Pool</Text>
-        <TouchableOpacity
-          style={[styles.saveButton, { backgroundColor: colors.primary }]}
-          onPress={handleSubmit(onSubmit)}
-          disabled={isSubmitting}
-        >
-          <Text style={[styles.saveButtonText, { color: colors.background }]}>
-            {isSubmitting ? 'Saving...' : 'Save'}
-          </Text>
-        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text, flex: 1 }]} numberOfLines={1}>
+          Edit Pool
+        </Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.iconHeaderButton} onPress={handleDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="trash-outline" size={22} color={colors.error} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.saveButton, { backgroundColor: colors.primary }]}
+            onPress={handleSubmit(onSubmit)}
+            disabled={isSubmitting}
+          >
+            <Text style={[styles.saveButtonText, { color: colors.background }]}>
+              {isSubmitting ? 'Saving...' : 'Save'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -160,6 +195,29 @@ export default function EditPoolScreen() {
       >
         <View style={styles.form}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Pool Information</Text>
+
+          <Text style={[styles.label, { color: colors.text }]}>Pool name *</Text>
+          <TextInput
+            style={[
+              styles.textInput,
+              {
+                backgroundColor: colors.surface,
+                color: colors.text,
+                borderColor: errors.name ? colors.error : focusedField === 'name' ? colors.primary : colors.border,
+                borderWidth: errors.name || focusedField === 'name' ? 2 : 1,
+              },
+            ]}
+            value={formData.name || ''}
+            onChangeText={(text) => {
+              setValue('name', text);
+              if (errors.name) clearErrors('name');
+            }}
+            placeholder="e.g., Main pool, Spa"
+            placeholderTextColor={colors.textTertiary}
+            onFocus={() => handleFocus('name')}
+            onBlur={handleBlur}
+          />
+          {errors.name && <Text style={[styles.fieldError, { color: colors.error }]}>{errors.name.message}</Text>}
 
           <Text style={[styles.label, { color: colors.text }]}>Water Type *</Text>
           <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: errors.salt_water_vs_chlorine ? colors.error : colors.border }]}>
@@ -232,9 +290,12 @@ const styles = StyleSheet.create({
   },
   backButton: { padding: 8, borderRadius: 8 },
   headerTitle: { fontFamily: FONTS.heading, fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
-  saveButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  saveButtonText: { fontFamily: FONTS.bodySemiBold, fontSize: 16, fontWeight: '600' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconHeaderButton: { padding: 6, borderRadius: 8 },
+  saveButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+  saveButtonText: { fontFamily: FONTS.bodySemiBold, fontSize: 15, fontWeight: '600' },
   headerRight: { width: 60 },
+  textInput: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 16 },
   scrollView: { flex: 1 },
   scrollContent: { padding: 20 },
   form: { gap: 16 },

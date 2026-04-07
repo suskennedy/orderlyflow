@@ -5,24 +5,24 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/contexts/ThemeContext';
-import { FONTS } from '../../../lib/typography';
 import { useToast } from '../../../lib/contexts/ToastContext';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { useRealTimeSubscription } from '../../../lib/hooks/useRealTimeSubscription';
 import { APPLIANCE_TYPES, ApplianceFormData, applianceFormSchema, transformApplianceFormData } from '../../../lib/schemas/home/applianceFormSchema';
 import { useAppliancesStore } from '../../../lib/stores/appliancesStore';
+import { FONTS } from '../../../lib/typography';
 import DocumentUploader from '../../ui/DocumentUploader';
 
 const EMPTY_ARRAY: any[] = [];
@@ -256,6 +256,16 @@ function EditApplianceScreen() {
             label="Manual (PDF)"
             currentFileUrl={formData.manual_url}
             onUploadComplete={result => { setValue('manual_url', result.url); if (errors.manual_url) clearErrors('manual_url'); }}
+            onRemove={async () => {
+              try {
+                await updateAppliance(homeId, applianceId, { manual_url: null });
+                setValue('manual_url', '');
+                clearErrors('manual_url');
+                showToast('Manual removed', 'success');
+              } catch {
+                showToast('Failed to remove manual', 'error');
+              }
+            }}
             userId={user?.id}
             targetFolder="appliances"
           />
@@ -265,6 +275,16 @@ function EditApplianceScreen() {
             label="Warranty (PDF)"
             currentFileUrl={formData.warranty_url}
             onUploadComplete={result => { setValue('warranty_url', result.url); if (errors.warranty_url) clearErrors('warranty_url'); }}
+            onRemove={async () => {
+              try {
+                await updateAppliance(homeId, applianceId, { warranty_url: null });
+                setValue('warranty_url', '');
+                clearErrors('warranty_url');
+                showToast('Warranty document removed', 'success');
+              } catch {
+                showToast('Failed to remove warranty file', 'error');
+              }
+            }}
             userId={user?.id}
             targetFolder="appliances"
           />
