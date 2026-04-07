@@ -1,15 +1,15 @@
 import {
-  CormorantGaramond_400Regular,
-  CormorantGaramond_500Medium,
-  CormorantGaramond_600SemiBold,
-  CormorantGaramond_700Bold,
-  useFonts
+    CormorantGaramond_400Regular,
+    CormorantGaramond_500Medium,
+    CormorantGaramond_600SemiBold,
+    CormorantGaramond_700Bold,
+    useFonts
 } from "@expo-google-fonts/cormorant-garamond";
 import {
-  Jost_400Regular,
-  Jost_500Medium,
-  Jost_600SemiBold,
-  Jost_700Bold
+    Jost_400Regular,
+    Jost_500Medium,
+    Jost_600SemiBold,
+    Jost_700Bold
 } from "@expo-google-fonts/jost";
 import * as Linking from "expo-linking";
 import { router, Stack } from "expo-router";
@@ -17,9 +17,9 @@ import * as SplashScreen from "expo-splash-screen";
 import React from "react";
 import { Platform, StatusBar } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { handleAuthCallbackUrl } from "../lib/auth/handleAuthCallbackUrl";
 import { ThemeProvider, useTheme } from "../lib/contexts/ThemeContext";
 import { ToastProvider } from "../lib/contexts/ToastContext";
-import { handleAuthCallbackUrl } from "../lib/auth/handleAuthCallbackUrl";
 import { useHomesSubscriptionManager } from "../lib/services/homesSubscriptionManager";
 
 // Keep the splash screen visible while we fetch resources

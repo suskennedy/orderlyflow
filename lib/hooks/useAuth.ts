@@ -3,9 +3,8 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { UserProfile } from '../../types/database';
 import {
-  resetPassword as resetPasswordAction,
-  signOut as serverSignOut,
-  signUp as signUpAction,
+    resetPassword as resetPasswordAction,
+    signOut as serverSignOut
 } from '../auth/actions';
 import { supabase } from '../supabase';
 

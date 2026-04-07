@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
 import * as Linking from 'expo-linking';
+import { router } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { handleAuthCallbackUrl } from '../../../lib/auth/handleAuthCallbackUrl';

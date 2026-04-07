@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
-import { getEmailConfirmationRedirectUrl } from './handleAuthCallbackUrl';
 import { supabase } from '../supabase';
+import { getEmailConfirmationRedirectUrl } from './handleAuthCallbackUrl';
 
 export async function signUp(email: string, password: string, fullName: string) {
   // Generate additional user metadata
