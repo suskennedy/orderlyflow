@@ -1,4 +1,5 @@
 import * as Linking from 'expo-linking';
+import { getEmailConfirmationRedirectUrl } from './handleAuthCallbackUrl';
 import { supabase } from '../supabase';
 
 export async function signUp(email: string, password: string, fullName: string) {
@@ -10,6 +11,7 @@ export async function signUp(email: string, password: string, fullName: string) 
     email,
     password,
     options: {
+      emailRedirectTo: getEmailConfirmationRedirectUrl(),
       data: {
         full_name: fullName,
         user_name: userName,

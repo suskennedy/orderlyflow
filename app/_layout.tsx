@@ -19,8 +19,8 @@ import { Platform, StatusBar } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { ThemeProvider, useTheme } from "../lib/contexts/ThemeContext";
 import { ToastProvider } from "../lib/contexts/ToastContext";
+import { handleAuthCallbackUrl } from "../lib/auth/handleAuthCallbackUrl";
 import { useHomesSubscriptionManager } from "../lib/services/homesSubscriptionManager";
-import { supabase } from "../lib/supabase";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -30,32 +30,26 @@ function AppContent() {
   // Set up homes real-time subscriptions
   useHomesSubscriptionManager();
 
-  // Handle password-recovery deep links (cold start + warm open)
-  const handlePasswordRecoveryUrl = React.useCallback(async (url: string) => {
-    if (!url.includes('type=recovery') && !url.includes('reset-password')) return;
-    // Tokens arrive in the URL fragment: #access_token=xxx&refresh_token=yyy&type=recovery
-    const hash = url.split('#')[1] ?? url.split('?')[1] ?? '';
-    const params = Object.fromEntries(new URLSearchParams(hash));
-    if (params.access_token && params.refresh_token) {
-      const { error } = await supabase.auth.setSession({
-        access_token: params.access_token,
-        refresh_token: params.refresh_token,
-      });
-      if (!error) {
-        router.replace('/(auth)/reset-password' as any);
-      }
+  const handleAuthDeepLink = React.useCallback(async (url: string | null) => {
+    if (!url) return;
+    const result = await handleAuthCallbackUrl(url);
+    if (!result.handled) return;
+    if (result.kind === 'recovery') {
+      router.replace('/(auth)/reset-password' as any);
+    } else {
+      router.replace('/(tabs)/(dashboard)' as any);
     }
   }, []);
 
   React.useEffect(() => {
-    // Cold start: app was closed when user tapped the link
     Linking.getInitialURL().then((url) => {
-      if (url) handlePasswordRecoveryUrl(url);
+      void handleAuthDeepLink(url);
     });
-    // Warm open: app was in background
-    const sub = Linking.addEventListener('url', ({ url }) => handlePasswordRecoveryUrl(url));
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      void handleAuthDeepLink(url);
+    });
     return () => sub.remove();
-  }, [handlePasswordRecoveryUrl]);
+  }, [handleAuthDeepLink]);
 
   const [fontsLoaded, fontError] = useFonts({
     CormorantGaramond_400Regular,

@@ -2,7 +2,11 @@ import { Session, User } from '@supabase/supabase-js';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { UserProfile } from '../../types/database';
-import { signOut as serverSignOut } from '../auth/actions';
+import {
+  resetPassword as resetPasswordAction,
+  signOut as serverSignOut,
+  signUp as signUpAction,
+} from '../auth/actions';
 import { supabase } from '../supabase';
 
 export function useAuth() {
@@ -148,8 +152,8 @@ export function useAuth() {
 
   const resetPassword = async (email: string) => {
     try {
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email);
-      return { data, error };
+      const data = await resetPasswordAction(email);
+      return { data, error: null };
     } catch (error) {
       return { data: null, error };
     }

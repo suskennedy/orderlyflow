@@ -7,6 +7,8 @@ export default function AuthLayout() {
     <BaseStackLayout headerShown={false}>
       <Stack.Screen name="signin" />
       <Stack.Screen name="forgot-password" />
+      <Stack.Screen name="reset-password" />
+      <Stack.Screen name="auth/callback" />
     </BaseStackLayout>
   );
 }
